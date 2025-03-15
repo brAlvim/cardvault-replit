@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import FornecedorSummaryTable from '@/components/fornecedor-summary-table';
 
 export default function Dashboard() {
   const [selectedFornecedor, setSelectedFornecedor] = useState<string | null>(null);
@@ -138,23 +139,30 @@ export default function Dashboard() {
       {/* Main Content Layout */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         {/* Gift Cards Por Fornecedor */}
-        <Card className="col-span-12 md:col-span-8">
+        <Card className="col-span-12">
           <CardHeader>
             <CardTitle className="text-lg">Gift Cards por Fornecedor</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-[200px] flex items-center justify-center">
-              <BarChart3 className="h-24 w-24 text-muted-foreground/50" />
-              <div className="ml-4 text-sm text-muted-foreground">
-                <p>Gráfico de distribuição</p>
-                <p>de Gift Cards por Fornecedor</p>
+            {isLoadingGiftCards || isLoadingFornecedores ? (
+              <div className="h-[300px] flex items-center justify-center">
+                <p className="text-muted-foreground">Carregando dados...</p>
               </div>
-            </div>
+            ) : giftCards && fornecedores ? (
+              <FornecedorSummaryTable 
+                giftCards={giftCards} 
+                fornecedores={fornecedores} 
+              />
+            ) : (
+              <div className="h-[300px] flex items-center justify-center">
+                <p className="text-muted-foreground">Nenhum dado disponível</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
         {/* Saldo Disponível */}
-        <Card className="col-span-12 md:col-span-4">
+        <Card className="col-span-12 md:col-span-6 lg:col-span-4">
           <CardHeader>
             <CardTitle className="text-lg">Saldo Disponível</CardTitle>
           </CardHeader>
