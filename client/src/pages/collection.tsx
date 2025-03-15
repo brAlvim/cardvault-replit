@@ -132,7 +132,7 @@ export default function CollectionPage({ params }: CollectionPageProps) {
               <p className="text-xl font-bold text-slate-800">{totalCards}</p>
             </div>
             <div className="p-3 bg-blue-100 rounded-full">
-              <LayerGroup className="h-5 w-5 text-primary" />
+              <Layers className="h-5 w-5 text-primary" />
             </div>
           </div>
         </div>
