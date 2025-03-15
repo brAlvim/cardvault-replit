@@ -73,7 +73,7 @@ export default function Dashboard() {
       {/* Page Header */}
       <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between">
         <h1 className="text-2xl font-bold text-slate-800">Dashboard</h1>
-        <div className="mt-4 md:mt-0">
+        <div className="mt-4 md:mt-0 flex space-x-2">
           <Button 
             variant="default" 
             size="sm"
@@ -81,6 +81,14 @@ export default function Dashboard() {
           >
             <CreditCard className="mr-2 h-4 w-4" />
             Novo Gift Card
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => window.location.href = "/transacoes/new"}
+          >
+            <Receipt className="mr-2 h-4 w-4" />
+            Nova Transação
           </Button>
         </div>
       </div>
