@@ -357,11 +357,11 @@ export class MemStorage implements IStorage {
     this.transacoes.set(id, newTransacao);
     
     // Atualiza o saldo do gift card se a transação for concluída
-    if (transacao.status === "concluida") {
+    if (transacao.status === "Concluída") {
       const giftCard = this.giftCards.get(transacao.giftCardId);
       if (giftCard) {
-        const novoSaldo = giftCard.saldoAtual - transacao.valor;
-        const status = novoSaldo <= 0 ? "zerado" : giftCard.status;
+        const novoSaldo = Math.max(0, giftCard.saldoAtual - transacao.valor);
+        const status = novoSaldo <= 0 ? "Zerado" : "Ativo";
         this.updateGiftCard(giftCard.id, { saldoAtual: novoSaldo, status });
       }
     }
