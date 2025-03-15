@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { Fornecedor, User } from '@shared/schema';
@@ -45,24 +45,51 @@ export default function GiftCardNewPage() {
   const [gcPass, setGcPass] = useState('');
   const [ordemUsado, setOrdemUsado] = useState('');
   
+  // Manipuladores personalizados para atualização de valores
+  const handleValorInicialChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setValorInicial(newValue);
+  };
+  
+  const handleValorPagoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setValorPago(newValue);
+  };
+  
   // Dados do usuário logado
   const { data: userData, isLoading: isLoadingUser } = useQuery<User>({
     queryKey: ['/api/users/1'], // Na aplicação final, seria o ID do usuário logado
     queryFn: () => fetch('/api/users/1').then(res => res.json()),
   });
   
-  // Calcula automaticamente o percentual de desconto
-  const percentualDesconto = useMemo(() => {
-    if (!valorInicial || !valorPago || parseFloat(valorInicial) <= 0) return '0';
-    
-    const valorInicialNum = parseFloat(valorInicial);
-    const valorPagoNum = parseFloat(valorPago);
-    
-    if (valorPagoNum >= valorInicialNum) return '0';
-    
-    const desconto = ((valorInicialNum - valorPagoNum) / valorInicialNum) * 100;
-    console.log('Calculando desconto:', valorInicialNum, valorPagoNum, desconto.toFixed(2));
-    return desconto.toFixed(2);
+  // State para calculos automáticos
+  const [percentualDesconto, setPercentualDesconto] = useState('0');
+  const [valorEconomizado, setValorEconomizado] = useState('R$ 0.00');
+  
+  // Efeito para recalcular quando os valores mudarem
+  useEffect(() => {
+    console.log('Recalculando com:', valorInicial, valorPago);
+    if (valorInicial && valorPago) {
+      const total = parseFloat(valorInicial);
+      const pago = parseFloat(valorPago);
+      
+      if (total > 0 && pago >= 0 && pago < total) {
+        // Calcula o percentual de desconto
+        const descontoCalculado = ((total - pago) / total) * 100;
+        setPercentualDesconto(descontoCalculado.toFixed(2));
+        
+        // Calcula o valor economizado
+        const economizado = total - pago;
+        setValorEconomizado(`R$ ${economizado.toFixed(2)}`);
+        console.log('Valores calculados:', descontoCalculado.toFixed(2), economizado.toFixed(2));
+      } else {
+        setPercentualDesconto('0');
+        setValorEconomizado('R$ 0.00');
+      }
+    } else {
+      setPercentualDesconto('0');
+      setValorEconomizado('R$ 0.00');
+    }
   }, [valorInicial, valorPago]);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -391,7 +418,7 @@ export default function GiftCardNewPage() {
                     id="valorPago" 
                     placeholder="0.00"
                     value={valorPago}
-                    onChange={(e) => setValorPago(e.target.value)}
+                    onChange={handleValorPagoChange}
                     type="number"
                     step="0.01"
                     min="0"
@@ -416,7 +443,7 @@ export default function GiftCardNewPage() {
                   <Label htmlFor="valorEconomizado" className="text-green-600 font-medium">Valor Economizado</Label>
                   <Input 
                     id="valorEconomizado" 
-                    value={valorInicial && valorPago ? `R$ ${(parseFloat(valorInicial) - parseFloat(valorPago || '0')).toFixed(2)}` : 'R$ 0.00'}
+                    value={valorEconomizado}
                     readOnly
                     className="bg-green-50 text-green-700 border-green-200"
                   />
