@@ -106,6 +106,42 @@ export default function GiftCardNewPageFixed() {
       });
       return false;
     }
+    
+    if (!valorPago) {
+      toast({
+        title: "Valor Pago obrigatório",
+        description: "Por favor, informe o valor pago pelo gift card.",
+        variant: "destructive",
+      });
+      return false;
+    }
+    
+    if (!ordemCompra) {
+      toast({
+        title: "Ordem de Compra obrigatória",
+        description: "Por favor, informe o número da ordem de compra.",
+        variant: "destructive",
+      });
+      return false;
+    }
+    
+    if (!gcNumber) {
+      toast({
+        title: "GC Number obrigatório",
+        description: "Por favor, informe o número do gift card.",
+        variant: "destructive",
+      });
+      return false;
+    }
+    
+    if (!gcPass) {
+      toast({
+        title: "GC Pass obrigatório",
+        description: "Por favor, informe a senha do gift card.",
+        variant: "destructive",
+      });
+      return false;
+    }
 
     return true;
   };
@@ -271,7 +307,7 @@ export default function GiftCardNewPageFixed() {
                 {/* Coluna da Esquerda */}
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="valorInicial" className="text-base font-medium">Valor do Gift Card</Label>
+                    <Label htmlFor="valorInicial" className="text-base font-medium">Valor do Gift Card *</Label>
                     <div className="relative">
                       <Input 
                         id="valorInicial" 
@@ -282,6 +318,7 @@ export default function GiftCardNewPageFixed() {
                         step="0.01"
                         min="0"
                         className="pl-8 text-lg font-medium border-blue-200"
+                        required
                       />
                       <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                         <span className="text-primary font-medium">R$</span>
@@ -293,7 +330,7 @@ export default function GiftCardNewPageFixed() {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="valorPago" className="text-base font-medium">Valor Pago</Label>
+                    <Label htmlFor="valorPago" className="text-base font-medium">Valor Pago *</Label>
                     <div className="relative">
                       <Input 
                         id="valorPago" 
@@ -304,6 +341,7 @@ export default function GiftCardNewPageFixed() {
                         step="0.01"
                         min="0"
                         className="pl-8 text-lg font-medium border-green-200"
+                        required
                       />
                       <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                         <span className="text-primary font-medium">R$</span>
@@ -416,12 +454,13 @@ export default function GiftCardNewPageFixed() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div className="space-y-2">
-                  <Label htmlFor="ordemCompra">Ordem de Compra</Label>
+                  <Label htmlFor="ordemCompra">Ordem de Compra *</Label>
                   <Input 
                     id="ordemCompra" 
                     placeholder="Nº da ordem"
                     value={ordemCompra}
                     onChange={(e) => setOrdemCompra(e.target.value)}
+                    required
                   />
                 </div>
               </div>
@@ -448,23 +487,25 @@ export default function GiftCardNewPageFixed() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="gcNumber">GC Number</Label>
+                  <Label htmlFor="gcNumber">GC Number *</Label>
                   <Input 
                     id="gcNumber" 
                     placeholder="Número do gift card"
                     value={gcNumber}
                     onChange={(e) => setGcNumber(e.target.value)}
+                    required
                   />
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="gcPass">GC Pass</Label>
+                  <Label htmlFor="gcPass">GC Pass *</Label>
                   <Input 
                     id="gcPass" 
                     placeholder="Senha do gift card"
                     value={gcPass}
                     onChange={(e) => setGcPass(e.target.value)}
                     type="password"
+                    required
                   />
                 </div>
               </div>
