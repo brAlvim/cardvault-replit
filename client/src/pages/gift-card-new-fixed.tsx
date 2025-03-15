@@ -235,7 +235,7 @@ export default function GiftCardNewPageFixed() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="validade">Data de Validade</Label>
+              <Label htmlFor="dataCompra">Data da Compra</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -243,19 +243,21 @@ export default function GiftCardNewPageFixed() {
                     className="w-full justify-start text-left font-normal"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dataValidade ? format(dataValidade, 'dd/MM/yyyy') : 'Selecione uma data'}
+                    {dataCompra ? format(dataCompra, 'dd/MM/yyyy') : 'Selecione uma data'}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
                   <Calendar
                     mode="single"
-                    selected={dataValidade}
-                    onSelect={setDataValidade}
+                    selected={dataCompra}
+                    onSelect={(date) => date && setDataCompra(date)}
                     initialFocus
-                    disabled={(date) => date < new Date()}
                   />
                 </PopoverContent>
               </Popover>
+              <p className="text-xs text-muted-foreground">
+                Data atual por padrão
+              </p>
             </div>
             
             {/* Seção de cálculo de valor e desconto (prioridade número 1) */}
@@ -385,7 +387,7 @@ export default function GiftCardNewPageFixed() {
               
               <div className="space-y-2 mb-4">
                 <div className="space-y-2">
-                  <Label htmlFor="dataCompra">Data da Compra</Label>
+                  <Label htmlFor="validade">Data de Validade</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -393,20 +395,21 @@ export default function GiftCardNewPageFixed() {
                         className="w-full justify-start text-left font-normal"
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dataCompra ? format(dataCompra, 'dd/MM/yyyy') : 'Selecione uma data'}
+                        {dataValidade ? format(dataValidade, 'dd/MM/yyyy') : 'Selecione uma data'}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
                       <Calendar
                         mode="single"
-                        selected={dataCompra}
-                        onSelect={(date) => date && setDataCompra(date)}
+                        selected={dataValidade}
+                        onSelect={setDataValidade}
                         initialFocus
+                        disabled={(date) => date < new Date()}
                       />
                     </PopoverContent>
                   </Popover>
                   <p className="text-xs text-muted-foreground">
-                    Data atual por padrão
+                    Data em que o gift card expira
                   </p>
                 </div>
               </div>
