@@ -40,7 +40,7 @@ export default function GiftCardNewPageFixed() {
   const [dataCompra, setDataCompra] = useState<Date>(new Date()); // Data atual como padrão
   const [ordemCompra, setOrdemCompra] = useState('');
   const [valorPago, setValorPago] = useState('');
-  const [valorPendente, setValorPendente] = useState('');
+  // O valor pendente agora é calculado automaticamente (não é mais um estado)
   const [gcNumber, setGcNumber] = useState('');
   const [gcPass, setGcPass] = useState('');
   const [ordemUsado, setOrdemUsado] = useState('');
@@ -154,7 +154,7 @@ export default function GiftCardNewPageFixed() {
           ordemCompra: ordemCompra.trim() || null,
           percentualDesconto: parseFloat(percentualDesconto),
           valorPago: valorPago ? parseFloat(valorPago) : null,
-          valorPendente: valorPendente ? parseFloat(valorPendente) : null,
+          valorPendente: parseFloat(valorInicial), // Inicialmente, o valor pendente é igual ao valor inicial
           gcNumber: gcNumber.trim() || null,
           gcPass: gcPass.trim() || null,
           ordemUsado: ordemUsado.trim() || null,
@@ -473,15 +473,22 @@ export default function GiftCardNewPageFixed() {
               
               <div className="space-y-2 mb-4">
                 <Label htmlFor="valorPendente">Valor Pendente</Label>
-                <Input 
-                  id="valorPendente" 
-                  placeholder="0.00"
-                  value={valorPendente}
-                  onChange={(e) => setValorPendente(e.target.value)}
-                  type="number"
-                  step="0.01"
-                  min="0"
-                />
+                <div className="relative">
+                  <Input 
+                    id="valorPendente" 
+                    placeholder="0.00"
+                    value={valorInicial} // Inicialmente igual ao valor inicial
+                    readOnly
+                    disabled
+                    className="pl-8 bg-slate-50"
+                  />
+                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <span className="text-muted-foreground">R$</span>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  O valor pendente é atualizado automaticamente com base nas transações realizadas
+                </p>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
