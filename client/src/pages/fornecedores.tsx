@@ -93,14 +93,14 @@ export default function FornecedoresPage() {
     isLoading: isLoadingFornecedores,
     error: fornecedoresError,
   } = useQuery<Fornecedor[]>({
-    queryKey: ["/api/fornecedores", user?.id],
-    enabled: !!user?.id,
+    queryKey: [`/api/fornecedores?userId=${user?.id || 1}`],
+    enabled: !!user,
   });
 
   // Buscar gift cards para contar quantos existem por fornecedor
   const { data: giftCards = [] } = useQuery<any[]>({
-    queryKey: ["/api/gift-cards", user?.id],
-    enabled: !!user?.id,
+    queryKey: [`/api/gift-cards?userId=${user?.id || 1}`],
+    enabled: !!user,
   });
 
   // Contar número de gift cards por fornecedor
@@ -166,7 +166,7 @@ export default function FornecedoresPage() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/fornecedores"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/fornecedores?userId=${user?.id || 1}`] });
       toast({
         title: "Fornecedor criado com sucesso",
         description: "O novo fornecedor foi adicionado ao sistema.",
@@ -195,7 +195,7 @@ export default function FornecedoresPage() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/fornecedores"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/fornecedores?userId=${user?.id || 1}`] });
       toast({
         title: "Fornecedor atualizado com sucesso",
         description: "As informações do fornecedor foram atualizadas.",
@@ -221,7 +221,7 @@ export default function FornecedoresPage() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/fornecedores"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/fornecedores?userId=${user?.id || 1}`] });
       toast({
         title: "Fornecedor excluído com sucesso",
         description: "O fornecedor foi removido do sistema.",
