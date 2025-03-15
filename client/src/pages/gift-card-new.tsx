@@ -242,7 +242,7 @@ export default function GiftCardNewPage() {
                   id="valor" 
                   placeholder="0.00"
                   value={valorInicial}
-                  onChange={(e) => setValorInicial(e.target.value)}
+                  onChange={handleValorInicialChange}
                   required
                   type="number"
                   step="0.01"

@@ -9,6 +9,7 @@ import Collection from "@/pages/collection";
 import GiftCards from "@/pages/gift-cards";
 import GiftCardDetails from "@/pages/gift-card-details";
 import GiftCardNew from "@/pages/gift-card-new";
+import CalculadoraSimples from "@/pages/CalculadoraSimples";
 
 function Router() {
   return (
@@ -19,6 +20,7 @@ function Router() {
       <Route path="/gift-cards" component={GiftCards} />
       <Route path="/gift-cards/new" component={GiftCardNew} />
       <Route path="/gift-cards/:id" component={GiftCardDetails} />
+      <Route path="/calculadora" component={CalculadoraSimples} />
       <Route component={NotFound} />
     </Switch>
   );
