@@ -113,7 +113,7 @@ export default function GiftCardDetailsPage() {
           valor: valorTransacao,
           descricao: newTransactionDescription,
           dataTransacao: new Date(),
-          status: 'Concluída',
+          status: "Concluída",
         }),
       });
 

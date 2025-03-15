@@ -171,7 +171,7 @@ export class MemStorage implements IStorage {
                 descricao: "Compra de livros",
                 userId: user.id,
                 dataTransacao: twoWeeksAgo,
-                status: "concluida"
+                status: "Concluída"
               },
               {
                 giftCardId: giftCardInstances[1].id, // Netflix GC
@@ -179,7 +179,7 @@ export class MemStorage implements IStorage {
                 descricao: "Assinatura anual",
                 userId: user.id,
                 dataTransacao: oneWeekAgo,
-                status: "concluida"
+                status: "Concluída"
               },
               {
                 giftCardId: giftCardInstances[3].id, // Steam GC
@@ -187,7 +187,7 @@ export class MemStorage implements IStorage {
                 descricao: "Compra de jogo novo",
                 userId: user.id,
                 dataTransacao: new Date(),
-                status: "concluida"
+                status: "Concluída"
               }
             ];
 
@@ -383,15 +383,15 @@ export class MemStorage implements IStorage {
         let novoSaldo = giftCard.saldoAtual;
         
         // Se mudou de não-concluída para concluída
-        if (transacao.status !== "concluida" && transacaoData.status === "concluida") {
-          novoSaldo = giftCard.saldoAtual - transacao.valor;
+        if (transacao.status !== "Concluída" && transacaoData.status === "Concluída") {
+          novoSaldo = Math.max(0, giftCard.saldoAtual - transacao.valor);
         }
         // Se mudou de concluída para cancelada
-        else if (transacao.status === "concluida" && transacaoData.status === "cancelada") {
+        else if (transacao.status === "Concluída" && transacaoData.status === "Cancelada") {
           novoSaldo = giftCard.saldoAtual + transacao.valor;
         }
         
-        const status = novoSaldo <= 0 ? "zerado" : "ativo";
+        const status = novoSaldo <= 0 ? "Zerado" : "Ativo";
         this.updateGiftCard(giftCard.id, { saldoAtual: novoSaldo, status });
       }
     }
@@ -402,12 +402,12 @@ export class MemStorage implements IStorage {
   async deleteTransacao(id: number): Promise<boolean> {
     // Não deveria apagar transações, apenas marcar como canceladas
     const transacao = this.transacoes.get(id);
-    if (transacao && transacao.status === "concluida") {
+    if (transacao && transacao.status === "Concluída") {
       // Se estiver deletando uma transação concluída, devolve o saldo para o gift card
       const giftCard = this.giftCards.get(transacao.giftCardId);
       if (giftCard) {
         const novoSaldo = giftCard.saldoAtual + transacao.valor;
-        const status = "ativo"; // Se está devolvendo valor, sempre volta a ficar ativo
+        const status = "Ativo"; // Se está devolvendo valor, sempre volta a ficar ativo
         this.updateGiftCard(giftCard.id, { saldoAtual: novoSaldo, status });
       }
     }
