@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -12,45 +12,56 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Card schema
-export const cards = pgTable("cards", {
+// Fornecedor schema (replaces collections)
+export const fornecedores = pgTable("fornecedores", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  imageUrl: text("image_url").notNull(),
-  rarity: text("rarity").notNull(),
-  setName: text("set_name").notNull(),
-  setNumber: text("set_number").notNull(),
-  price: doublePrecision("price").notNull(),
-  condition: text("condition").default("Near Mint"),
-  description: text("description"),
-  notes: text("notes"),
-  purchasePrice: doublePrecision("purchase_price"),
-  purchaseDate: timestamp("purchase_date"),
-  isFavorite: boolean("is_favorite").default(false),
-  collectionId: integer("collection_id").notNull(),
+  nome: text("nome").notNull(),
+  descricao: text("descricao"),
+  website: text("website"),
+  logo: text("logo"),
+  status: text("status").default("ativo").notNull(), // 'ativo', 'inativo'
   userId: integer("user_id").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Collection schema
-export const collections = pgTable("collections", {
+// Gift Card schema (replaces cards)
+export const giftCards = pgTable("gift_cards", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  description: text("description"),
+  codigo: text("codigo").notNull(),
+  valorInicial: doublePrecision("valor_inicial").notNull(),
+  saldoAtual: doublePrecision("saldo_atual").notNull(),
+  dataValidade: timestamp("data_validade"), // Alterado de date para timestamp
+  status: text("status").default("ativo").notNull(), // 'ativo', 'expirado', 'zerado'
+  fornecedorId: integer("fornecedor_id").notNull(),
   userId: integer("user_id").notNull(),
+  observacoes: text("observacoes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+});
+
+// Transações schema (nova tabela)
+export const transacoes = pgTable("transacoes", {
+  id: serial("id").primaryKey(),
+  giftCardId: integer("gift_card_id").notNull(),
+  valor: doublePrecision("valor").notNull(),
+  descricao: text("descricao").notNull(),
+  userId: integer("user_id").notNull(),
+  dataTransacao: timestamp("data_transacao").defaultNow().notNull(),
+  comprovante: text("comprovante"),
+  status: text("status").default("concluida").notNull(), // 'concluida', 'pendente', 'cancelada'
+  motivoCancelamento: text("motivo_cancelamento"),
 });
 
 // Tag schema
 export const tags = pgTable("tags", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull(),
+  nome: text("nome").notNull(),
 });
 
-// Card tags relationship
-export const cardTags = pgTable("card_tags", {
+// Gift Card tags relationship
+export const giftCardTags = pgTable("gift_card_tags", {
   id: serial("id").primaryKey(),
-  cardId: integer("card_id").notNull(),
+  giftCardId: integer("gift_card_id").notNull(),
   tagId: integer("tag_id").notNull(),
 });
 
@@ -60,21 +71,26 @@ export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
 });
 
-export const insertCardSchema = createInsertSchema(cards).omit({
+export const insertFornecedorSchema = createInsertSchema(fornecedores).omit({
   id: true,
   createdAt: true,
 });
 
-export const insertCollectionSchema = createInsertSchema(collections).omit({
+export const insertGiftCardSchema = createInsertSchema(giftCards).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
+});
+
+export const insertTransacaoSchema = createInsertSchema(transacoes).omit({
+  id: true,
 });
 
 export const insertTagSchema = createInsertSchema(tags).omit({
   id: true
 });
 
-export const insertCardTagSchema = createInsertSchema(cardTags).omit({
+export const insertGiftCardTagSchema = createInsertSchema(giftCardTags).omit({
   id: true
 });
 
@@ -82,14 +98,17 @@ export const insertCardTagSchema = createInsertSchema(cardTags).omit({
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 
-export type Card = typeof cards.$inferSelect;
-export type InsertCard = z.infer<typeof insertCardSchema>;
+export type Fornecedor = typeof fornecedores.$inferSelect;
+export type InsertFornecedor = z.infer<typeof insertFornecedorSchema>;
 
-export type Collection = typeof collections.$inferSelect;
-export type InsertCollection = z.infer<typeof insertCollectionSchema>;
+export type GiftCard = typeof giftCards.$inferSelect;
+export type InsertGiftCard = z.infer<typeof insertGiftCardSchema>;
+
+export type Transacao = typeof transacoes.$inferSelect;
+export type InsertTransacao = z.infer<typeof insertTransacaoSchema>;
 
 export type Tag = typeof tags.$inferSelect;
 export type InsertTag = z.infer<typeof insertTagSchema>;
 
-export type CardTag = typeof cardTags.$inferSelect;
-export type InsertCardTag = z.infer<typeof insertCardTagSchema>;
+export type GiftCardTag = typeof giftCardTags.$inferSelect;
+export type InsertGiftCardTag = z.infer<typeof insertGiftCardTagSchema>;

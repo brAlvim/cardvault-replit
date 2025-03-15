@@ -1,10 +1,11 @@
 import {
-  users, collections, cards, tags, cardTags,
+  users, fornecedores, giftCards, transacoes, tags, giftCardTags,
   type User, type InsertUser,
-  type Collection, type InsertCollection,
-  type Card, type InsertCard,
+  type Fornecedor, type InsertFornecedor,
+  type GiftCard, type InsertGiftCard,
+  type Transacao, type InsertTransacao,
   type Tag, type InsertTag,
-  type CardTag, type InsertCardTag
+  type GiftCardTag, type InsertGiftCardTag
 } from "@shared/schema";
 
 export interface IStorage {
@@ -13,59 +14,70 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
 
-  // Collection methods
-  getCollections(userId: number): Promise<Collection[]>;
-  getCollection(id: number): Promise<Collection | undefined>;
-  createCollection(collection: InsertCollection): Promise<Collection>;
-  updateCollection(id: number, collection: Partial<InsertCollection>): Promise<Collection | undefined>;
-  deleteCollection(id: number): Promise<boolean>;
+  // Fornecedor methods (substitui Collection)
+  getFornecedores(userId: number): Promise<Fornecedor[]>;
+  getFornecedor(id: number): Promise<Fornecedor | undefined>;
+  createFornecedor(fornecedor: InsertFornecedor): Promise<Fornecedor>;
+  updateFornecedor(id: number, fornecedor: Partial<InsertFornecedor>): Promise<Fornecedor | undefined>;
+  deleteFornecedor(id: number): Promise<boolean>;
 
-  // Card methods
-  getCards(userId: number, collectionId?: number): Promise<Card[]>;
-  getCard(id: number): Promise<Card | undefined>;
-  createCard(card: InsertCard): Promise<Card>;
-  updateCard(id: number, card: Partial<InsertCard>): Promise<Card | undefined>;
-  deleteCard(id: number): Promise<boolean>;
-  getFavoriteCards(userId: number): Promise<Card[]>;
-  getCardsByTag(tagId: number): Promise<Card[]>;
-  searchCards(userId: number, searchTerm: string): Promise<Card[]>;
+  // Gift Card methods (substitui Card)
+  getGiftCards(userId: number, fornecedorId?: number): Promise<GiftCard[]>;
+  getGiftCard(id: number): Promise<GiftCard | undefined>;
+  createGiftCard(giftCard: InsertGiftCard): Promise<GiftCard>;
+  updateGiftCard(id: number, giftCard: Partial<InsertGiftCard>): Promise<GiftCard | undefined>;
+  deleteGiftCard(id: number): Promise<boolean>;
+  getGiftCardsVencimento(userId: number, dias: number): Promise<GiftCard[]>;
+  getGiftCardsByTag(tagId: number): Promise<GiftCard[]>;
+  searchGiftCards(userId: number, searchTerm: string): Promise<GiftCard[]>;
+
+  // Transação methods (novo)
+  getTransacoes(giftCardId: number): Promise<Transacao[]>;
+  getTransacao(id: number): Promise<Transacao | undefined>;
+  createTransacao(transacao: InsertTransacao): Promise<Transacao>;
+  updateTransacao(id: number, transacao: Partial<InsertTransacao>): Promise<Transacao | undefined>;
+  deleteTransacao(id: number): Promise<boolean>;
 
   // Tag methods
   getTags(): Promise<Tag[]>;
   getTag(id: number): Promise<Tag | undefined>;
   createTag(tag: InsertTag): Promise<Tag>;
   
-  // Card Tag methods
-  addTagToCard(cardId: number, tagId: number): Promise<CardTag>;
-  removeTagFromCard(cardId: number, tagId: number): Promise<boolean>;
-  getCardTags(cardId: number): Promise<Tag[]>;
+  // Gift Card Tag methods
+  addTagToGiftCard(giftCardId: number, tagId: number): Promise<GiftCardTag>;
+  removeTagFromGiftCard(giftCardId: number, tagId: number): Promise<boolean>;
+  getGiftCardTags(giftCardId: number): Promise<Tag[]>;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<number, User>;
-  private collections: Map<number, Collection>;
-  private cards: Map<number, Card>;
+  private fornecedores: Map<number, Fornecedor>;
+  private giftCards: Map<number, GiftCard>;
+  private transacoes: Map<number, Transacao>;
   private tags: Map<number, Tag>;
-  private cardTags: Map<number, CardTag>;
+  private giftCardTags: Map<number, GiftCardTag>;
   
   private userId: number;
-  private collectionId: number;
-  private cardId: number;
+  private fornecedorId: number;
+  private giftCardId: number;
+  private transacaoId: number;
   private tagId: number;
-  private cardTagId: number;
+  private giftCardTagId: number;
 
   constructor() {
     this.users = new Map();
-    this.collections = new Map();
-    this.cards = new Map();
+    this.fornecedores = new Map();
+    this.giftCards = new Map();
+    this.transacoes = new Map();
     this.tags = new Map();
-    this.cardTags = new Map();
+    this.giftCardTags = new Map();
     
     this.userId = 1;
-    this.collectionId = 1;
-    this.cardId = 1;
+    this.fornecedorId = 1;
+    this.giftCardId = 1;
+    this.transacaoId = 1;
     this.tagId = 1;
-    this.cardTagId = 1;
+    this.giftCardTagId = 1;
     
     // Initialize with demo data
     this.initializeDemoData();
@@ -79,140 +91,126 @@ export class MemStorage implements IStorage {
       email: "demo@example.com",
       avatarUrl: "https://i.pravatar.cc/40?img=68"
     };
-    const user = this.createUser(demoUser);
+    this.createUser(demoUser).then(user => {
+      // Fornecedores (anteriormente collections)
+      const fornecedores: InsertFornecedor[] = [
+        { nome: "Amazon", descricao: "Gift Cards da Amazon", website: "https://www.amazon.com", logo: "https://logo.clearbit.com/amazon.com", status: "ativo", userId: user.id },
+        { nome: "Netflix", descricao: "Gift Cards para assinatura Netflix", website: "https://www.netflix.com", logo: "https://logo.clearbit.com/netflix.com", status: "ativo", userId: user.id },
+        { nome: "Spotify", descricao: "Gift Cards para assinatura Spotify", website: "https://www.spotify.com", logo: "https://logo.clearbit.com/spotify.com", status: "ativo", userId: user.id },
+        { nome: "Steam", descricao: "Gift Cards para compras na Steam", website: "https://store.steampowered.com", logo: "https://logo.clearbit.com/steampowered.com", status: "ativo", userId: user.id }
+      ];
+      
+      Promise.all(fornecedores.map(f => this.createFornecedor(f))).then(fornecedorInstances => {
+        // Create tags
+        const tagNames = ["Entretenimento", "Música", "Jogos", "Compras Online", "Streaming", "Presente", "Expirado", "Mensal"];
+        Promise.all(tagNames.map(nome => this.createTag({ nome }))).then(tagInstances => {
 
-    // Create collections
-    const collections = [
-      { name: "Pokémon TCG", description: "Pokémon Trading Card Game collection", userId: user.id },
-      { name: "Magic: The Gathering", description: "Magic: The Gathering card collection", userId: user.id },
-      { name: "Yu-Gi-Oh!", description: "Yu-Gi-Oh! card collection", userId: user.id }
-    ];
-    
-    const collectionInstances = collections.map(c => this.createCollection(c));
+          // Gift Cards (anteriormente cards)
+          const today = new Date();
+          const oneMonthFromNow = new Date(today);
+          oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
+          
+          const threeMonthsFromNow = new Date(today);
+          threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3);
+          
+          const demoGiftCards: InsertGiftCard[] = [
+            {
+              codigo: "GC001",
+              valorInicial: 100.00,
+              saldoAtual: 75.00,
+              dataValidade: oneMonthFromNow,
+              status: "ativo",
+              fornecedorId: fornecedorInstances[0].id, // Amazon
+              userId: user.id,
+              observacoes: "Gift card para compras de livros"
+            },
+            {
+              codigo: "GC002",
+              valorInicial: 50.00,
+              saldoAtual: 0.00,
+              dataValidade: threeMonthsFromNow,
+              status: "zerado",
+              fornecedorId: fornecedorInstances[1].id, // Netflix
+              userId: user.id,
+              observacoes: "Gift card para renovação da assinatura"
+            },
+            {
+              codigo: "GC003",
+              valorInicial: 25.00,
+              saldoAtual: 25.00,
+              dataValidade: threeMonthsFromNow,
+              status: "ativo",
+              fornecedorId: fornecedorInstances[2].id, // Spotify
+              userId: user.id,
+              observacoes: "Gift card para assinatura premium"
+            },
+            {
+              codigo: "GC004",
+              valorInicial: 200.00,
+              saldoAtual: 150.00,
+              dataValidade: threeMonthsFromNow,
+              status: "ativo",
+              fornecedorId: fornecedorInstances[3].id, // Steam
+              userId: user.id,
+              observacoes: "Gift card para as compras da Steam Summer Sale"
+            }
+          ];
 
-    // Create tags
-    const tagNames = ["Rare", "Common", "Foil", "Pokémon", "Fire", "Water", "Magic", "Yu-Gi-Oh", "Favorite", "Mythic"];
-    const tagInstances = tagNames.map(name => this.createTag({ name }));
+          Promise.all(demoGiftCards.map(giftCard => this.createGiftCard(giftCard))).then(giftCardInstances => {
+            // Transações
+            const twoWeeksAgo = new Date(today);
+            twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+            
+            const oneWeekAgo = new Date(today);
+            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
-    // Create some cards
-    const demoCards: InsertCard[] = [
-      {
-        name: "Pikachu V",
-        imageUrl: "https://images.unsplash.com/photo-1628694647734-bf4aedeede1e?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80",
-        rarity: "Rare",
-        setName: "Vivid Voltage",
-        setNumber: "#43/185",
-        price: 12.99,
-        condition: "Near Mint",
-        description: "Electric-type Pokémon with the V mechanic.",
-        purchasePrice: 10.00,
-        purchaseDate: new Date("2023-01-15"),
-        isFavorite: false,
-        collectionId: collectionInstances[0].id,
-        userId: user.id
-      },
-      {
-        name: "Charizard GX",
-        imageUrl: "https://images.unsplash.com/photo-1607686204117-6774de20fc21?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80",
-        rarity: "Ultra Rare",
-        setName: "Hidden Fates",
-        setNumber: "#9/68",
-        price: 89.99,
-        condition: "Near Mint",
-        description: "Stage 2 Pokémon. Evolves from Charmeleon. This Fire/Dragon type Pokémon features the GX mechanic from the Sun & Moon era.",
-        notes: "Purchased at local card shop. Considering getting it graded by PSA.",
-        purchasePrice: 65.00,
-        purchaseDate: new Date("2023-01-15"),
-        isFavorite: true,
-        collectionId: collectionInstances[0].id,
-        userId: user.id
-      },
-      {
-        name: "Jace, the Mind Sculptor",
-        imageUrl: "https://images.unsplash.com/photo-1627627256672-027a4613d028?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80",
-        rarity: "Mythic Rare",
-        setName: "Worldwake",
-        setNumber: "#31/145",
-        price: 124.50,
-        condition: "Near Mint",
-        description: "Legendary planeswalker with powerful card advantage abilities.",
-        purchasePrice: 100.00,
-        purchaseDate: new Date("2022-11-10"),
-        isFavorite: false,
-        collectionId: collectionInstances[1].id,
-        userId: user.id
-      },
-      {
-        name: "Blue-Eyes White Dragon",
-        imageUrl: "https://images.unsplash.com/photo-1627627256634-a0856ffaa5df?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80",
-        rarity: "Ultra Rare",
-        setName: "Legend of Blue Eyes",
-        setNumber: "#001",
-        price: 75.00,
-        condition: "Lightly Played",
-        description: "Legendary dragon with 3000 ATK and 2500 DEF.",
-        purchasePrice: 60.00,
-        purchaseDate: new Date("2022-12-20"),
-        isFavorite: false,
-        collectionId: collectionInstances[2].id,
-        userId: user.id
-      },
-      {
-        name: "Mewtwo EX",
-        imageUrl: "https://images.unsplash.com/photo-1607686204116-11ad8f92eabd?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80",
-        rarity: "Rare",
-        setName: "XY Breakthrough",
-        setNumber: "#62/162",
-        price: 22.50,
-        condition: "Near Mint",
-        description: "Powerful Psychic-type Pokémon with the EX mechanic.",
-        purchasePrice: 18.00,
-        purchaseDate: new Date("2023-02-05"),
-        isFavorite: false,
-        collectionId: collectionInstances[0].id,
-        userId: user.id
-      },
-      {
-        name: "Black Lotus",
-        imageUrl: "https://images.unsplash.com/photo-1607686204109-e34e13f8e97d?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80",
-        rarity: "Power Nine",
-        setName: "Alpha",
-        setNumber: "#232",
-        price: 150000.00,
-        condition: "Good",
-        description: "The most valuable Magic: The Gathering card ever printed.",
-        notes: "The crown jewel of my collection. Kept in a protective case.",
-        purchasePrice: 120000.00,
-        purchaseDate: new Date("2020-06-15"),
-        isFavorite: true,
-        collectionId: collectionInstances[1].id,
-        userId: user.id
-      }
-    ];
+            const demoTransacoes: InsertTransacao[] = [
+              {
+                giftCardId: giftCardInstances[0].id, // Amazon GC
+                valor: 25.00,
+                descricao: "Compra de livros",
+                userId: user.id,
+                dataTransacao: twoWeeksAgo,
+                status: "concluida"
+              },
+              {
+                giftCardId: giftCardInstances[1].id, // Netflix GC
+                valor: 50.00,
+                descricao: "Assinatura anual",
+                userId: user.id,
+                dataTransacao: oneWeekAgo,
+                status: "concluida"
+              },
+              {
+                giftCardId: giftCardInstances[3].id, // Steam GC
+                valor: 50.00,
+                descricao: "Compra de jogo novo",
+                userId: user.id,
+                dataTransacao: new Date(),
+                status: "concluida"
+              }
+            ];
 
-    const cardInstances = demoCards.map(card => this.createCard(card));
-
-    // Add tags to cards
-    this.addTagToCard(cardInstances[0].id, tagInstances[0].id); // Pikachu - Rare
-    this.addTagToCard(cardInstances[0].id, tagInstances[3].id); // Pikachu - Pokémon
-    
-    this.addTagToCard(cardInstances[1].id, tagInstances[0].id); // Charizard - Rare
-    this.addTagToCard(cardInstances[1].id, tagInstances[3].id); // Charizard - Pokémon
-    this.addTagToCard(cardInstances[1].id, tagInstances[4].id); // Charizard - Fire
-    this.addTagToCard(cardInstances[1].id, tagInstances[8].id); // Charizard - Favorite
-    
-    this.addTagToCard(cardInstances[2].id, tagInstances[9].id); // Jace - Mythic
-    this.addTagToCard(cardInstances[2].id, tagInstances[6].id); // Jace - Magic
-    
-    this.addTagToCard(cardInstances[3].id, tagInstances[0].id); // Blue-Eyes - Rare
-    this.addTagToCard(cardInstances[3].id, tagInstances[7].id); // Blue-Eyes - Yu-Gi-Oh
-    
-    this.addTagToCard(cardInstances[4].id, tagInstances[0].id); // Mewtwo - Rare
-    this.addTagToCard(cardInstances[4].id, tagInstances[3].id); // Mewtwo - Pokémon
-    
-    this.addTagToCard(cardInstances[5].id, tagInstances[0].id); // Black Lotus - Rare
-    this.addTagToCard(cardInstances[5].id, tagInstances[6].id); // Black Lotus - Magic
-    this.addTagToCard(cardInstances[5].id, tagInstances[8].id); // Black Lotus - Favorite
+            Promise.all(demoTransacoes.map(transacao => this.createTransacao(transacao))).then(transacaoInstances => {
+              // Add tags to gift cards
+              this.addTagToGiftCard(giftCardInstances[0].id, tagInstances[3].id); // Amazon - Compras Online
+              this.addTagToGiftCard(giftCardInstances[0].id, tagInstances[5].id); // Amazon - Presente
+              
+              this.addTagToGiftCard(giftCardInstances[1].id, tagInstances[0].id); // Netflix - Entretenimento
+              this.addTagToGiftCard(giftCardInstances[1].id, tagInstances[4].id); // Netflix - Streaming
+              this.addTagToGiftCard(giftCardInstances[1].id, tagInstances[7].id); // Netflix - Mensal
+              
+              this.addTagToGiftCard(giftCardInstances[2].id, tagInstances[1].id); // Spotify - Música
+              this.addTagToGiftCard(giftCardInstances[2].id, tagInstances[4].id); // Spotify - Streaming
+              this.addTagToGiftCard(giftCardInstances[2].id, tagInstances[7].id); // Spotify - Mensal
+              
+              this.addTagToGiftCard(giftCardInstances[3].id, tagInstances[2].id); // Steam - Jogos
+              this.addTagToGiftCard(giftCardInstances[3].id, tagInstances[5].id); // Steam - Presente
+            });
+          });
+        });
+      });
+    });
   }
 
   // User methods
@@ -234,106 +232,186 @@ export class MemStorage implements IStorage {
     return newUser;
   }
 
-  // Collection methods
-  async getCollections(userId: number): Promise<Collection[]> {
-    return Array.from(this.collections.values()).filter(
-      (collection) => collection.userId === userId
+  // Fornecedor methods (substitui Collection)
+  async getFornecedores(userId: number): Promise<Fornecedor[]> {
+    return Array.from(this.fornecedores.values()).filter(
+      (fornecedor) => fornecedor.userId === userId
     );
   }
 
-  async getCollection(id: number): Promise<Collection | undefined> {
-    return this.collections.get(id);
+  async getFornecedor(id: number): Promise<Fornecedor | undefined> {
+    return this.fornecedores.get(id);
   }
 
-  async createCollection(collection: InsertCollection): Promise<Collection> {
-    const id = this.collectionId++;
+  async createFornecedor(fornecedor: InsertFornecedor): Promise<Fornecedor> {
+    const id = this.fornecedorId++;
     const timestamp = new Date();
-    const newCollection = { ...collection, id, createdAt: timestamp };
-    this.collections.set(id, newCollection);
-    return newCollection;
+    const newFornecedor = { ...fornecedor, id, createdAt: timestamp };
+    this.fornecedores.set(id, newFornecedor);
+    return newFornecedor;
   }
 
-  async updateCollection(id: number, collectionData: Partial<InsertCollection>): Promise<Collection | undefined> {
-    const collection = this.collections.get(id);
-    if (!collection) return undefined;
+  async updateFornecedor(id: number, fornecedorData: Partial<InsertFornecedor>): Promise<Fornecedor | undefined> {
+    const fornecedor = this.fornecedores.get(id);
+    if (!fornecedor) return undefined;
     
-    const updatedCollection = { ...collection, ...collectionData };
-    this.collections.set(id, updatedCollection);
-    return updatedCollection;
+    const updatedFornecedor = { ...fornecedor, ...fornecedorData };
+    this.fornecedores.set(id, updatedFornecedor);
+    return updatedFornecedor;
   }
 
-  async deleteCollection(id: number): Promise<boolean> {
-    return this.collections.delete(id);
+  async deleteFornecedor(id: number): Promise<boolean> {
+    return this.fornecedores.delete(id);
   }
 
-  // Card methods
-  async getCards(userId: number, collectionId?: number): Promise<Card[]> {
-    let cards = Array.from(this.cards.values()).filter(
-      (card) => card.userId === userId
+  // Gift Card methods (substitui Card)
+  async getGiftCards(userId: number, fornecedorId?: number): Promise<GiftCard[]> {
+    let giftCards = Array.from(this.giftCards.values()).filter(
+      (giftCard) => giftCard.userId === userId
     );
     
-    if (collectionId) {
-      cards = cards.filter(card => card.collectionId === collectionId);
+    if (fornecedorId) {
+      giftCards = giftCards.filter(giftCard => giftCard.fornecedorId === fornecedorId);
     }
     
-    return cards;
+    return giftCards;
   }
 
-  async getCard(id: number): Promise<Card | undefined> {
-    return this.cards.get(id);
+  async getGiftCard(id: number): Promise<GiftCard | undefined> {
+    return this.giftCards.get(id);
   }
 
-  async createCard(card: InsertCard): Promise<Card> {
-    const id = this.cardId++;
+  async createGiftCard(giftCard: InsertGiftCard): Promise<GiftCard> {
+    const id = this.giftCardId++;
     const timestamp = new Date();
-    const newCard = { ...card, id, createdAt: timestamp };
-    this.cards.set(id, newCard);
-    return newCard;
+    const newGiftCard = { ...giftCard, id, createdAt: timestamp, updatedAt: timestamp };
+    this.giftCards.set(id, newGiftCard);
+    return newGiftCard;
   }
 
-  async updateCard(id: number, cardData: Partial<InsertCard>): Promise<Card | undefined> {
-    const card = this.cards.get(id);
-    if (!card) return undefined;
+  async updateGiftCard(id: number, giftCardData: Partial<InsertGiftCard>): Promise<GiftCard | undefined> {
+    const giftCard = this.giftCards.get(id);
+    if (!giftCard) return undefined;
     
-    const updatedCard = { ...card, ...cardData };
-    this.cards.set(id, updatedCard);
-    return updatedCard;
+    const timestamp = new Date();
+    const updatedGiftCard = { ...giftCard, ...giftCardData, updatedAt: timestamp };
+    this.giftCards.set(id, updatedGiftCard);
+    return updatedGiftCard;
   }
 
-  async deleteCard(id: number): Promise<boolean> {
-    return this.cards.delete(id);
+  async deleteGiftCard(id: number): Promise<boolean> {
+    return this.giftCards.delete(id);
   }
 
-  async getFavoriteCards(userId: number): Promise<Card[]> {
-    return Array.from(this.cards.values()).filter(
-      (card) => card.userId === userId && card.isFavorite
+  async getGiftCardsVencimento(userId: number, dias: number): Promise<GiftCard[]> {
+    const hoje = new Date();
+    const dataLimite = new Date(hoje);
+    dataLimite.setDate(dataLimite.getDate() + dias);
+    
+    return Array.from(this.giftCards.values()).filter(
+      (giftCard) => 
+        giftCard.userId === userId && 
+        giftCard.dataValidade && 
+        giftCard.dataValidade <= dataLimite
     );
   }
 
-  async getCardsByTag(tagId: number): Promise<Card[]> {
-    const cardTagRelations = Array.from(this.cardTags.values()).filter(
+  async getGiftCardsByTag(tagId: number): Promise<GiftCard[]> {
+    const giftCardTagRelations = Array.from(this.giftCardTags.values()).filter(
       (relation) => relation.tagId === tagId
     );
     
-    const cardIds = cardTagRelations.map(relation => relation.cardId);
-    return Array.from(this.cards.values()).filter(
-      (card) => cardIds.includes(card.id)
+    const giftCardIds = giftCardTagRelations.map(relation => relation.giftCardId);
+    return Array.from(this.giftCards.values()).filter(
+      (giftCard) => giftCardIds.includes(giftCard.id)
     );
   }
 
-  async searchCards(userId: number, searchTerm: string): Promise<Card[]> {
+  async searchGiftCards(userId: number, searchTerm: string): Promise<GiftCard[]> {
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
-    return Array.from(this.cards.values()).filter(
-      (card) => 
-        card.userId === userId &&
+    return Array.from(this.giftCards.values()).filter(
+      (giftCard) => 
+        giftCard.userId === userId &&
         (
-          card.name.toLowerCase().includes(lowerCaseSearchTerm) ||
-          card.setName.toLowerCase().includes(lowerCaseSearchTerm) ||
-          card.rarity.toLowerCase().includes(lowerCaseSearchTerm) ||
-          card.description?.toLowerCase().includes(lowerCaseSearchTerm) ||
-          card.notes?.toLowerCase().includes(lowerCaseSearchTerm)
+          giftCard.codigo.toLowerCase().includes(lowerCaseSearchTerm) ||
+          giftCard.observacoes?.toLowerCase().includes(lowerCaseSearchTerm) ||
+          giftCard.status.toLowerCase().includes(lowerCaseSearchTerm)
         )
     );
+  }
+
+  // Transação methods
+  async getTransacoes(giftCardId: number): Promise<Transacao[]> {
+    return Array.from(this.transacoes.values()).filter(
+      (transacao) => transacao.giftCardId === giftCardId
+    );
+  }
+
+  async getTransacao(id: number): Promise<Transacao | undefined> {
+    return this.transacoes.get(id);
+  }
+
+  async createTransacao(transacao: InsertTransacao): Promise<Transacao> {
+    const id = this.transacaoId++;
+    const newTransacao = { ...transacao, id };
+    this.transacoes.set(id, newTransacao);
+    
+    // Atualiza o saldo do gift card se a transação for concluída
+    if (transacao.status === "concluida") {
+      const giftCard = this.giftCards.get(transacao.giftCardId);
+      if (giftCard) {
+        const novoSaldo = giftCard.saldoAtual - transacao.valor;
+        const status = novoSaldo <= 0 ? "zerado" : giftCard.status;
+        this.updateGiftCard(giftCard.id, { saldoAtual: novoSaldo, status });
+      }
+    }
+    
+    return newTransacao;
+  }
+
+  async updateTransacao(id: number, transacaoData: Partial<InsertTransacao>): Promise<Transacao | undefined> {
+    const transacao = this.transacoes.get(id);
+    if (!transacao) return undefined;
+    
+    const updatedTransacao = { ...transacao, ...transacaoData };
+    this.transacoes.set(id, updatedTransacao);
+    
+    // Se mudou o status para concluída ou cancelada, atualiza o saldo do gift card
+    if (transacaoData.status) {
+      const giftCard = this.giftCards.get(transacao.giftCardId);
+      if (giftCard) {
+        let novoSaldo = giftCard.saldoAtual;
+        
+        // Se mudou de não-concluída para concluída
+        if (transacao.status !== "concluida" && transacaoData.status === "concluida") {
+          novoSaldo = giftCard.saldoAtual - transacao.valor;
+        }
+        // Se mudou de concluída para cancelada
+        else if (transacao.status === "concluida" && transacaoData.status === "cancelada") {
+          novoSaldo = giftCard.saldoAtual + transacao.valor;
+        }
+        
+        const status = novoSaldo <= 0 ? "zerado" : "ativo";
+        this.updateGiftCard(giftCard.id, { saldoAtual: novoSaldo, status });
+      }
+    }
+    
+    return updatedTransacao;
+  }
+
+  async deleteTransacao(id: number): Promise<boolean> {
+    // Não deveria apagar transações, apenas marcar como canceladas
+    const transacao = this.transacoes.get(id);
+    if (transacao && transacao.status === "concluida") {
+      // Se estiver deletando uma transação concluída, devolve o saldo para o gift card
+      const giftCard = this.giftCards.get(transacao.giftCardId);
+      if (giftCard) {
+        const novoSaldo = giftCard.saldoAtual + transacao.valor;
+        const status = "ativo"; // Se está devolvendo valor, sempre volta a ficar ativo
+        this.updateGiftCard(giftCard.id, { saldoAtual: novoSaldo, status });
+      }
+    }
+    return this.transacoes.delete(id);
   }
 
   // Tag methods
@@ -352,32 +430,32 @@ export class MemStorage implements IStorage {
     return newTag;
   }
 
-  // Card Tag methods
-  async addTagToCard(cardId: number, tagId: number): Promise<CardTag> {
-    const id = this.cardTagId++;
-    const newCardTag = { id, cardId, tagId };
-    this.cardTags.set(id, newCardTag);
-    return newCardTag;
+  // Gift Card Tag methods
+  async addTagToGiftCard(giftCardId: number, tagId: number): Promise<GiftCardTag> {
+    const id = this.giftCardTagId++;
+    const newGiftCardTag = { id, giftCardId, tagId };
+    this.giftCardTags.set(id, newGiftCardTag);
+    return newGiftCardTag;
   }
 
-  async removeTagFromCard(cardId: number, tagId: number): Promise<boolean> {
-    const cardTagToRemove = Array.from(this.cardTags.values()).find(
-      (cardTag) => cardTag.cardId === cardId && cardTag.tagId === tagId
+  async removeTagFromGiftCard(giftCardId: number, tagId: number): Promise<boolean> {
+    const giftCardTagToRemove = Array.from(this.giftCardTags.values()).find(
+      (giftCardTag) => giftCardTag.giftCardId === giftCardId && giftCardTag.tagId === tagId
     );
     
-    if (cardTagToRemove) {
-      return this.cardTags.delete(cardTagToRemove.id);
+    if (giftCardTagToRemove) {
+      return this.giftCardTags.delete(giftCardTagToRemove.id);
     }
     
     return false;
   }
 
-  async getCardTags(cardId: number): Promise<Tag[]> {
-    const cardTagRelations = Array.from(this.cardTags.values()).filter(
-      (relation) => relation.cardId === cardId
+  async getGiftCardTags(giftCardId: number): Promise<Tag[]> {
+    const giftCardTagRelations = Array.from(this.giftCardTags.values()).filter(
+      (relation) => relation.giftCardId === giftCardId
     );
     
-    const tagIds = cardTagRelations.map(relation => relation.tagId);
+    const tagIds = giftCardTagRelations.map(relation => relation.tagId);
     return Array.from(this.tags.values()).filter(
       (tag) => tagIds.includes(tag.id)
     );

@@ -1,7 +1,14 @@
 import express, { type Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertCardSchema, insertCollectionSchema, insertTagSchema, insertUserSchema } from "@shared/schema";
+import { 
+  insertGiftCardSchema, 
+  insertFornecedorSchema, 
+  insertTagSchema, 
+  insertUserSchema,
+  insertTransacaoSchema,
+  insertGiftCardTagSchema
+} from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 
@@ -43,8 +50,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Collection routes
-  router.get("/collections", async (req: Request, res: Response) => {
+  // Fornecedor routes (antigo Collection)
+  router.get("/fornecedores", async (req: Request, res: Response) => {
     try {
       const userId = parseInt(req.query.userId as string);
       
@@ -52,53 +59,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid user ID" });
       }
       
-      const collections = await storage.getCollections(userId);
-      res.json(collections);
+      const fornecedores = await storage.getFornecedores(userId);
+      res.json(fornecedores);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
     }
   });
 
-  router.post("/collections", async (req: Request, res: Response) => {
+  router.post("/fornecedores", async (req: Request, res: Response) => {
     try {
-      const collectionData = insertCollectionSchema.parse(req.body);
-      const collection = await storage.createCollection(collectionData);
-      res.status(201).json(collection);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: fromZodError(error).message });
-      }
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  router.get("/collections/:id", async (req: Request, res: Response) => {
-    try {
-      const collectionId = parseInt(req.params.id);
-      const collection = await storage.getCollection(collectionId);
-      
-      if (!collection) {
-        return res.status(404).json({ message: "Collection not found" });
-      }
-      
-      res.json(collection);
-    } catch (error) {
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  router.put("/collections/:id", async (req: Request, res: Response) => {
-    try {
-      const collectionId = parseInt(req.params.id);
-      const collectionData = insertCollectionSchema.partial().parse(req.body);
-      
-      const updatedCollection = await storage.updateCollection(collectionId, collectionData);
-      
-      if (!updatedCollection) {
-        return res.status(404).json({ message: "Collection not found" });
-      }
-      
-      res.json(updatedCollection);
+      const fornecedorData = insertFornecedorSchema.parse(req.body);
+      const fornecedor = await storage.createFornecedor(fornecedorData);
+      res.status(201).json(fornecedor);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: fromZodError(error).message });
@@ -107,13 +79,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  router.delete("/collections/:id", async (req: Request, res: Response) => {
+  router.get("/fornecedores/:id", async (req: Request, res: Response) => {
     try {
-      const collectionId = parseInt(req.params.id);
-      const success = await storage.deleteCollection(collectionId);
+      const fornecedorId = parseInt(req.params.id);
+      const fornecedor = await storage.getFornecedor(fornecedorId);
+      
+      if (!fornecedor) {
+        return res.status(404).json({ message: "Fornecedor not found" });
+      }
+      
+      res.json(fornecedor);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  router.put("/fornecedores/:id", async (req: Request, res: Response) => {
+    try {
+      const fornecedorId = parseInt(req.params.id);
+      const fornecedorData = insertFornecedorSchema.partial().parse(req.body);
+      
+      const updatedFornecedor = await storage.updateFornecedor(fornecedorId, fornecedorData);
+      
+      if (!updatedFornecedor) {
+        return res.status(404).json({ message: "Fornecedor not found" });
+      }
+      
+      res.json(updatedFornecedor);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  router.delete("/fornecedores/:id", async (req: Request, res: Response) => {
+    try {
+      const fornecedorId = parseInt(req.params.id);
+      const success = await storage.deleteFornecedor(fornecedorId);
       
       if (!success) {
-        return res.status(404).json({ message: "Collection not found" });
+        return res.status(404).json({ message: "Fornecedor not found" });
       }
       
       res.status(204).send();
@@ -122,11 +129,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Card routes
-  router.get("/cards", async (req: Request, res: Response) => {
+  // Gift Card routes (antigo Card)
+  router.get("/gift-cards", async (req: Request, res: Response) => {
     try {
       const userId = parseInt(req.query.userId as string);
-      const collectionId = req.query.collectionId ? parseInt(req.query.collectionId as string) : undefined;
+      const fornecedorId = req.query.fornecedorId ? parseInt(req.query.fornecedorId as string) : undefined;
       const search = req.query.search as string | undefined;
       
       if (isNaN(userId)) {
@@ -134,57 +141,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       if (search) {
-        const cards = await storage.searchCards(userId, search);
-        return res.json(cards);
+        const giftCards = await storage.searchGiftCards(userId, search);
+        return res.json(giftCards);
       }
       
-      const cards = await storage.getCards(userId, collectionId);
-      res.json(cards);
+      const giftCards = await storage.getGiftCards(userId, fornecedorId);
+      res.json(giftCards);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
     }
   });
 
-  router.post("/cards", async (req: Request, res: Response) => {
+  router.post("/gift-cards", async (req: Request, res: Response) => {
     try {
-      const cardData = insertCardSchema.parse(req.body);
-      const card = await storage.createCard(cardData);
-      res.status(201).json(card);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: fromZodError(error).message });
-      }
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  router.get("/cards/:id", async (req: Request, res: Response) => {
-    try {
-      const cardId = parseInt(req.params.id);
-      const card = await storage.getCard(cardId);
-      
-      if (!card) {
-        return res.status(404).json({ message: "Card not found" });
-      }
-      
-      res.json(card);
-    } catch (error) {
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  router.put("/cards/:id", async (req: Request, res: Response) => {
-    try {
-      const cardId = parseInt(req.params.id);
-      const cardData = insertCardSchema.partial().parse(req.body);
-      
-      const updatedCard = await storage.updateCard(cardId, cardData);
-      
-      if (!updatedCard) {
-        return res.status(404).json({ message: "Card not found" });
-      }
-      
-      res.json(updatedCard);
+      const giftCardData = insertGiftCardSchema.parse(req.body);
+      const giftCard = await storage.createGiftCard(giftCardData);
+      res.status(201).json(giftCard);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: fromZodError(error).message });
@@ -193,13 +165,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  router.delete("/cards/:id", async (req: Request, res: Response) => {
+  router.get("/gift-cards/:id", async (req: Request, res: Response) => {
     try {
-      const cardId = parseInt(req.params.id);
-      const success = await storage.deleteCard(cardId);
+      const giftCardId = parseInt(req.params.id);
+      const giftCard = await storage.getGiftCard(giftCardId);
+      
+      if (!giftCard) {
+        return res.status(404).json({ message: "Gift Card not found" });
+      }
+      
+      res.json(giftCard);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  router.put("/gift-cards/:id", async (req: Request, res: Response) => {
+    try {
+      const giftCardId = parseInt(req.params.id);
+      const giftCardData = insertGiftCardSchema.partial().parse(req.body);
+      
+      const updatedGiftCard = await storage.updateGiftCard(giftCardId, giftCardData);
+      
+      if (!updatedGiftCard) {
+        return res.status(404).json({ message: "Gift Card not found" });
+      }
+      
+      res.json(updatedGiftCard);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  router.delete("/gift-cards/:id", async (req: Request, res: Response) => {
+    try {
+      const giftCardId = parseInt(req.params.id);
+      const success = await storage.deleteGiftCard(giftCardId);
       
       if (!success) {
-        return res.status(404).json({ message: "Card not found" });
+        return res.status(404).json({ message: "Gift Card not found" });
       }
       
       res.status(204).send();
@@ -208,11 +215,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  router.get("/cards/favorites/:userId", async (req: Request, res: Response) => {
+  router.get("/gift-cards/vencimento/:dias/:userId", async (req: Request, res: Response) => {
     try {
       const userId = parseInt(req.params.userId);
-      const favoriteCards = await storage.getFavoriteCards(userId);
-      res.json(favoriteCards);
+      const dias = parseInt(req.params.dias);
+      
+      if (isNaN(dias)) {
+        return res.status(400).json({ message: "Invalid number of days" });
+      }
+      
+      const giftCards = await storage.getGiftCardsVencimento(userId, dias);
+      res.json(giftCards);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
     }
@@ -256,47 +269,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  router.get("/cards/tag/:tagId", async (req: Request, res: Response) => {
+  router.get("/gift-cards/tag/:tagId", async (req: Request, res: Response) => {
     try {
       const tagId = parseInt(req.params.tagId);
-      const cards = await storage.getCardsByTag(tagId);
-      res.json(cards);
+      const giftCards = await storage.getGiftCardsByTag(tagId);
+      res.json(giftCards);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
     }
   });
 
-  router.get("/cards/:cardId/tags", async (req: Request, res: Response) => {
+  router.get("/gift-cards/:giftCardId/tags", async (req: Request, res: Response) => {
     try {
-      const cardId = parseInt(req.params.cardId);
-      const tags = await storage.getCardTags(cardId);
+      const giftCardId = parseInt(req.params.giftCardId);
+      const tags = await storage.getGiftCardTags(giftCardId);
       res.json(tags);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
     }
   });
 
-  router.post("/cards/:cardId/tags/:tagId", async (req: Request, res: Response) => {
+  router.post("/gift-cards/:giftCardId/tags/:tagId", async (req: Request, res: Response) => {
     try {
-      const cardId = parseInt(req.params.cardId);
+      const giftCardId = parseInt(req.params.giftCardId);
       const tagId = parseInt(req.params.tagId);
       
-      const cardTag = await storage.addTagToCard(cardId, tagId);
-      res.status(201).json(cardTag);
+      const giftCardTag = await storage.addTagToGiftCard(giftCardId, tagId);
+      res.status(201).json(giftCardTag);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
     }
   });
 
-  router.delete("/cards/:cardId/tags/:tagId", async (req: Request, res: Response) => {
+  router.delete("/gift-cards/:giftCardId/tags/:tagId", async (req: Request, res: Response) => {
     try {
-      const cardId = parseInt(req.params.cardId);
+      const giftCardId = parseInt(req.params.giftCardId);
       const tagId = parseInt(req.params.tagId);
       
-      const success = await storage.removeTagFromCard(cardId, tagId);
+      const success = await storage.removeTagFromGiftCard(giftCardId, tagId);
       
       if (!success) {
-        return res.status(404).json({ message: "Card tag relation not found" });
+        return res.status(404).json({ message: "Gift card tag relation not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Transação routes (novo)
+  router.get("/transacoes/:giftCardId", async (req: Request, res: Response) => {
+    try {
+      const giftCardId = parseInt(req.params.giftCardId);
+      const transacoes = await storage.getTransacoes(giftCardId);
+      res.json(transacoes);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  router.post("/transacoes", async (req: Request, res: Response) => {
+    try {
+      const transacaoData = insertTransacaoSchema.parse(req.body);
+      const transacao = await storage.createTransacao(transacaoData);
+      res.status(201).json(transacao);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  router.get("/transacoes/detalhes/:id", async (req: Request, res: Response) => {
+    try {
+      const transacaoId = parseInt(req.params.id);
+      const transacao = await storage.getTransacao(transacaoId);
+      
+      if (!transacao) {
+        return res.status(404).json({ message: "Transação not found" });
+      }
+      
+      res.json(transacao);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  router.put("/transacoes/:id", async (req: Request, res: Response) => {
+    try {
+      const transacaoId = parseInt(req.params.id);
+      const transacaoData = insertTransacaoSchema.partial().parse(req.body);
+      
+      const updatedTransacao = await storage.updateTransacao(transacaoId, transacaoData);
+      
+      if (!updatedTransacao) {
+        return res.status(404).json({ message: "Transação not found" });
+      }
+      
+      res.json(updatedTransacao);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  router.delete("/transacoes/:id", async (req: Request, res: Response) => {
+    try {
+      const transacaoId = parseInt(req.params.id);
+      const success = await storage.deleteTransacao(transacaoId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Transação not found" });
       }
       
       res.status(204).send();
