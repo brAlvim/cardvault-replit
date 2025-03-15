@@ -5,7 +5,7 @@ import { Fornecedor, InsertFornecedor } from "@shared/schema";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Store, Plus, Pencil, Trash2, FileWarning } from "lucide-react";
+import { Store, Plus, Pencil, Trash2, FileWarning, Power, PowerOff } from "lucide-react";
 
 import {
   Card,
@@ -162,7 +162,10 @@ export default function FornecedoresPage() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(newFornecedor),
+        body: JSON.stringify({
+          ...newFornecedor,
+          status: "ativo" // Define status como ativo por padrão
+        }),
       });
     },
     onSuccess: () => {
@@ -238,6 +241,35 @@ export default function FornecedoresPage() {
     },
   });
 
+  // Mutation para alternar status do fornecedor
+  const toggleStatusMutation = useMutation({
+    mutationFn: ({ id, novoStatus }: { id: number; novoStatus: string }) => {
+      return apiRequest(`/api/fornecedores/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ status: novoStatus }),
+      });
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/fornecedores?userId=${user?.id || 1}`] });
+      toast({
+        title: data.status === "ativo" ? "Fornecedor ativado" : "Fornecedor desativado",
+        description: data.status === "ativo" 
+          ? "O fornecedor foi ativado com sucesso."
+          : "O fornecedor foi desativado com sucesso.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao alterar status do fornecedor",
+        description: error.message || "Ocorreu um erro ao alterar o status do fornecedor.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Handler de submit do formulário
   const onSubmit = (data: FornecedorFormValues) => {
     if (selectedFornecedor) {
@@ -275,6 +307,15 @@ export default function FornecedoresPage() {
     if (selectedFornecedor) {
       deleteFornecedorMutation.mutate(selectedFornecedor.id);
     }
+  };
+
+  // Alternar status do fornecedor (ativo/inativo)
+  const handleToggleStatus = (fornecedor: Fornecedor) => {
+    const novoStatus = fornecedor.status === "ativo" ? "inativo" : "ativo";
+    toggleStatusMutation.mutate({
+      id: fornecedor.id,
+      novoStatus: novoStatus
+    });
   };
 
   return (
@@ -383,6 +424,23 @@ export default function FornecedoresPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleToggleStatus(fornecedor)}
+                          className={
+                            fornecedor.status === "ativo"
+                              ? "text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                              : "text-green-600 hover:text-green-700 hover:bg-green-50"
+                          }
+                          title={fornecedor.status === "ativo" ? "Desativar fornecedor" : "Ativar fornecedor"}
+                        >
+                          {fornecedor.status === "ativo" ? (
+                            <PowerOff className="h-4 w-4" />
+                          ) : (
+                            <Power className="h-4 w-4" />
+                          )}
+                        </Button>
                         <Button
                           variant="outline"
                           size="sm"
