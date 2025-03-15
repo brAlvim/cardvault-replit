@@ -88,15 +88,6 @@ export default function GiftCardNewPageFixed() {
 
   // Validate form
   const isFormValid = (): boolean => {
-    if (!codigo.trim()) {
-      toast({
-        title: "Código obrigatório",
-        description: "Por favor, informe o código do gift card.",
-        variant: "destructive",
-      });
-      return false;
-    }
-
     const valor = parseFloat(valorInicial);
     if (isNaN(valor) || valor <= 0) {
       toast({
@@ -211,52 +202,36 @@ export default function GiftCardNewPageFixed() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="codigo">Código *</Label>
+                <Label htmlFor="codigo">SKU</Label>
                 <Input 
                   id="codigo" 
-                  placeholder="Código do gift card"
+                  placeholder="Código/SKU do gift card"
                   value={codigo}
                   onChange={(e) => setCodigo(e.target.value)}
-                  required
                 />
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="valor">Valor Inicial *</Label>
-                <Input 
-                  id="valor" 
-                  placeholder="0.00"
-                  value={valorInicial}
-                  onChange={(e) => setValorInicial(e.target.value)}
-                  required
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  className="border-blue-200"
-                />
+                <Label htmlFor="fornecedor">Fornecedor *</Label>
+                <Select value={fornecedorId} onValueChange={setFornecedorId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um fornecedor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {isLoadingFornecedores ? (
+                      <SelectItem value="loading" disabled>Carregando fornecedores...</SelectItem>
+                    ) : fornecedores && fornecedores.length > 0 ? (
+                      fornecedores.map(fornecedor => (
+                        <SelectItem key={fornecedor.id} value={String(fornecedor.id)}>
+                          {fornecedor.nome}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no_fornecedores" disabled>Nenhum fornecedor disponível</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="fornecedor">Fornecedor *</Label>
-              <Select value={fornecedorId} onValueChange={setFornecedorId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um fornecedor" />
-                </SelectTrigger>
-                <SelectContent>
-                  {isLoadingFornecedores ? (
-                    <SelectItem value="loading" disabled>Carregando fornecedores...</SelectItem>
-                  ) : fornecedores && fornecedores.length > 0 ? (
-                    fornecedores.map(fornecedor => (
-                      <SelectItem key={fornecedor.id} value={String(fornecedor.id)}>
-                        {fornecedor.nome}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="no_fornecedores" disabled>Nenhum fornecedor disponível</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
             </div>
             
             <div className="space-y-2">
@@ -281,17 +256,6 @@ export default function GiftCardNewPageFixed() {
                   />
                 </PopoverContent>
               </Popover>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="observacoes">Observações</Label>
-              <Textarea 
-                id="observacoes" 
-                placeholder="Informações adicionais sobre o gift card"
-                value={observacoes}
-                onChange={(e) => setObservacoes(e.target.value)}
-                rows={4}
-              />
             </div>
             
             {/* Seção de cálculo de valor e desconto (prioridade número 1) */}
@@ -500,6 +464,23 @@ export default function GiftCardNewPageFixed() {
                     type="password"
                   />
                 </div>
+              </div>
+            </div>
+            
+            {/* Campo de observações movido para o final do formulário */}
+            <div className="border-t pt-6 mt-6">
+              <div className="space-y-2">
+                <Label htmlFor="observacoes" className="font-semibold">Observações</Label>
+                <Textarea 
+                  id="observacoes" 
+                  placeholder="Informações adicionais sobre o gift card"
+                  value={observacoes}
+                  onChange={(e) => setObservacoes(e.target.value)}
+                  rows={4}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Adicione aqui quaisquer notas relevantes sobre este gift card
+                </p>
               </div>
             </div>
             
