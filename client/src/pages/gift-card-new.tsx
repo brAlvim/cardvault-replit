@@ -94,10 +94,11 @@ export default function GiftCardNewPage() {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch fornecedores for dropdown
+  // Fetch fornecedores for dropdown - filtrado por userId e apenas ativos
   const { data: fornecedores, isLoading: isLoadingFornecedores } = useQuery<Fornecedor[]>({
-    queryKey: ['/api/fornecedores'],
-    queryFn: () => fetch('/api/fornecedores').then(res => res.json()),
+    queryKey: [`/api/fornecedores?userId=${userData?.id || 1}`],
+    queryFn: () => fetch(`/api/fornecedores?userId=${userData?.id || 1}`).then(res => res.json()),
+    enabled: !!userData, // Só executa quando userData estiver disponível
   });
 
   // Validate form
@@ -261,11 +262,14 @@ export default function GiftCardNewPage() {
                   {isLoadingFornecedores ? (
                     <SelectItem value="loading" disabled>Carregando fornecedores...</SelectItem>
                   ) : fornecedores && fornecedores.length > 0 ? (
-                    fornecedores.map(fornecedor => (
-                      <SelectItem key={fornecedor.id} value={String(fornecedor.id)}>
-                        {fornecedor.nome}
-                      </SelectItem>
-                    ))
+                    // Filtra apenas fornecedores ativos 
+                    fornecedores
+                      .filter(fornecedor => fornecedor.status === "ativo")
+                      .map(fornecedor => (
+                        <SelectItem key={fornecedor.id} value={String(fornecedor.id)}>
+                          {fornecedor.nome}
+                        </SelectItem>
+                      ))
                   ) : (
                     <SelectItem value="no_fornecedores" disabled>Nenhum fornecedor disponível</SelectItem>
                   )}
