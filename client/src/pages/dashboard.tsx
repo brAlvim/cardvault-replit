@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import { GiftCard, Fornecedor, Transacao } from '@shared/schema';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +17,7 @@ import FornecedorSummaryTable from '@/components/fornecedor-summary-table';
 
 export default function Dashboard() {
   const [selectedFornecedor, setSelectedFornecedor] = useState<string | null>(null);
+  const [, navigate] = useLocation();
   
   // Get gift cards
   const { data: giftCards, isLoading: isLoadingGiftCards } = useQuery<GiftCard[]>({
@@ -78,7 +80,7 @@ export default function Dashboard() {
           <Button 
             variant="default" 
             size="sm"
-            onClick={() => window.location.href = "/gift-cards/new"}
+            onClick={() => navigate("/gift-cards/new")}
           >
             <CreditCard className="mr-2 h-4 w-4" />
             Novo Gift Card
@@ -86,7 +88,7 @@ export default function Dashboard() {
           <Button 
             variant="outline" 
             size="sm"
-            onClick={() => window.location.href = "/transacoes/new"}
+            onClick={() => navigate("/transacoes/new")}
           >
             <Receipt className="mr-2 h-4 w-4" />
             Nova Transação

@@ -197,7 +197,7 @@ export default function GiftCardNewPage() {
                       </SelectItem>
                     ))
                   ) : (
-                    <SelectItem value="none" disabled>Nenhum fornecedor disponível</SelectItem>
+                    <SelectItem value="no_fornecedores" disabled>Nenhum fornecedor disponível</SelectItem>
                   )}
                 </SelectContent>
               </Select>

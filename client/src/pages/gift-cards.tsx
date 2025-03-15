@@ -124,7 +124,7 @@ export default function GiftCardsPage() {
                   <SelectValue placeholder="Todos os fornecedores" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os fornecedores</SelectItem>
+                  <SelectItem value="todos">Todos os fornecedores</SelectItem>
                   {isLoadingFornecedores ? (
                     <SelectItem value="loading" disabled>Carregando...</SelectItem>
                   ) : fornecedores && fornecedores.length > 0 ? (
