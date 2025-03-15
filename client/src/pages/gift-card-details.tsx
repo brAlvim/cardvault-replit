@@ -230,6 +230,16 @@ export default function GiftCardDetailsPage() {
                 </div>
                 
                 <div className="flex flex-col">
+                  <span className="text-sm text-muted-foreground">Valor Pendente</span>
+                  <span className="font-medium text-lg text-blue-600">
+                    R$ {giftCard.valorPendente !== undefined ? giftCard.valorPendente.toFixed(2) : giftCard.valorInicial.toFixed(2)}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    Calculado automaticamente com base nas transações
+                  </span>
+                </div>
+                
+                <div className="flex flex-col">
                   <span className="text-sm text-muted-foreground">Data de Cadastro</span>
                   <span className="font-medium">{formatDate(giftCard.createdAt)}</span>
                 </div>

@@ -347,12 +347,32 @@ export class MemStorage implements IStorage {
     const dataLimite = new Date(hoje);
     dataLimite.setDate(dataLimite.getDate() + dias);
     
-    return Array.from(this.giftCards.values()).filter(
+    const giftCards = Array.from(this.giftCards.values()).filter(
       (giftCard) => 
         giftCard.userId === userId && 
         giftCard.dataValidade && 
         giftCard.dataValidade <= dataLimite
     );
+    
+    // Para cada gift card, calculamos o valor pendente
+    const giftCardsComValorPendente = giftCards.map((giftCard) => {
+      const transacoes = Array.from(this.transacoes.values()).filter(
+        transacao => transacao.giftCardId === giftCard.id && transacao.status === "Concluída"
+      );
+      
+      // Calcula o valor total das transações
+      const valorTotalTransacoes = transacoes.reduce((total, transacao) => total + transacao.valor, 0);
+      
+      // Atualiza o valor pendente como valorInicial - valorTotalTransacoes
+      const valorPendente = Math.max(0, giftCard.valorInicial - valorTotalTransacoes);
+      
+      return {
+        ...giftCard,
+        valorPendente
+      };
+    });
+    
+    return giftCardsComValorPendente;
   }
 
   async getGiftCardsByTag(tagId: number): Promise<GiftCard[]> {
@@ -361,14 +381,34 @@ export class MemStorage implements IStorage {
     );
     
     const giftCardIds = giftCardTagRelations.map(relation => relation.giftCardId);
-    return Array.from(this.giftCards.values()).filter(
+    const giftCards = Array.from(this.giftCards.values()).filter(
       (giftCard) => giftCardIds.includes(giftCard.id)
     );
+    
+    // Para cada gift card, calculamos o valor pendente
+    const giftCardsComValorPendente = giftCards.map((giftCard) => {
+      const transacoes = Array.from(this.transacoes.values()).filter(
+        transacao => transacao.giftCardId === giftCard.id && transacao.status === "Concluída"
+      );
+      
+      // Calcula o valor total das transações
+      const valorTotalTransacoes = transacoes.reduce((total, transacao) => total + transacao.valor, 0);
+      
+      // Atualiza o valor pendente como valorInicial - valorTotalTransacoes
+      const valorPendente = Math.max(0, giftCard.valorInicial - valorTotalTransacoes);
+      
+      return {
+        ...giftCard,
+        valorPendente
+      };
+    });
+    
+    return giftCardsComValorPendente;
   }
 
   async searchGiftCards(userId: number, searchTerm: string): Promise<GiftCard[]> {
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
-    return Array.from(this.giftCards.values()).filter(
+    const giftCards = Array.from(this.giftCards.values()).filter(
       (giftCard) => 
         giftCard.userId === userId &&
         (
@@ -377,6 +417,26 @@ export class MemStorage implements IStorage {
           giftCard.status.toLowerCase().includes(lowerCaseSearchTerm)
         )
     );
+    
+    // Para cada gift card, calculamos o valor pendente
+    const giftCardsComValorPendente = giftCards.map((giftCard) => {
+      const transacoes = Array.from(this.transacoes.values()).filter(
+        transacao => transacao.giftCardId === giftCard.id && transacao.status === "Concluída"
+      );
+      
+      // Calcula o valor total das transações
+      const valorTotalTransacoes = transacoes.reduce((total, transacao) => total + transacao.valor, 0);
+      
+      // Atualiza o valor pendente como valorInicial - valorTotalTransacoes
+      const valorPendente = Math.max(0, giftCard.valorInicial - valorTotalTransacoes);
+      
+      return {
+        ...giftCard,
+        valorPendente
+      };
+    });
+    
+    return giftCardsComValorPendente;
   }
 
   // Transação methods
