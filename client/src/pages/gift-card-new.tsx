@@ -28,12 +28,26 @@ export default function GiftCardNewPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   
-  // Form state
+  // Form state - Campos básicos
   const [codigo, setCodigo] = useState('');
   const [valorInicial, setValorInicial] = useState('');
   const [fornecedorId, setFornecedorId] = useState('');
   const [dataValidade, setDataValidade] = useState<Date | undefined>(undefined);
   const [observacoes, setObservacoes] = useState('');
+  
+  // Form state - Novos campos detalhados
+  const [comprador, setComprador] = useState('');
+  const [login, setLogin] = useState('');
+  const [infoCompra, setInfoCompra] = useState('');
+  const [dataCompra, setDataCompra] = useState<Date | undefined>(undefined);
+  const [ordemCompra, setOrdemCompra] = useState('');
+  const [percentualDesconto, setPercentualDesconto] = useState('');
+  const [valorPago, setValorPago] = useState('');
+  const [valorPendente, setValorPendente] = useState('');
+  const [gcNumber, setGcNumber] = useState('');
+  const [gcPass, setGcPass] = useState('');
+  const [ordemUsado, setOrdemUsado] = useState('');
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch fornecedores for dropdown
@@ -101,6 +115,19 @@ export default function GiftCardNewPage() {
           dataValidade: dataValidade || null,
           observacoes: observacoes.trim() || null,
           status: 'Ativo',
+          
+          // Novos campos
+          comprador: comprador.trim() || null,
+          login: login.trim() || null,
+          infoCompra: infoCompra.trim() || null,
+          dataCompra: dataCompra || null,
+          ordemCompra: ordemCompra.trim() || null,
+          percentualDesconto: percentualDesconto ? parseFloat(percentualDesconto) : null,
+          valorPago: valorPago ? parseFloat(valorPago) : null,
+          valorPendente: valorPendente ? parseFloat(valorPendente) : null,
+          gcNumber: gcNumber.trim() || null,
+          gcPass: gcPass.trim() || null,
+          ordemUsado: ordemUsado.trim() || null,
         }),
       });
 
@@ -236,6 +263,155 @@ export default function GiftCardNewPage() {
                 onChange={(e) => setObservacoes(e.target.value)}
                 rows={4}
               />
+            </div>
+            
+            {/* Seção de dados detalhados do gift card */}
+            <div className="border-t pt-6 mt-6">
+              <h3 className="font-semibold text-lg mb-4">Informações Detalhadas da Compra</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div className="space-y-2">
+                  <Label htmlFor="comprador">Comprador</Label>
+                  <Input 
+                    id="comprador" 
+                    placeholder="Nome do comprador"
+                    value={comprador}
+                    onChange={(e) => setComprador(e.target.value)}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="login">Login</Label>
+                  <Input 
+                    id="login" 
+                    placeholder="Login utilizado"
+                    value={login}
+                    onChange={(e) => setLogin(e.target.value)}
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div className="space-y-2">
+                  <Label htmlFor="infoCompra">Informações da Compra</Label>
+                  <Input 
+                    id="infoCompra" 
+                    placeholder="Detalhes da compra"
+                    value={infoCompra}
+                    onChange={(e) => setInfoCompra(e.target.value)}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="dataCompra">Data da Compra</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dataCompra ? format(dataCompra, 'dd/MM/yyyy') : 'Selecione uma data'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={dataCompra}
+                        onSelect={setDataCompra}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div className="space-y-2">
+                  <Label htmlFor="ordemCompra">Ordem de Compra</Label>
+                  <Input 
+                    id="ordemCompra" 
+                    placeholder="Nº da ordem"
+                    value={ordemCompra}
+                    onChange={(e) => setOrdemCompra(e.target.value)}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="percentualDesconto">% Desconto</Label>
+                  <Input 
+                    id="percentualDesconto" 
+                    placeholder="Ex: 10.5"
+                    value={percentualDesconto}
+                    onChange={(e) => setPercentualDesconto(e.target.value)}
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="ordemUsado">Ordem Usado</Label>
+                  <Input 
+                    id="ordemUsado" 
+                    placeholder="Ordem de uso"
+                    value={ordemUsado}
+                    onChange={(e) => setOrdemUsado(e.target.value)}
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div className="space-y-2">
+                  <Label htmlFor="valorPago">Valor Pago</Label>
+                  <Input 
+                    id="valorPago" 
+                    placeholder="0.00"
+                    value={valorPago}
+                    onChange={(e) => setValorPago(e.target.value)}
+                    type="number"
+                    step="0.01"
+                    min="0"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="valorPendente">Valor Pendente</Label>
+                  <Input 
+                    id="valorPendente" 
+                    placeholder="0.00"
+                    value={valorPendente}
+                    onChange={(e) => setValorPendente(e.target.value)}
+                    type="number"
+                    step="0.01"
+                    min="0"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="gcNumber">GC Number</Label>
+                  <Input 
+                    id="gcNumber" 
+                    placeholder="Número do gift card"
+                    value={gcNumber}
+                    onChange={(e) => setGcNumber(e.target.value)}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="gcPass">GC Pass</Label>
+                  <Input 
+                    id="gcPass" 
+                    placeholder="Senha do gift card"
+                    value={gcPass}
+                    onChange={(e) => setGcPass(e.target.value)}
+                    type="password"
+                  />
+                </div>
+              </div>
             </div>
             
             <div className="flex justify-end space-x-2 pt-4">

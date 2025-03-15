@@ -37,6 +37,19 @@ export const giftCards = pgTable("gift_cards", {
   observacoes: text("observacoes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at"),
+  
+  // Novos campos para controle detalhado de gift cards
+  comprador: text("comprador"),
+  login: text("login"),
+  infoCompra: text("info_compra"),
+  dataCompra: timestamp("data_compra"),
+  ordemCompra: text("ordem_compra"),
+  percentualDesconto: doublePrecision("percentual_desconto"),
+  valorPago: doublePrecision("valor_pago"),
+  valorPendente: doublePrecision("valor_pendente"),
+  gcNumber: text("gc_number"),
+  gcPass: text("gc_pass"),
+  ordemUsado: text("ordem_usado"),
 });
 
 // Transações schema (nova tabela)
