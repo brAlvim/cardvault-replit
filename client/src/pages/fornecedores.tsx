@@ -58,7 +58,17 @@ import {
 const fornecedorFormSchema = z.object({
   nome: z.string().min(2, { message: "Nome deve ter pelo menos 2 caracteres" }),
   descricao: z.string().optional(),
-  website: z.string().url({ message: "Website deve ser uma URL válida" }).optional().or(z.literal("")),
+  website: z.string()
+    .transform(val => {
+      // Se o valor estiver vazio, retorna vazio
+      if (!val) return "";
+      // Se a URL já começa com http:// ou https://, retorna o valor original
+      if (val.startsWith('http://') || val.startsWith('https://')) return val;
+      // Caso contrário, adiciona https:// na frente
+      return `https://${val}`;
+    })
+    .optional()
+    .or(z.literal("")),
   logo: z.string().optional().or(z.literal("")),
   userId: z.number(),
 });
@@ -341,7 +351,14 @@ export default function FornecedoresPage() {
                           rel="noopener noreferrer"
                           className="text-blue-600 hover:underline"
                         >
-                          {new URL(fornecedor.website).hostname}
+                          {(() => {
+                            try {
+                              return new URL(fornecedor.website).hostname;
+                            } catch (e) {
+                              // Fallback caso a URL seja inválida
+                              return fornecedor.website.replace('https://', '').replace('http://', '');
+                            }
+                          })()}
                         </a>
                       ) : (
                         "-"
