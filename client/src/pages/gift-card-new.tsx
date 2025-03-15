@@ -61,6 +61,7 @@ export default function GiftCardNewPage() {
     if (valorPagoNum >= valorInicialNum) return '0';
     
     const desconto = ((valorInicialNum - valorPagoNum) / valorInicialNum) * 100;
+    console.log('Calculando desconto:', valorInicialNum, valorPagoNum, desconto.toFixed(2));
     return desconto.toFixed(2);
   }, [valorInicial, valorPago]);
   
@@ -350,15 +351,26 @@ export default function GiftCardNewPage() {
                 
                 <div className="space-y-2">
                   <Label htmlFor="percentualDesconto">% Desconto</Label>
-                  <Input 
-                    id="percentualDesconto" 
-                    value={percentualDesconto}
-                    disabled
-                    className="bg-muted"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Calculado automaticamente
-                  </p>
+                  <div className="relative">
+                    <Input 
+                      id="percentualDesconto" 
+                      value={percentualDesconto}
+                      readOnly
+                      className={`text-base font-medium ${parseFloat(percentualDesconto) > 0 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-muted'}`}
+                    />
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                      <span className={`text-sm ${parseFloat(percentualDesconto) > 0 ? 'text-green-500' : 'text-gray-500'}`}>%</span>
+                    </div>
+                  </div>
+                  {parseFloat(percentualDesconto) > 0 ? (
+                    <p className="text-xs text-green-600">
+                      Calculado: {parseFloat(valorInicial || '0').toFixed(2)} - {parseFloat(valorPago || '0').toFixed(2)} = {parseFloat(percentualDesconto)}% de desconto
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Atualiza automaticamente com base no valor inicial e valor pago
+                    </p>
+                  )}
                 </div>
                 
                 <div className="space-y-2">
@@ -372,7 +384,7 @@ export default function GiftCardNewPage() {
                 </div>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div className="space-y-2">
                   <Label htmlFor="valorPago">Valor Pago</Label>
                   <Input 
@@ -383,6 +395,7 @@ export default function GiftCardNewPage() {
                     type="number"
                     step="0.01"
                     min="0"
+                    className={parseFloat(valorPago) > 0 ? 'border-blue-200' : ''}
                   />
                 </div>
                 
@@ -397,6 +410,19 @@ export default function GiftCardNewPage() {
                     step="0.01"
                     min="0"
                   />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="valorEconomizado" className="text-green-600 font-medium">Valor Economizado</Label>
+                  <Input 
+                    id="valorEconomizado" 
+                    value={valorInicial && valorPago ? `R$ ${(parseFloat(valorInicial) - parseFloat(valorPago || '0')).toFixed(2)}` : 'R$ 0.00'}
+                    readOnly
+                    className="bg-green-50 text-green-700 border-green-200"
+                  />
+                  <p className="text-xs text-green-600">
+                    Economia total na compra deste gift card
+                  </p>
                 </div>
               </div>
               
