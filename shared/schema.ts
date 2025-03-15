@@ -39,10 +39,9 @@ export const giftCards = pgTable("gift_cards", {
   updatedAt: timestamp("updated_at"),
   
   // Novos campos para controle detalhado de gift cards
-  comprador: text("comprador"),
+  comprador: text("comprador"), // Nome do usuário atual
   login: text("login"),
-  infoCompra: text("info_compra"),
-  dataCompra: timestamp("data_compra"),
+  dataCompra: timestamp("data_compra").defaultNow(), // Por padrão, data atual
   ordemCompra: text("ordem_compra"),
   percentualDesconto: doublePrecision("percentual_desconto"),
   valorPago: doublePrecision("valor_pago"),

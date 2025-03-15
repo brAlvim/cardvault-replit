@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
-import { Fornecedor } from '@shared/schema';
+import { Fornecedor, User } from '@shared/schema';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,17 +36,33 @@ export default function GiftCardNewPage() {
   const [observacoes, setObservacoes] = useState('');
   
   // Form state - Novos campos detalhados
-  const [comprador, setComprador] = useState('');
   const [login, setLogin] = useState('');
-  const [infoCompra, setInfoCompra] = useState('');
-  const [dataCompra, setDataCompra] = useState<Date | undefined>(undefined);
+  const [dataCompra, setDataCompra] = useState<Date>(new Date()); // Data atual como padrão
   const [ordemCompra, setOrdemCompra] = useState('');
-  const [percentualDesconto, setPercentualDesconto] = useState('');
   const [valorPago, setValorPago] = useState('');
   const [valorPendente, setValorPendente] = useState('');
   const [gcNumber, setGcNumber] = useState('');
   const [gcPass, setGcPass] = useState('');
   const [ordemUsado, setOrdemUsado] = useState('');
+  
+  // Dados do usuário logado
+  const { data: userData, isLoading: isLoadingUser } = useQuery<User>({
+    queryKey: ['/api/users/1'], // Na aplicação final, seria o ID do usuário logado
+    queryFn: () => fetch('/api/users/1').then(res => res.json()),
+  });
+  
+  // Calcula automaticamente o percentual de desconto
+  const percentualDesconto = useMemo(() => {
+    if (!valorInicial || !valorPago || parseFloat(valorInicial) <= 0) return '0';
+    
+    const valorInicialNum = parseFloat(valorInicial);
+    const valorPagoNum = parseFloat(valorPago);
+    
+    if (valorPagoNum >= valorInicialNum) return '0';
+    
+    const desconto = ((valorInicialNum - valorPagoNum) / valorInicialNum) * 100;
+    return desconto.toFixed(2);
+  }, [valorInicial, valorPago]);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -117,12 +133,11 @@ export default function GiftCardNewPage() {
           status: 'Ativo',
           
           // Novos campos
-          comprador: comprador.trim() || null,
+          comprador: userData?.username || null, // Nome do usuário logado
           login: login.trim() || null,
-          infoCompra: infoCompra.trim() || null,
           dataCompra: dataCompra || null,
           ordemCompra: ordemCompra.trim() || null,
-          percentualDesconto: percentualDesconto ? parseFloat(percentualDesconto) : null,
+          percentualDesconto: parseFloat(percentualDesconto),
           valorPago: valorPago ? parseFloat(valorPago) : null,
           valorPendente: valorPendente ? parseFloat(valorPendente) : null,
           gcNumber: gcNumber.trim() || null,
@@ -274,10 +289,13 @@ export default function GiftCardNewPage() {
                   <Label htmlFor="comprador">Comprador</Label>
                   <Input 
                     id="comprador" 
-                    placeholder="Nome do comprador"
-                    value={comprador}
-                    onChange={(e) => setComprador(e.target.value)}
+                    value={userData?.username || ''}
+                    disabled
+                    className="bg-muted"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Preenchido automaticamente com o usuário logado
+                  </p>
                 </div>
                 
                 <div className="space-y-2">
@@ -291,17 +309,7 @@ export default function GiftCardNewPage() {
                 </div>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div className="space-y-2">
-                  <Label htmlFor="infoCompra">Informações da Compra</Label>
-                  <Input 
-                    id="infoCompra" 
-                    placeholder="Detalhes da compra"
-                    value={infoCompra}
-                    onChange={(e) => setInfoCompra(e.target.value)}
-                  />
-                </div>
-                
+              <div className="space-y-2 mb-4">
                 <div className="space-y-2">
                   <Label htmlFor="dataCompra">Data da Compra</Label>
                   <Popover>
@@ -318,11 +326,14 @@ export default function GiftCardNewPage() {
                       <Calendar
                         mode="single"
                         selected={dataCompra}
-                        onSelect={setDataCompra}
+                        onSelect={(date) => date && setDataCompra(date)}
                         initialFocus
                       />
                     </PopoverContent>
                   </Popover>
+                  <p className="text-xs text-muted-foreground">
+                    Data atual por padrão
+                  </p>
                 </div>
               </div>
               
@@ -341,14 +352,13 @@ export default function GiftCardNewPage() {
                   <Label htmlFor="percentualDesconto">% Desconto</Label>
                   <Input 
                     id="percentualDesconto" 
-                    placeholder="Ex: 10.5"
                     value={percentualDesconto}
-                    onChange={(e) => setPercentualDesconto(e.target.value)}
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="100"
+                    disabled
+                    className="bg-muted"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Calculado automaticamente
+                  </p>
                 </div>
                 
                 <div className="space-y-2">
