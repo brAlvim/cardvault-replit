@@ -6,12 +6,19 @@ import NotFound from "@/pages/not-found";
 import MainLayout from "@/layouts/main-layout";
 import Dashboard from "@/pages/dashboard";
 import Collection from "@/pages/collection";
+import GiftCards from "@/pages/gift-cards";
+import GiftCardDetails from "@/pages/gift-card-details";
+import GiftCardNew from "@/pages/gift-card-new";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
+      <Route path="/dashboard" component={Dashboard} />
       <Route path="/collection/:id" component={Collection} />
+      <Route path="/gift-cards" component={GiftCards} />
+      <Route path="/gift-cards/new" component={GiftCardNew} />
+      <Route path="/gift-cards/:id" component={GiftCardDetails} />
       <Route component={NotFound} />
     </Switch>
   );
