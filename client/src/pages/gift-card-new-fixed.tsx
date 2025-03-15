@@ -43,7 +43,6 @@ export default function GiftCardNewPageFixed() {
   // O valor pendente agora é calculado automaticamente (não é mais um estado)
   const [gcNumber, setGcNumber] = useState('');
   const [gcPass, setGcPass] = useState('');
-  const [ordemUsado, setOrdemUsado] = useState('');
   
   // State para cálculos automáticos
   const [percentualDesconto, setPercentualDesconto] = useState('0');
@@ -157,7 +156,6 @@ export default function GiftCardNewPageFixed() {
           valorPendente: parseFloat(valorInicial), // Inicialmente, o valor pendente é igual ao valor inicial
           gcNumber: gcNumber.trim() || null,
           gcPass: gcPass.trim() || null,
-          ordemUsado: ordemUsado.trim() || null,
         }),
       });
 
@@ -457,16 +455,6 @@ export default function GiftCardNewPageFixed() {
                     placeholder="Nº da ordem"
                     value={ordemCompra}
                     onChange={(e) => setOrdemCompra(e.target.value)}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="ordemUsado">Ordem Usado</Label>
-                  <Input 
-                    id="ordemUsado" 
-                    placeholder="Ordem de uso"
-                    value={ordemUsado}
-                    onChange={(e) => setOrdemUsado(e.target.value)}
                   />
                 </div>
               </div>
