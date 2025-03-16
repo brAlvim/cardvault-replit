@@ -515,23 +515,43 @@ export class MemStorage implements IStorage {
     const updatedTransacao = { ...transacao, ...transacaoData };
     this.transacoes.set(id, updatedTransacao);
     
-    // Se mudou o status para concluída ou cancelada, atualiza o saldo do gift card
+    // Se mudou o status, processa as alterações de saldo em todos os gift cards
     if (transacaoData.status) {
-      const giftCard = this.giftCards.get(transacao.giftCardId);
-      if (giftCard) {
-        let novoSaldo = giftCard.saldoAtual;
-        
-        // Se mudou de não-concluída para concluída
-        if (transacao.status !== "Concluída" && transacaoData.status === "Concluída") {
-          novoSaldo = Math.max(0, giftCard.saldoAtual - transacao.valor);
+      // Obter array de IDs de gift cards
+      let giftCardIdsArray: number[] = [];
+      
+      if (transacao.giftCardIds) {
+        // Converte a string de IDs para array de números
+        giftCardIdsArray = transacao.giftCardIds
+          .split(',')
+          .map(id => parseInt(id))
+          .filter(id => !isNaN(id));
+      } else {
+        // Compatibilidade com formato antigo
+        giftCardIdsArray = [transacao.giftCardId];
+      }
+      
+      // Calcula o valor por gift card
+      const valorPorGiftCard = transacao.valor / giftCardIdsArray.length;
+      
+      // Processa cada gift card
+      for (const giftCardId of giftCardIdsArray) {
+        const giftCard = this.giftCards.get(giftCardId);
+        if (giftCard) {
+          let novoSaldo = giftCard.saldoAtual;
+          
+          // Se mudou de não-concluída para concluída
+          if (transacao.status !== "Concluída" && transacaoData.status === "Concluída") {
+            novoSaldo = Math.max(0, giftCard.saldoAtual - valorPorGiftCard);
+          }
+          // Se mudou de concluída para cancelada
+          else if (transacao.status === "Concluída" && transacaoData.status === "Cancelada") {
+            novoSaldo = giftCard.saldoAtual + valorPorGiftCard;
+          }
+          
+          const status = novoSaldo <= 0 ? "Zerado" : "Ativo";
+          this.updateGiftCard(giftCard.id, { saldoAtual: novoSaldo, status });
         }
-        // Se mudou de concluída para cancelada
-        else if (transacao.status === "Concluída" && transacaoData.status === "Cancelada") {
-          novoSaldo = giftCard.saldoAtual + transacao.valor;
-        }
-        
-        const status = novoSaldo <= 0 ? "Zerado" : "Ativo";
-        this.updateGiftCard(giftCard.id, { saldoAtual: novoSaldo, status });
       }
     }
     
@@ -542,12 +562,33 @@ export class MemStorage implements IStorage {
     // Não deveria apagar transações, apenas marcar como canceladas
     const transacao = this.transacoes.get(id);
     if (transacao && transacao.status === "Concluída") {
-      // Se estiver deletando uma transação concluída, devolve o saldo para o gift card
-      const giftCard = this.giftCards.get(transacao.giftCardId);
-      if (giftCard) {
-        const novoSaldo = giftCard.saldoAtual + transacao.valor;
-        const status = "Ativo"; // Se está devolvendo valor, sempre volta a ficar ativo
-        this.updateGiftCard(giftCard.id, { saldoAtual: novoSaldo, status });
+      // Se estiver deletando uma transação concluída, devolve o saldo para todos os gift cards
+      
+      // Obter array de IDs de gift cards
+      let giftCardIdsArray: number[] = [];
+      
+      if (transacao.giftCardIds) {
+        // Converte a string de IDs para array de números
+        giftCardIdsArray = transacao.giftCardIds
+          .split(',')
+          .map(id => parseInt(id))
+          .filter(id => !isNaN(id));
+      } else {
+        // Compatibilidade com formato antigo
+        giftCardIdsArray = [transacao.giftCardId];
+      }
+      
+      // Calcula o valor por gift card
+      const valorPorGiftCard = transacao.valor / giftCardIdsArray.length;
+      
+      // Devolve o saldo para cada gift card
+      for (const giftCardId of giftCardIdsArray) {
+        const giftCard = this.giftCards.get(giftCardId);
+        if (giftCard) {
+          const novoSaldo = giftCard.saldoAtual + valorPorGiftCard;
+          const status = "Ativo"; // Se está devolvendo valor, sempre volta a ficar ativo
+          this.updateGiftCard(giftCard.id, { saldoAtual: novoSaldo, status });
+        }
       }
     }
     return this.transacoes.delete(id);
