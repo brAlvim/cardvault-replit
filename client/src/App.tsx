@@ -14,6 +14,7 @@ import GiftCardNewFixed from "@/pages/gift-card-new-fixed";
 import CalculadoraSimples from "@/pages/CalculadoraSimples";
 import Fornecedores from "@/pages/fornecedores";
 import Transacoes from "@/pages/transacoes";
+import Relatorios from "@/pages/relatorios";
 import UserProfiles from "@/pages/user-profiles";
 import Login from "@/pages/login";
 
@@ -59,6 +60,7 @@ function Router() {
       <ProtectedRoute path="/calculadora" component={CalculadoraSimples} />
       <ProtectedRoute path="/transacoes" component={Transacoes} />
       <ProtectedRoute path="/transacoes/:id" component={Transacoes} />
+      <ProtectedRoute path="/relatorios" component={Relatorios} />
       <ProtectedRoute path="/user-profiles" component={UserProfiles} />
       <ProtectedRoute path="/admin" component={UserProfiles} />
       

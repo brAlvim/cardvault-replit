@@ -737,6 +737,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rota para exportação de relatórios
+  router.get("/relatorios/gift-cards/export", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.query.userId as string) || 1;
+      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      
+      // Buscar todos os gift cards do usuário ou empresa
+      let giftCards = await storage.getGiftCards(userId, undefined, empresaId);
+      
+      // Filtrar dados confidenciais se o usuário for do perfil convidado
+      const user = (req as any).user;
+      const isGuest = await isGuestProfile(user.perfilId);
+      if (isGuest) {
+        giftCards = filterGiftCardArray(giftCards, true);
+      }
+      
+      res.json(giftCards);
+    } catch (error) {
+      console.error("Erro ao exportar gift cards:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  router.get("/relatorios/transacoes/export", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      const giftCardId = req.query.giftCardId ? parseInt(req.query.giftCardId as string) : undefined;
+      
+      let transacoes: Transacao[] = [];
+      
+      if (giftCardId) {
+        // Buscar transações de um gift card específico
+        transacoes = await storage.getTransacoes(giftCardId, empresaId);
+      } else if (empresaId) {
+        // Buscar todas as transações da empresa
+        transacoes = await storage.getTransacoesByEmpresa(empresaId);
+      } else {
+        // Sem filtro, buscar todas as transações (com limite para não sobrecarregar)
+        const giftCards = await storage.getGiftCards(1);  // ID do usuário demo
+        for (const card of giftCards.slice(0, 10)) {  // Limitar para os primeiros 10 gift cards
+          const cardTransacoes = await storage.getTransacoes(card.id);
+          transacoes.push(...cardTransacoes);
+        }
+      }
+      
+      // Ordenar por data, mais recentes primeiro
+      transacoes.sort((a, b) => {
+        return new Date(b.dataTransacao).getTime() - new Date(a.dataTransacao).getTime();
+      });
+      
+      res.json(transacoes);
+    } catch (error) {
+      console.error("Erro ao exportar transações:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Rota para estatísticas de relatórios
+  router.get("/relatorios/estatisticas", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.query.userId as string) || 1;
+      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      
+      // Buscar todos os gift cards do usuário ou empresa
+      const giftCards = await storage.getGiftCards(userId, undefined, empresaId);
+      const fornecedores = await storage.getFornecedores(userId, empresaId);
+      
+      // Calcular estatísticas por fornecedor
+      const estatisticasPorFornecedor = fornecedores
+        .filter(f => f.status === "ativo")
+        .map(fornecedor => {
+          const fornecedorGiftCards = giftCards.filter(gc => gc.fornecedorId === fornecedor.id);
+          const saldoTotal = fornecedorGiftCards.reduce((sum, gc) => sum + gc.saldoAtual, 0);
+          const count = fornecedorGiftCards.length;
+          
+          return {
+            id: fornecedor.id,
+            nome: fornecedor.nome,
+            saldoTotal,
+            count,
+            valorMedio: count > 0 ? saldoTotal / count : 0
+          };
+        });
+      
+      // Calcular estatísticas por mês (últimos 6 meses)
+      const hoje = new Date();
+      const estatisticasPorMes = [];
+      
+      for (let i = 5; i >= 0; i--) {
+        const data = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+        const mes = data.toLocaleString('default', { month: 'short' });
+        const ano = data.getFullYear();
+        
+        const cardsNoMes = giftCards.filter(gc => {
+          const dataGC = new Date(gc.createdAt);
+          return dataGC.getMonth() === data.getMonth() && dataGC.getFullYear() === data.getFullYear();
+        });
+        
+        estatisticasPorMes.push({
+          mes: `${mes}/${ano.toString().substring(2)}`,
+          count: cardsNoMes.length,
+          valor: cardsNoMes.reduce((sum, gc) => sum + gc.valorInicial, 0)
+        });
+      }
+      
+      // Estatísticas gerais
+      const estatisticasGerais = {
+        totalGiftCards: giftCards.length,
+        totalFornecedores: fornecedores.filter(f => f.status === "ativo").length,
+        saldoTotal: giftCards.reduce((sum, gc) => sum + gc.saldoAtual, 0),
+        valorTotalInicial: giftCards.reduce((sum, gc) => sum + gc.valorInicial, 0),
+      };
+      
+      res.json({
+        estatisticasPorFornecedor,
+        estatisticasPorMes,
+        estatisticasGerais
+      });
+    } catch (error) {
+      console.error("Erro ao buscar estatísticas:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Rota para collections (usado pelo sidebar)
   // Esta rota retorna apenas os fornecedores ativos
   router.get("/collections", async (req: Request, res: Response) => {
