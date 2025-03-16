@@ -17,13 +17,17 @@ interface FornecedorSummaryTableProps {
 }
 
 export default function FornecedorSummaryTable({ giftCards, fornecedores }: FornecedorSummaryTableProps) {
+  // Garantir que os arrays existem
+  const giftCardsArray = Array.isArray(giftCards) ? giftCards : [];
+  const fornecedoresArray = Array.isArray(fornecedores) ? fornecedores : [];
+
   // Filtrar apenas fornecedores ativos
-  const fornecedoresAtivos = fornecedores.filter(f => f.status === "ativo");
+  const fornecedoresAtivos = fornecedoresArray.filter(f => f.status === "ativo");
   
   // Calcular as estatísticas para cada fornecedor
   const fornecedorSummaries: FornecedorSummaryItem[] = fornecedoresAtivos.map(fornecedor => {
     // Filtrar gift cards deste fornecedor
-    const fornecedorGiftCards = giftCards.filter(gc => gc.fornecedorId === fornecedor.id);
+    const fornecedorGiftCards = giftCardsArray.filter(gc => gc.fornecedorId === fornecedor.id);
     
     // Calcular soma total disponível
     const disponivel = fornecedorGiftCards.reduce((sum, gc) => sum + gc.saldoAtual, 0);
