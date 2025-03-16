@@ -345,6 +345,16 @@ export default function TransacoesPage() {
   // Mutation para criar transação
   const createTransacao = useMutation({
     mutationFn: (data: TransacaoFormValues) => {
+      console.log("Dados enviados para criação:", data);
+      
+      // Certifique-se de que giftCardId está definido para transações criadas através da page geral
+      if (!data.giftCardId && data.giftCardIds) {
+        const ids = data.giftCardIds.split(',');
+        if (ids.length > 0) {
+          data.giftCardId = parseInt(ids[0]);
+        }
+      }
+      
       return fetch('/api/transacoes', {
         method: 'POST',
         headers: {
@@ -352,13 +362,24 @@ export default function TransacoesPage() {
         },
         body: JSON.stringify(data),
       }).then(res => {
-        if (!res.ok) throw new Error('Falha ao criar transação');
+        if (!res.ok) {
+          return res.json().then(errorData => {
+            console.error("Erro na resposta:", errorData);
+            throw new Error(errorData.message || 'Falha ao criar transação');
+          });
+        }
         return res.json();
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/transacoes', giftCardId] });
-      queryClient.invalidateQueries({ queryKey: ['/api/gift-cards', giftCardId] });
+      // Invalidar as consultas relevantes
+      if (isRouteMatch && giftCardId > 0) {
+        queryClient.invalidateQueries({ queryKey: ['/api/transacoes', giftCardId] });
+        queryClient.invalidateQueries({ queryKey: ['/api/gift-cards', giftCardId] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['/api/transacoes/all'] });
+      }
+      
       toast({
         title: "Transação criada",
         description: "A transação foi criada com sucesso.",
