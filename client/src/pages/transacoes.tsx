@@ -497,13 +497,45 @@ export default function TransacoesPage() {
   const handleRefundTransacao = (transacao: Transacao) => {
     // Abrir formulário para reembolso
     const preparedTransacao = prepareTransacaoForForm(transacao);
+    
+    // Identifica os gift cards da transação original
+    const giftCardIds = preparedTransacao.giftCardIds.split(',').map(id => parseInt(id));
+    
+    // Recupera os gift cards originais da lista completa
+    const originalGiftCards = giftCardIds.map(id => {
+      const gc = allGiftCards.find(g => g.id === id);
+      if (!gc) return null;
+      
+      const fornecedor = allFornecedores.find(f => f.id === gc.fornecedorId);
+      return {
+        id: gc.id,
+        codigo: `${gc.codigo} (${gc.codigo.slice(-4)})`,
+        saldoAtual: gc.saldoAtual,
+        fornecedorNome: fornecedor?.nome || 'Desconhecido'
+      };
+    }).filter(Boolean) as SelectedGiftCard[];
+    
+    // Define os gift cards originais como selecionados para restaurar o saldo
+    setSelectedGiftCards(originalGiftCards);
+    
+    // Define o valor do fornecedor da transação original
+    if (originalGiftCards.length > 0 && originalGiftCards[0]) {
+      const firstGC = allGiftCards.find(g => g.id === originalGiftCards[0].id);
+      if (firstGC) {
+        setSelectedFornecedorId(firstGC.fornecedorId);
+      }
+    }
+    
+    // Abre o formulário com os dados pré-preenchidos
     setSelectedTransacao({
       ...preparedTransacao,
       status: 'refund',
       refundDe: transacao.id,
-      valorRefund: 0, // Inicialmente 0, será preenchido pelo usuário
+      valorRefund: transacao.valor, // Valor original, mas pode ser alterado
       motivoRefund: '',
+      giftCardIds: preparedTransacao.giftCardIds, // Mantém os mesmos gift cards
     });
+    
     setIsTransacaoDialogOpen(true);
   };
   
@@ -606,6 +638,40 @@ export default function TransacoesPage() {
                       mas continuará sendo enviado através do onSubmit */}
                     </div>
                     
+                    {/* Seleção de Fornecedor */}
+                    <div className="p-4 border rounded-lg bg-blue-50 mb-4">
+                      <FormItem className="mb-0">
+                        <FormLabel className="font-medium">Fornecedor</FormLabel>
+                        <Select 
+                          value={selectedFornecedorId ? String(selectedFornecedorId) : '0'} 
+                          onValueChange={(value) => {
+                            const id = parseInt(value);
+                            setSelectedFornecedorId(id === 0 ? null : id);
+                            // Limpa os gift cards selecionados quando troca o fornecedor
+                            if ((id === 0 && selectedFornecedorId !== null) || (id !== 0 && id !== selectedFornecedorId)) {
+                              setSelectedGiftCards([]);
+                              form.setValue('giftCardIds', '');
+                            }
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione um fornecedor" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="0">Todos os fornecedores</SelectItem>
+                            {allFornecedores.map((fornecedor) => (
+                              <SelectItem key={fornecedor.id} value={String(fornecedor.id)}>
+                                {fornecedor.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          Selecione o fornecedor para filtrar os gift cards disponíveis
+                        </FormDescription>
+                      </FormItem>
+                    </div>
+                    
                     {/* Seleção de Gift Cards */}
                     <div className="p-4 border rounded-lg bg-blue-50 space-y-4">
                       <div className="flex justify-between items-center">
@@ -662,8 +728,10 @@ export default function TransacoesPage() {
                           disabled={selectedGiftCards.length >= 10}
                           onClick={() => {
                             // Obtém todos os gift cards que ainda não foram selecionados
+                            // e filtra por fornecedor se um fornecedor foi selecionado
                             const availableGiftCards = allGiftCards
-                              .filter(g => !selectedGiftCards.some(sg => sg.id === g.id));
+                              .filter(g => !selectedGiftCards.some(sg => sg.id === g.id))
+                              .filter(g => selectedFornecedorId ? g.fornecedorId === selectedFornecedorId : true);
                             
                             if (availableGiftCards.length === 0) {
                               toast({
