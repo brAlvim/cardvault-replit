@@ -62,6 +62,9 @@ export const transacoes = pgTable("transacoes", {
   comprovante: text("comprovante"),
   status: text("status").default("concluida").notNull(), // 'concluida', 'pendente', 'cancelada'
   motivoCancelamento: text("motivo_cancelamento"),
+  ordemInterna: text("ordem_interna"), // Número da ordem interna (Amazon)
+  ordemCompra: text("ordem_compra"), // Número da ordem do fornecedor
+  nomeUsuario: text("nome_usuario"), // Nome do usuário que realizou a transação
 });
 
 // Tag schema

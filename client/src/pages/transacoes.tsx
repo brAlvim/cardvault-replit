@@ -115,6 +115,9 @@ const transacaoFormSchema = z.object({
   dataTransacao: z.date().default(() => new Date()),
   comprovante: z.string().optional(),
   motivoCancelamento: z.string().optional(),
+  ordemInterna: z.string().optional(), // Número da ordem interna (Amazon)
+  ordemCompra: z.string().optional(), // Número da ordem do fornecedor
+  nomeUsuario: z.string().optional(), // Nome do usuário que realizou a transação
 });
 
 // Para lidar com a tipagem no form.reset
@@ -127,6 +130,9 @@ type TransacaoFormReset = {
   dataTransacao: Date;
   comprovante?: string;
   motivoCancelamento?: string;
+  ordemInterna?: string;
+  ordemCompra?: string;
+  nomeUsuario?: string;
 };
 
 type TransacaoFormValues = z.infer<typeof transacaoFormSchema>;
