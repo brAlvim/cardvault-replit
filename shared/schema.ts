@@ -61,8 +61,11 @@ export const transacoes = pgTable("transacoes", {
   userId: integer("user_id").notNull(),
   dataTransacao: timestamp("data_transacao").defaultNow().notNull(),
   comprovante: text("comprovante"),
-  status: text("status").default("concluida").notNull(), // 'concluida', 'pendente', 'cancelada'
+  status: text("status").default("concluida").notNull(), // 'concluida', 'pendente', 'cancelada', 'refund'
   motivoCancelamento: text("motivo_cancelamento"),
+  valorRefund: doublePrecision("valor_refund"), // Valor do reembolso quando o status é 'refund'
+  motivoRefund: text("motivo_refund"), // Motivo do reembolso
+  refundDe: integer("refund_de"), // ID da transação original que está sendo reembolsada
   ordemInterna: text("ordem_interna"), // Número da ordem interna (Amazon)
   ordemCompra: text("ordem_compra"), // Número da ordem do fornecedor
   nomeUsuario: text("nome_usuario"), // Nome do usuário que realizou a transação

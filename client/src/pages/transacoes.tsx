@@ -125,6 +125,9 @@ const transacaoFormSchema = z.object({
   dataTransacao: z.date().default(() => new Date()),
   comprovante: z.string().optional(),
   motivoCancelamento: z.string().optional(),
+  valorRefund: z.coerce.number().optional(), // Valor do reembolso quando status="refund"
+  motivoRefund: z.string().optional(), // Motivo do reembolso
+  refundDe: z.coerce.number().optional(), // ID da transação original que está sendo reembolsada
   ordemInterna: z.string().optional(), // Número da ordem interna (Amazon)
   ordemCompra: z.string().optional(), // Número da ordem do fornecedor
   nomeUsuario: z.string().optional(), // Nome do usuário que realizou a transação
@@ -142,6 +145,9 @@ type TransacaoFormReset = {
   dataTransacao: Date;
   comprovante?: string;
   motivoCancelamento?: string;
+  valorRefund?: number; // Valor do reembolso
+  motivoRefund?: string; // Motivo do reembolso
+  refundDe?: number; // ID da transação original
   ordemInterna?: string;
   ordemCompra?: string;
   nomeUsuario?: string;
@@ -238,6 +244,9 @@ export default function TransacoesPage() {
           dataTransacao: new Date(selectedTransacao.dataTransacao),
           comprovante: selectedTransacao.comprovante || undefined,
           motivoCancelamento: selectedTransacao.motivoCancelamento || undefined,
+          valorRefund: selectedTransacao.valorRefund,
+          motivoRefund: selectedTransacao.motivoRefund || undefined,
+          refundDe: selectedTransacao.refundDe,
           ordemInterna: selectedTransacao.ordemInterna || undefined,
           ordemCompra: selectedTransacao.ordemCompra || undefined,
           nomeUsuario: selectedTransacao.nomeUsuario || user?.username || undefined,
@@ -481,6 +490,20 @@ export default function TransacoesPage() {
         status: 'concluida',
       },
     });
+  };
+  
+  // Manipulador para processar um reembolso
+  const handleRefundTransacao = (transacao: Transacao) => {
+    // Abrir formulário para reembolso
+    const preparedTransacao = prepareTransacaoForForm(transacao);
+    setSelectedTransacao({
+      ...preparedTransacao,
+      status: 'refund',
+      refundDe: transacao.id,
+      valorRefund: 0, // Inicialmente 0, será preenchido pelo usuário
+      motivoRefund: '',
+    });
+    setIsTransacaoDialogOpen(true);
   };
   
   return (
