@@ -500,14 +500,49 @@ export default function TransacoesPage() {
     data.userId = user?.id || 1;
     data.nomeUsuario = user?.username || data.nomeUsuario || 'Usuário';
     
+    // Garantir que o status está definido
+    if (!data.status) {
+      data.status = 'concluida';
+    }
+    
+    // Garantir que o giftCardId está definido
+    if (!data.giftCardId && selectedGiftCards.length > 0) {
+      data.giftCardId = selectedGiftCards[0].id;
+    }
+    
+    // Garantir que a data de transação está definida
+    if (!data.dataTransacao) {
+      data.dataTransacao = new Date();
+    }
+    
+    // Log detalhado dos dados antes de enviar
+    console.log("Dados finais para envio:", {
+      valor: data.valor,
+      descricao: data.descricao,
+      status: data.status,
+      giftCardId: data.giftCardId,
+      giftCardIds: data.giftCardIds,
+      userId: data.userId,
+      dataTransacao: data.dataTransacao,
+      selectedGiftCards
+    });
+    
     // Se estiver editando, atualiza a transação
     if (selectedTransacao) {
+      toast({
+        title: "Atualizando transação",
+        description: "Enviando dados para o servidor...",
+      });
       updateTransacao.mutate({
         id: selectedTransacao.id,
         data,
       });
     } else {
       // Senão, cria uma nova
+      toast({
+        title: "Criando transação",
+        description: "Enviando dados para o servidor...",
+      });
       createTransacao.mutate(data);
     }
   };
