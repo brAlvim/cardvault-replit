@@ -599,14 +599,11 @@ export default function TransacoesPage() {
                               <FormLabel className="font-medium">Ordem Interna Amazon</FormLabel>
                               <FormControl>
                                 <Input 
-                                  placeholder="Número da ordem interna (Amazon)" 
+                                  placeholder="Ordem Interna Amazon" 
                                   {...field} 
                                   value={field.value || ''}
                                 />
                               </FormControl>
-                              <FormDescription>
-                                Número da ordem na Amazon
-                              </FormDescription>
                               <FormMessage />
                             </FormItem>
                           )}
@@ -620,14 +617,11 @@ export default function TransacoesPage() {
                               <FormLabel className="font-medium">Ordem de Compra Fornecedor</FormLabel>
                               <FormControl>
                                 <Input 
-                                  placeholder="Número da ordem do fornecedor" 
+                                  placeholder="Ordem de Compra Fornecedor" 
                                   {...field} 
                                   value={field.value || ''}
                                 />
                               </FormControl>
-                              <FormDescription>
-                                Número da ordem do fornecedor
-                              </FormDescription>
                               <FormMessage />
                             </FormItem>
                           )}
