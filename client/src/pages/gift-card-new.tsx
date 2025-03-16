@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { Fornecedor, User } from '@shared/schema';
@@ -94,11 +94,17 @@ export default function GiftCardNewPage() {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch fornecedores for dropdown - apenas ativos
-  const { data: fornecedores, isLoading: isLoadingFornecedores } = useQuery<Fornecedor[]>({
+  // Fetch fornecedores for dropdown - filtrando apenas os ativos
+  const { data: todosFornecedores, isLoading: isLoadingFornecedores } = useQuery<Fornecedor[]>({
     queryKey: ['/api/fornecedores'],
     queryFn: () => fetch('/api/fornecedores').then(res => res.json()),
   });
+  
+  // Filtra apenas fornecedores ativos
+  const fornecedores = useMemo(() => {
+    if (!todosFornecedores) return [];
+    return todosFornecedores.filter((f: Fornecedor) => f.status === "ativo");
+  }, [todosFornecedores]);
 
   // Validate form
   const isFormValid = (): boolean => {
@@ -261,16 +267,14 @@ export default function GiftCardNewPage() {
                   {isLoadingFornecedores ? (
                     <SelectItem value="loading" disabled>Carregando fornecedores...</SelectItem>
                   ) : fornecedores && fornecedores.length > 0 ? (
-                    // Filtra apenas fornecedores ativos 
-                    fornecedores
-                      .filter(fornecedor => fornecedor.status === "ativo")
-                      .map(fornecedor => (
-                        <SelectItem key={fornecedor.id} value={String(fornecedor.id)}>
-                          {fornecedor.nome}
-                        </SelectItem>
-                      ))
+                    // Lista apenas fornecedores ativos (já filtrados no useMemo)
+                    fornecedores.map((fornecedor: Fornecedor) => (
+                      <SelectItem key={fornecedor.id} value={String(fornecedor.id)}>
+                        {fornecedor.nome}
+                      </SelectItem>
+                    ))
                   ) : (
-                    <SelectItem value="no_fornecedores" disabled>Nenhum fornecedor disponível</SelectItem>
+                    <SelectItem value="no_fornecedores" disabled>Nenhum fornecedor ativo disponível</SelectItem>
                   )}
                 </SelectContent>
               </Select>
