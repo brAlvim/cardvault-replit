@@ -147,7 +147,14 @@ export default function UserProfilesPage() {
       if (!response.ok) {
         throw new Error('Erro ao buscar usuários');
       }
-      return await response.json();
+      const data = await response.json();
+      console.log('Usuários recebidos:', data);
+      // Mapear os dados para garantir as propriedades corretas
+      return Array.isArray(data) ? data.map(user => ({
+        ...user,
+        ativo: user.ativo || user.status === 'ativo', // Garantir que campo ativo existe
+        perfilNome: user.perfilNome || (perfis.find(p => p.id === user.perfilId)?.nome || 'Desconhecido')
+      })) : [];
     }
   });
 
