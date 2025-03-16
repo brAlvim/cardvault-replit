@@ -338,10 +338,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Itera por todos os gift cards para coletar suas transações
       const giftCards = await storage.getGiftCards(1); // Usuário demo fixo para simplificar
+      
+      // Incluir transações para cada gift card existente
       for (const card of giftCards) {
         const transacoes = await storage.getTransacoes(card.id);
         todasTransacoes.push(...transacoes);
       }
+      
+      // Também adicionar aqui qualquer outra transação geral que não esteja associada a gift cards
+      // Exemplo: registro de adição de gift cards, pagamentos, etc.
       
       // Ordena por data decrescente (mais recentes primeiro)
       todasTransacoes.sort((a, b) => {

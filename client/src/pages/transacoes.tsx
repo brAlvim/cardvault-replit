@@ -213,6 +213,15 @@ export default function TransacoesPage() {
     queryFn: () => fetch('/api/fornecedores').then(res => res.json()),
   });
   
+  // Função auxiliar para obter o nome do fornecedor a partir do gift card ID
+  const getFornecedorNome = (giftCardId: number): string => {
+    const giftCard = allGiftCards.find(gc => gc.id === giftCardId);
+    if (!giftCard) return "Desconhecido";
+    
+    const fornecedor = allFornecedores.find(f => f.id === giftCard.fornecedorId);
+    return fornecedor?.nome || "Desconhecido";
+  };
+  
   // Função para preparar uma transação para o formulário
   const prepareTransacaoForForm = (transacao: Transacao): any => {
     if (!transacao.giftCardIds) {
@@ -1333,6 +1342,7 @@ export default function TransacoesPage() {
                   <TableRow>
                     <TableHead>Data</TableHead>
                     <TableHead>Descrição</TableHead>
+                    <TableHead>Fornecedor</TableHead>
                     <TableHead>Ordem</TableHead>
                     <TableHead>Responsável</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
@@ -1370,6 +1380,14 @@ export default function TransacoesPage() {
                             )}
                           </>
                         )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">
+                          {getFornecedorNome(transacao.giftCardId)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Gift Card ID: {transacao.giftCardId}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {(transacao.ordemInterna || transacao.ordemCompra) ? (
