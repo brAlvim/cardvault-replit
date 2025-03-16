@@ -8,8 +8,7 @@ const JWT_SECRET = "cardvault-secret-key-2024";
 
 // Schema para validação do login
 const loginSchema = z.object({
-  empresaId: z.number(),
-  username: z.string(),
+  email: z.string().email(),
   password: z.string(),
 });
 
@@ -27,27 +26,17 @@ export async function login(req: Request, res: Response) {
   try {
     // Validar dados de entrada
     const validatedData = loginSchema.parse(req.body);
-    const { empresaId, username, password } = validatedData;
+    const { email, password } = validatedData;
 
-    // Verificar se a empresa existe
-    const empresa = await storage.getEmpresa(empresaId);
-    if (!empresa) {
-      return res.status(404).json({ message: "Empresa não encontrada" });
-    }
-
-    // Buscar usuário pelo username
-    const user = await storage.getUserByUsername(username);
+    // Buscar usuário pelo email
+    // Implementar um método getUserByEmail no storage
+    const user = await storage.getUserByEmail(email);
     if (!user) {
       return res.status(401).json({ message: "Credenciais inválidas" });
     }
 
-    // Verificar se o usuário pertence à empresa selecionada
-    if (user.empresaId !== empresaId) {
-      return res.status(401).json({ message: "Usuário não pertence à empresa selecionada" });
-    }
-
-    // Verificar se o usuário está ativo
-    if (!user.ativo) {
+    // Verificar se o usuário está ativo (usando o status ao invés de ativo)
+    if (user.status !== 'ativo') {
       return res.status(403).json({ message: "Usuário inativo. Entre em contato com o administrador." });
     }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -7,13 +7,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 
 const loginSchema = z.object({
-  empresa: z.string().min(1, { message: "Por favor, selecione sua empresa" }),
-  username: z.string().min(1, { message: "Por favor, informe seu usuário" }),
+  email: z.string().email({ message: "Por favor, informe um email válido" }),
   password: z.string().min(1, { message: "Por favor, informe sua senha" }),
 });
 
@@ -22,44 +20,21 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const [empresas, setEmpresas] = useState<{ id: number; nome: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      empresa: "",
-      username: "",
+      email: "",
       password: "",
     },
   });
-
-  useEffect(() => {
-    // Carregar lista de empresas
-    const fetchEmpresas = async () => {
-      try {
-        const response = await apiRequest("GET", "/api/empresas");
-        const data = await response.json();
-        setEmpresas(data || []);
-      } catch (error) {
-        console.error("Erro ao carregar empresas:", error);
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: "Não foi possível carregar a lista de empresas.",
-        });
-      }
-    };
-
-    fetchEmpresas();
-  }, [toast]);
 
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     try {
       const response = await apiRequest("POST", "/api/auth/login", {
-        empresaId: parseInt(data.empresa),
-        username: data.username,
+        email: data.email,
         password: data.password,
       });
 
@@ -68,11 +43,11 @@ export default function LoginPage() {
         // Armazenar dados do usuário e token no localStorage
         localStorage.setItem("user", JSON.stringify(userData.user));
         localStorage.setItem("token", userData.token);
-        localStorage.setItem("empresaId", data.empresa);
+        localStorage.setItem("empresaId", userData.user.empresaId.toString());
         
         toast({
           title: "Login realizado com sucesso",
-          description: `Bem-vindo(a) ${userData.user.nome || userData.user.username}!`,
+          description: `Bem-vindo(a) ${userData.user.nome || userData.user.email.split('@')[0]}!`,
         });
         
         // Redirecionar para o dashboard
@@ -109,37 +84,12 @@ export default function LoginPage() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
-                name="empresa"
+                name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Empresa</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione sua empresa" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {empresas.map((empresa) => (
-                          <SelectItem key={empresa.id} value={empresa.id.toString()}>
-                            {empresa.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="username"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Usuário</FormLabel>
+                    <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="Digite seu nome de usuário" {...field} />
+                      <Input type="email" placeholder="Digite seu email" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

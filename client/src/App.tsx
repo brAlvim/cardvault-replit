@@ -1,7 +1,8 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
+import { useState, useEffect } from "react";
 import NotFound from "@/pages/not-found";
 import MainLayout from "@/layouts/main-layout";
 import Dashboard from "@/pages/dashboard";
@@ -14,6 +15,7 @@ import CalculadoraSimples from "@/pages/CalculadoraSimples";
 import Fornecedores from "@/pages/fornecedores";
 import Transacoes from "@/pages/transacoes";
 import UserProfiles from "@/pages/user-profiles";
+import Login from "@/pages/login";
 
 function Router() {
   return (
