@@ -138,10 +138,15 @@ export default function LoginPage() {
             </form>
           </Form>
         </CardContent>
-        <CardFooter className="flex justify-center text-sm text-gray-500">
+        <CardFooter className="flex flex-col gap-2 text-sm text-gray-500">
           <p>
             Não tem acesso? Entre em contato com o administrador da sua empresa.
           </p>
+          <div className="text-xs p-2 bg-slate-100 rounded-md">
+            <p className="font-semibold text-center mb-1">Credenciais de Teste</p>
+            <p>Email: <span className="font-mono">demo@example.com</span></p>
+            <p>Senha: <span className="font-mono">password123</span></p>
+          </div>
         </CardFooter>
       </Card>
     </div>
