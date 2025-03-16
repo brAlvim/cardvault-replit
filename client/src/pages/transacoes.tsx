@@ -848,6 +848,7 @@ export default function TransacoesPage() {
                             <SelectContent>
                               <SelectItem value="concluida">Concluída</SelectItem>
                               <SelectItem value="pendente">Pendente</SelectItem>
+                              <SelectItem value="refund">Reembolso</SelectItem>
                               <SelectItem value="cancelada">Cancelada</SelectItem>
                             </SelectContent>
                           </Select>
@@ -881,6 +882,84 @@ export default function TransacoesPage() {
                           </FormItem>
                         )}
                       />
+                    )}
+                    
+                    {form.getValues('status') === 'refund' && (
+                      <div className="space-y-4 p-4 border rounded-lg border-orange-200 bg-orange-50">
+                        <h3 className="text-sm font-medium text-orange-800">Detalhes do Reembolso</h3>
+                        
+                        <FormField
+                          control={form.control}
+                          name="valorRefund"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Valor do Reembolso *</FormLabel>
+                              <FormControl>
+                                <div className="relative">
+                                  <Input 
+                                    placeholder="0.00" 
+                                    {...field} 
+                                    type="number"
+                                    step="0.01"
+                                    min="0.01"
+                                    className="pl-8"
+                                  />
+                                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                    <span className="text-orange-600 font-medium">R$</span>
+                                  </div>
+                                </div>
+                              </FormControl>
+                              <FormDescription>
+                                Valor a ser reembolsado (obrigatório)
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="motivoRefund"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Motivo do Reembolso *</FormLabel>
+                              <FormControl>
+                                <Textarea 
+                                  placeholder="Motivo do reembolso" 
+                                  {...field} 
+                                  value={field.value || ''}
+                                  rows={2}
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                Informe o motivo do reembolso (obrigatório)
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="refundDe"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Transação Original</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  value={field.value || ''}
+                                  disabled
+                                  className="bg-orange-100 text-orange-800"
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                ID da transação que está sendo reembolsada
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
                     )}
                     
                     <DialogFooter>
@@ -1012,6 +1091,25 @@ export default function TransacoesPage() {
                             Motivo: {transacao.motivoCancelamento}
                           </div>
                         )}
+                        {transacao.status === 'refund' && (
+                          <>
+                            {transacao.motivoRefund && (
+                              <div className="text-xs text-orange-700 mt-1">
+                                Motivo do reembolso: {transacao.motivoRefund}
+                              </div>
+                            )}
+                            {transacao.valorRefund && (
+                              <div className="text-xs font-medium text-orange-700 mt-1">
+                                Valor reembolsado: {formatMoney(transacao.valorRefund)}
+                              </div>
+                            )}
+                            {transacao.refundDe && (
+                              <div className="text-xs text-orange-700 mt-1">
+                                Transação original: #{transacao.refundDe}
+                              </div>
+                            )}
+                          </>
+                        )}
                       </TableCell>
                       <TableCell>
                         {(transacao.ordemInterna || transacao.ordemCompra) ? (
@@ -1045,16 +1143,19 @@ export default function TransacoesPage() {
                         <Badge 
                           variant={
                             transacao.status === 'concluida' ? 'default' : 
-                            transacao.status === 'pendente' ? 'outline' : 'secondary'
+                            transacao.status === 'pendente' ? 'outline' : 
+                            transacao.status === 'refund' ? 'outline' : 'secondary'
                           }
                           className={
                             transacao.status === 'concluida' ? 'bg-green-100 text-green-800 hover:bg-green-100' : 
                             transacao.status === 'pendente' ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100' : 
+                            transacao.status === 'refund' ? 'bg-orange-100 text-orange-800 hover:bg-orange-100' : 
                             'bg-red-100 text-red-800 hover:bg-red-100'
                           }
                         >
                           {transacao.status === 'concluida' ? 'Concluída' : 
-                           transacao.status === 'pendente' ? 'Pendente' : 'Cancelada'}
+                           transacao.status === 'pendente' ? 'Pendente' : 
+                           transacao.status === 'refund' ? 'Reembolso' : 'Cancelada'}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
@@ -1081,6 +1182,18 @@ export default function TransacoesPage() {
                               title="Cancelar transação"
                             >
                               <Ban className="h-4 w-4" />
+                            </Button>
+                          )}
+                          
+                          {transacao.status === 'concluida' && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-orange-600"
+                              onClick={() => handleRefundTransacao(transacao)}
+                              title="Processar reembolso"
+                            >
+                              <RefreshCcw className="h-4 w-4" />
                             </Button>
                           )}
                           
@@ -1156,7 +1269,8 @@ export default function TransacoesPage() {
                 <p className="text-xs text-muted-foreground">
                   Concluídas: {transacoes.filter(t => t.status === 'concluida').length} | 
                   Pendentes: {transacoes.filter(t => t.status === 'pendente').length} | 
-                  Canceladas: {transacoes.filter(t => t.status === 'cancelada').length}
+                  Canceladas: {transacoes.filter(t => t.status === 'cancelada').length} |
+                  Reembolsos: {transacoes.filter(t => t.status === 'refund').length}
                 </p>
               </div>
               <div className="text-right">
