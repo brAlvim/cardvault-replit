@@ -272,10 +272,16 @@ export default function GiftCardDetailsPage() {
         <CardHeader className="pb-2">
           <div className="flex justify-between items-center">
             <CardTitle className="text-xl">Histórico de Transações</CardTitle>
-            <Button onClick={() => setShowTransactionDialog(true)} size="sm">
-              <Plus className="h-4 w-4 mr-1" />
-              Nova Transação
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={() => navigate(`/transacoes/${id}`)} variant="outline" size="sm">
+                <Receipt className="h-4 w-4 mr-1" />
+                Ver Detalhes
+              </Button>
+              <Button onClick={() => setShowTransactionDialog(true)} size="sm">
+                <Plus className="h-4 w-4 mr-1" />
+                Nova Transação
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>

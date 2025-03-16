@@ -143,21 +143,21 @@ export default function TransacoesPage() {
   // Query para buscar gift card
   const { data: giftCard, isLoading: isLoadingGiftCard } = useQuery<GiftCard>({
     queryKey: ['/api/gift-cards', giftCardId],
-    queryFn: () => apiRequest('GET', `/api/gift-cards/${giftCardId}`),
+    queryFn: () => fetch(`/api/gift-cards/${giftCardId}`).then(res => res.json()),
     enabled: giftCardId > 0,
   });
   
   // Query para buscar fornecedor
   const { data: fornecedor, isLoading: isLoadingFornecedor } = useQuery<Fornecedor>({
     queryKey: ['/api/fornecedores', giftCard?.fornecedorId],
-    queryFn: () => apiRequest('GET', `/api/fornecedores/${giftCard?.fornecedorId}`),
+    queryFn: () => fetch(`/api/fornecedores/${giftCard?.fornecedorId}`).then(res => res.json()),
     enabled: !!giftCard?.fornecedorId,
   });
   
   // Query para buscar transações
   const { data: transacoes, isLoading: isLoadingTransacoes, refetch: refetchTransacoes } = useQuery<Transacao[]>({
     queryKey: ['/api/transacoes', giftCardId],
-    queryFn: () => apiRequest('GET', `/api/transacoes/${giftCardId}`),
+    queryFn: () => fetch(`/api/transacoes/${giftCardId}`).then(res => res.json()),
     enabled: giftCardId > 0,
   });
   
@@ -177,10 +177,18 @@ export default function TransacoesPage() {
   useEffect(() => {
     if (isTransacaoDialogOpen) {
       if (selectedTransacao) {
-        form.reset({
-          ...selectedTransacao,
+        // Convertendo transacao para o formato esperado pelo form
+        const formData: TransacaoFormReset = {
+          valor: selectedTransacao.valor,
+          descricao: selectedTransacao.descricao,
+          status: selectedTransacao.status,
+          giftCardId: selectedTransacao.giftCardId,
+          userId: selectedTransacao.userId,
           dataTransacao: new Date(selectedTransacao.dataTransacao),
-        });
+          comprovante: selectedTransacao.comprovante || undefined,
+          motivoCancelamento: selectedTransacao.motivoCancelamento || undefined,
+        };
+        form.reset(formData);
       } else {
         form.reset({
           giftCardId,
@@ -195,8 +203,18 @@ export default function TransacoesPage() {
   
   // Mutation para criar transação
   const createTransacao = useMutation({
-    mutationFn: (data: TransacaoFormValues) => 
-      apiRequest("POST", "/api/transacoes", data),
+    mutationFn: (data: TransacaoFormValues) => {
+      return fetch('/api/transacoes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      }).then(res => {
+        if (!res.ok) throw new Error('Falha ao criar transação');
+        return res.json();
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/transacoes', giftCardId] });
       queryClient.invalidateQueries({ queryKey: ['/api/gift-cards', giftCardId] });
@@ -218,8 +236,18 @@ export default function TransacoesPage() {
   
   // Mutation para atualizar transação
   const updateTransacao = useMutation({
-    mutationFn: ({ id, data }: { id: number, data: Partial<TransacaoFormValues> }) => 
-      apiRequest("PUT", `/api/transacoes/${id}`, data),
+    mutationFn: ({ id, data }: { id: number, data: Partial<TransacaoFormValues> }) => {
+      return fetch(`/api/transacoes/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      }).then(res => {
+        if (!res.ok) throw new Error('Falha ao atualizar transação');
+        return res.json();
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/transacoes', giftCardId] });
       queryClient.invalidateQueries({ queryKey: ['/api/gift-cards', giftCardId] });
@@ -242,8 +270,14 @@ export default function TransacoesPage() {
   
   // Mutation para excluir transação
   const deleteTransacao = useMutation({
-    mutationFn: (id: number) => 
-      apiRequest("DELETE", `/api/transacoes/${id}`),
+    mutationFn: (id: number) => {
+      return fetch(`/api/transacoes/${id}`, {
+        method: 'DELETE',
+      }).then(res => {
+        if (!res.ok) throw new Error('Falha ao excluir transação');
+        return res;
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/transacoes', giftCardId] });
       queryClient.invalidateQueries({ queryKey: ['/api/gift-cards', giftCardId] });
