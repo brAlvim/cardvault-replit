@@ -95,11 +95,27 @@ export const insertFornecedorSchema = createInsertSchema(fornecedores).omit({
   createdAt: true,
 });
 
-export const insertGiftCardSchema = createInsertSchema(giftCards).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertGiftCardSchema = createInsertSchema(giftCards)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    // Permite que a dataValidade venha como string e seja convertida para Date
+    dataValidade: z.union([
+      z.date(),
+      z.string().transform((str) => new Date(str)),
+      z.null()
+    ]).optional().nullable(),
+    
+    // Permite que a dataCompra venha como string e seja convertida para Date
+    dataCompra: z.union([
+      z.date(),
+      z.string().transform((str) => new Date(str)),
+      z.null()
+    ]).optional().nullable()
+  });
 
 // Ajuste no schema para permitir que a dataTransacao seja definida como string ou Date
 export const insertTransacaoSchema = createInsertSchema(transacoes)
