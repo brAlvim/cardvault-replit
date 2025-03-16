@@ -2,6 +2,27 @@ import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, da
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Empresa schema (multi-tenant)
+export const empresas = pgTable("empresas", {
+  id: serial("id").primaryKey(),
+  nome: text("nome").notNull(),
+  cnpj: text("cnpj"),
+  email: text("email").notNull(),
+  telefone: text("telefone"),
+  plano: text("plano").default("basico").notNull(), // basico, profissional, empresarial
+  status: text("status").default("ativo").notNull(), // ativo, inativo, pendente, bloqueado
+  dataExpiracao: timestamp("data_expiracao"),
+  logoUrl: text("logo_url"),
+  corPrimaria: text("cor_primaria"),
+  endereco: text("endereco"),
+  cidade: text("cidade"),
+  estado: text("estado"),
+  cep: text("cep"),
+  limiteUsuarios: integer("limite_usuarios").default(5),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+});
+
 // Perfil de usuário (role)
 export const perfis = pgTable("perfis", {
   id: serial("id").primaryKey(),
@@ -26,6 +47,8 @@ export const users = pgTable("users", {
   dataExpiracaoToken: timestamp("data_expiracao_token"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at"),
+  empresaId: integer("empresa_id").notNull().default(1), // ID da empresa a que o usuário pertence
+  nome: text("nome"), // Nome completo do usuário
 });
 
 // Fornecedor schema (replaces collections)
