@@ -828,16 +828,16 @@ export default function TransacoesPage() {
                       name="descricao"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Ordem Interna Amazon *</FormLabel>
+                          <FormLabel>Descrição *</FormLabel>
                           <FormControl>
                             <Textarea 
-                              placeholder="Detalhes da ordem interna Amazon" 
+                              placeholder="Descreva os detalhes da transação" 
                               {...field} 
                               rows={2}
                             />
                           </FormControl>
                           <FormDescription>
-                            Coloque os detalhes da ordem interna da Amazon
+                            Descreva o motivo ou detalhes desta transação
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -936,6 +936,33 @@ export default function TransacoesPage() {
                     {form.getValues('status') === 'refund' && (
                       <div className="space-y-4 p-4 border rounded-lg border-orange-200 bg-orange-50">
                         <h3 className="text-sm font-medium text-orange-800">Detalhes do Reembolso</h3>
+                        
+                        <div className="bg-white p-3 rounded-md border border-orange-200">
+                          <h4 className="text-sm font-semibold text-orange-800 mb-2">Gift Cards Originais</h4>
+                          <p className="text-xs text-orange-700 mb-2">
+                            Os seguintes gift cards da transação original terão seus saldos restaurados:
+                          </p>
+                          
+                          {selectedGiftCards.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              {selectedGiftCards.map((gCard) => (
+                                <div key={gCard.id} className="flex items-center p-2 border rounded bg-orange-50">
+                                  <div className="flex-1">
+                                    <p className="text-sm font-medium">{gCard.codigo}</p>
+                                    <div className="flex justify-between text-xs">
+                                      <span className="text-muted-foreground">{gCard.fornecedorNome}</span>
+                                      <span className="font-medium text-green-600">Saldo: {formatMoney(gCard.saldoAtual)}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-orange-800 text-center py-2">
+                              Não foi possível identificar os gift cards da transação original.
+                            </p>
+                          )}
+                        </div>
                         
                         <FormField
                           control={form.control}
