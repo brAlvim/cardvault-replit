@@ -12,7 +12,7 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
-import { login, requireAuth, requirePermission } from "./auth";
+import { login, requireAuth, requirePermission, isGuestProfile, filterConfidentialData, filterGiftCardArray } from "./auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const router = express.Router();
@@ -217,7 +217,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Gift Card routes (antigo Card)
-  router.get("/gift-cards", async (req: Request, res: Response) => {
+  router.get("/gift-cards", requireAuth, async (req: Request, res: Response) => {
     try {
       // Se userId não for fornecido, retorna todos os gift cards do usuário 1 (demo)
       let userId = 1;
@@ -233,21 +233,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
       const search = req.query.search as string | undefined;
       
+      // Verificar se o usuário é do perfil convidado
+      const user = (req as any).user;
+      const isGuest = await isGuestProfile(user.perfilId);
+      
       if (search) {
         // TODO: Atualizar o método searchGiftCards para suportar empresaId quando necessário
         const giftCards = await storage.searchGiftCards(userId, search);
         
         // Filtrar por empresa se necessário
-        const filteredGiftCards = empresaId 
+        let filteredGiftCards = empresaId 
           ? giftCards.filter(card => card.empresaId === empresaId)
           : giftCards;
+        
+        // Filtrar dados confidenciais se for perfil convidado
+        if (isGuest) {
+          filteredGiftCards = filterGiftCardArray(filteredGiftCards, true);
+        }
           
         return res.json(filteredGiftCards);
       }
       
-      const giftCards = await storage.getGiftCards(userId, fornecedorId, empresaId);
+      let giftCards = await storage.getGiftCards(userId, fornecedorId, empresaId);
+      
+      // Filtrar dados confidenciais se for perfil convidado
+      if (isGuest) {
+        giftCards = filterGiftCardArray(giftCards, true);
+      }
+      
       res.json(giftCards);
     } catch (error) {
+      console.error("Erro ao listar gift cards:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
@@ -270,18 +286,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  router.get("/gift-cards/:id", async (req: Request, res: Response) => {
+  router.get("/gift-cards/:id", requireAuth, async (req: Request, res: Response) => {
     try {
       const giftCardId = parseInt(req.params.id);
       const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
-      const giftCard = await storage.getGiftCard(giftCardId, empresaId);
+      let giftCard = await storage.getGiftCard(giftCardId, empresaId);
       
       if (!giftCard) {
         return res.status(404).json({ message: "Gift Card not found" });
       }
       
+      // Verificar se o usuário é do perfil convidado
+      const user = (req as any).user;
+      const isGuest = await isGuestProfile(user.perfilId);
+      
+      // Filtrar dados confidenciais se for perfil convidado
+      if (isGuest) {
+        giftCard = filterConfidentialData(giftCard, true);
+      }
+      
       res.json(giftCard);
     } catch (error) {
+      console.error("Erro ao buscar gift card:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });

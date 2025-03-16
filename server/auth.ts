@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import jwt from "jsonwebtoken";
 import { storage } from "./storage";
+import { GiftCard } from "@shared/schema";
 
 // Chave secreta para JWT - em produção, isso deve estar no .env
 const JWT_SECRET = "cardvault-secret-key-2024";
@@ -145,4 +146,38 @@ export function requirePermission(permission: string) {
       res.status(500).json({ message: "Erro ao verificar permissões" });
     }
   };
+}
+
+// Função para verificar se o usuário é do perfil "convidado"
+export async function isGuestProfile(perfilId: number): Promise<boolean> {
+  try {
+    const perfil = await storage.getPerfil(perfilId);
+    return perfil?.nome === "convidado";
+  } catch (error) {
+    console.error("Erro ao verificar perfil de convidado:", error);
+    return false;
+  }
+}
+
+// Função para filtrar informações confidenciais para convidados
+export function filterConfidentialData(giftCard: GiftCard, isGuest: boolean): GiftCard {
+  if (isGuest) {
+    // Cria uma cópia do objeto para não modificar o original
+    const filteredCard = { ...giftCard };
+    
+    // Remove informações confidenciais
+    filteredCard.gcNumber = "********"; // Mascara o número do gift card
+    filteredCard.gcPass = "********";   // Mascara a senha do gift card
+    
+    return filteredCard;
+  }
+  
+  return giftCard;
+}
+
+// Função para filtrar array de gift cards com base no perfil
+export function filterGiftCardArray(giftCards: GiftCard[], isGuest: boolean): GiftCard[] {
+  if (!isGuest) return giftCards;
+  
+  return giftCards.map(card => filterConfidentialData(card, true));
 }
