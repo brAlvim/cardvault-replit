@@ -703,6 +703,93 @@ export default function TransacoesPage() {
                 
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    {/* Teste direto - botão para criar uma transação fixa de teste */}
+                    {!selectedTransacao && (
+                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
+                        <h3 className="text-sm font-medium mb-2">Teste Rápido</h3>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Clique abaixo para criar uma transação de teste diretamente
+                        </p>
+                        <Button 
+                          type="button" 
+                          variant="outline"
+                          className="w-full bg-amber-100 hover:bg-amber-200"
+                          onClick={() => {
+                            // Seleciona o primeiro gift card
+                            const testGiftCard = allGiftCards[0];
+                            if (!testGiftCard) {
+                              toast({
+                                title: "Erro",
+                                description: "Nenhum gift card disponível para teste",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+                            
+                            // Cria dados fixos para teste
+                            const testData = {
+                              valor: 10,
+                              descricao: "Teste de transação",
+                              status: "concluida",
+                              giftCardId: testGiftCard.id,
+                              giftCardIds: String(testGiftCard.id),
+                              userId: 1,
+                              dataTransacao: new Date(),
+                              comprovante: null,
+                              motivoCancelamento: null,
+                              ordemInterna: null,
+                              ordemCompra: null,
+                              nomeUsuario: "Usuário de Teste",
+                            };
+                            
+                            console.log("Iniciando teste com dados fixos:", testData);
+                            
+                            // Faz a chamada direta para API sem usar a mutation
+                            fetch('/api/transacoes', {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                              },
+                              body: JSON.stringify(testData),
+                            })
+                            .then(response => {
+                              console.log("Status da resposta:", response.status);
+                              return response.json().catch(() => {
+                                if (response.ok) {
+                                  return { success: true, message: "Sucesso, mas sem resposta JSON" };
+                                }
+                                throw new Error(`Erro ${response.status}`);
+                              });
+                            })
+                            .then(data => {
+                              console.log("Resposta:", data);
+                              toast({
+                                title: "Sucesso",
+                                description: "Transação de teste criada com sucesso!",
+                              });
+                              
+                              // Atualiza os dados
+                              queryClient.invalidateQueries({ queryKey: ['/api/transacoes'] });
+                              queryClient.invalidateQueries({ queryKey: ['/api/gift-cards'] });
+                              
+                              // Fecha o diálogo
+                              setIsTransacaoDialogOpen(false);
+                            })
+                            .catch(error => {
+                              console.error("Erro na requisição:", error);
+                              toast({
+                                title: "Erro",
+                                description: `Falha ao criar: ${error.message}`,
+                                variant: "destructive",
+                              });
+                            });
+                          }}
+                        >
+                          Criar Transação de Teste
+                        </Button>
+                      </div>
+                    )}
+                  
                     {/* Seção de ordens - Topo do formulário */}
                     <div className="p-4 border rounded-lg bg-gray-50 space-y-4 mb-2">
                       <FormField
