@@ -33,16 +33,10 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     try {
-      // Usar fetch diretamente para ter mais controle sobre o tratamento de erros
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: data.email,
-          password: data.password,
-        }),
+      // Usar a função apiRequest atualizada
+      const response = await apiRequest('POST', '/api/auth/login', {
+        email: data.email,
+        password: data.password,
       });
 
       // Verificar se a resposta deu certo
@@ -69,6 +63,9 @@ export default function LoginPage() {
       localStorage.setItem("user", JSON.stringify(userData.user));
       localStorage.setItem("token", userData.token);
       localStorage.setItem("empresaId", userData.user.empresaId.toString());
+      
+      // Limpar e recarregar o cliente de consulta para refletir o novo estado de autenticação
+      queryClient.clear();
       
       toast({
         title: "Login realizado com sucesso",
