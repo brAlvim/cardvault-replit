@@ -574,7 +574,7 @@ export default function TransacoesPage() {
                   Nova Transação
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[550px]">
+              <DialogContent className="sm:max-w-[550px] max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>
                     {selectedTransacao ? 'Editar Transação' : 'Nova Transação'}
@@ -828,16 +828,16 @@ export default function TransacoesPage() {
                       name="descricao"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Descrição *</FormLabel>
+                          <FormLabel>Ordem Interna Amazon *</FormLabel>
                           <FormControl>
                             <Textarea 
-                              placeholder="Descrição da transação" 
+                              placeholder="Detalhes da ordem interna Amazon" 
                               {...field} 
                               rows={2}
                             />
                           </FormControl>
                           <FormDescription>
-                            Descreva o motivo ou detalhes desta transação
+                            Coloque os detalhes da ordem interna da Amazon
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -1165,7 +1165,7 @@ export default function TransacoesPage() {
                           <div>
                             {transacao.ordemInterna && (
                               <div className="text-xs">
-                                <span className="font-medium">Amazon:</span> {transacao.ordemInterna}
+                                <span className="font-medium">Ordem Interna Amazon:</span> {transacao.ordemInterna}
                               </div>
                             )}
                             {transacao.ordemCompra && (
