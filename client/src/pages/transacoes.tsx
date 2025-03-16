@@ -106,11 +106,21 @@ function formatMoney(value: number): string {
 }
 
 // Schema de validação do formulário
+// Interface para gift cards selecionáveis
+interface SelectedGiftCard {
+  id: number;
+  codigo: string;
+  saldoAtual: number;
+  fornecedorNome?: string;
+}
+
 const transacaoFormSchema = z.object({
   valor: z.coerce.number().positive('O valor deve ser maior que zero'),
   descricao: z.string().min(3, 'A descrição deve ter pelo menos 3 caracteres'),
   status: z.string().default('concluida'),
   giftCardId: z.coerce.number(),
+  giftCardIds: z.string().default(""), // IDs de gift cards separados por vírgula
+  selectedGiftCards: z.array(z.any()).optional(), // Array de gift cards selecionados
   userId: z.coerce.number().default(1), // Temporário - seria o usuário logado
   dataTransacao: z.date().default(() => new Date()),
   comprovante: z.string().optional(),
@@ -126,6 +136,8 @@ type TransacaoFormReset = {
   descricao: string;
   status: string;
   giftCardId: number;
+  giftCardIds?: string;
+  selectedGiftCards?: SelectedGiftCard[];
   userId?: number;
   dataTransacao: Date;
   comprovante?: string;

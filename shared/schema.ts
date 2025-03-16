@@ -54,7 +54,8 @@ export const giftCards = pgTable("gift_cards", {
 // Transações schema (nova tabela)
 export const transacoes = pgTable("transacoes", {
   id: serial("id").primaryKey(),
-  giftCardId: integer("gift_card_id").notNull(),
+  giftCardId: integer("gift_card_id").notNull(), // ID do gift card principal (mantido para compatibilidade)
+  giftCardIds: text("gift_card_ids").notNull(), // Lista de IDs de gift cards separados por vírgula (novo)
   valor: doublePrecision("valor").notNull(),
   descricao: text("descricao").notNull(),
   userId: integer("user_id").notNull(),
