@@ -156,8 +156,8 @@ type TransacaoFormReset = {
 type TransacaoFormValues = z.infer<typeof transacaoFormSchema>;
 
 export default function TransacoesPage() {
-  const [, params] = useRoute('/transacoes/:id');
-  const giftCardId = parseInt(params?.id || '0');
+  const [isRouteMatch, params] = useRoute('/transacoes/:id');
+  const giftCardId = isRouteMatch ? parseInt(params?.id || '0') : 0;
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -166,11 +166,18 @@ export default function TransacoesPage() {
   const [selectedGiftCards, setSelectedGiftCards] = useState<SelectedGiftCard[]>([]);
   const [selectedFornecedorId, setSelectedFornecedorId] = useState<number | null>(null);
   
+  // Query para buscar todas as transações (para a página principal)
+  const { data: allTransacoes, isLoading: isLoadingAllTransacoes } = useQuery<Transacao[]>({
+    queryKey: ['/api/transacoes/all'],
+    queryFn: () => fetch(`/api/transacoes/1`).then(res => res.json()), // Temporário: apenas busca transações do gift card 1
+    enabled: !isRouteMatch || giftCardId === 0,
+  });
+  
   // Query para buscar gift card
   const { data: giftCard, isLoading: isLoadingGiftCard } = useQuery<GiftCard>({
     queryKey: ['/api/gift-cards', giftCardId],
     queryFn: () => fetch(`/api/gift-cards/${giftCardId}`).then(res => res.json()),
-    enabled: giftCardId > 0,
+    enabled: isRouteMatch && giftCardId > 0,
   });
   
   // Query para buscar fornecedor
@@ -180,11 +187,11 @@ export default function TransacoesPage() {
     enabled: !!giftCard?.fornecedorId,
   });
   
-  // Query para buscar transações
+  // Query para buscar transações de um gift card específico
   const { data: transacoes, isLoading: isLoadingTransacoes, refetch: refetchTransacoes } = useQuery<Transacao[]>({
     queryKey: ['/api/transacoes', giftCardId],
     queryFn: () => fetch(`/api/transacoes/${giftCardId}`).then(res => res.json()),
-    enabled: giftCardId > 0,
+    enabled: isRouteMatch && giftCardId > 0,
   });
   
   // Query para buscar todos os gift cards disponíveis (para seleção múltipla)
@@ -554,14 +561,16 @@ export default function TransacoesPage() {
               <ArrowLeft className="h-4 w-4 mr-1" />
               Voltar
             </Button>
-            <h1 className="text-2xl font-bold">Transações do Gift Card</h1>
+            <h1 className="text-2xl font-bold">
+              {isRouteMatch ? "Transações do Gift Card" : "Todas as Transações"}
+            </h1>
           </div>
           
           <div className="flex gap-2">
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={() => refetchTransacoes()}
+              onClick={() => isRouteMatch ? refetchTransacoes() : null}
             >
               <RefreshCcw className="h-4 w-4 mr-1" />
               Atualizar

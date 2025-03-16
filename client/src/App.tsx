@@ -25,6 +25,7 @@ function Router() {
       <Route path="/gift-cards/:id" component={GiftCardDetails} />
       <Route path="/fornecedores" component={Fornecedores} />
       <Route path="/calculadora" component={CalculadoraSimples} />
+      <Route path="/transacoes" component={Transacoes} />
       <Route path="/transacoes/:id" component={Transacoes} />
       <Route component={NotFound} />
     </Switch>
