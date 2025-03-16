@@ -1,7 +1,10 @@
 import { Fornecedor } from '@shared/schema';
 import { useLocation } from 'wouter';
 import { Badge } from '@/components/ui/badge';
-import { CreditCard, Store, Tag, Receipt, BarChart3, Home, Users } from 'lucide-react';
+import { CreditCard, Store, Tag, Receipt, BarChart3, Home, Users, LogOut } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 
 interface SidebarProps {
   collections: any[]; // Temporário - será atualizado para Fornecedor[]
@@ -9,7 +12,38 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ collections, user }: SidebarProps) {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
+  const { toast } = useToast();
+  
+  const handleLogout = async () => {
+    try {
+      const response = await apiRequest('POST', '/api/auth/logout');
+      
+      if (!response.ok) {
+        throw new Error('Erro ao realizar logout');
+      }
+      
+      // Limpar dados armazenados
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('empresaId');
+      
+      toast({
+        title: "Logout realizado",
+        description: "Você foi desconectado com sucesso.",
+      });
+      
+      // Redirecionar para a página de login
+      setLocation('/login');
+    } catch (error) {
+      console.error('Erro durante logout:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao desconectar",
+        description: "Ocorreu um erro durante o logout. Tente novamente.",
+      });
+    }
+  };
 
   return (
     <aside className="hidden md:flex flex-col w-64 bg-white border-r border-slate-200 transition-all duration-300">
@@ -128,13 +162,21 @@ export default function Sidebar({ collections, user }: SidebarProps) {
       
       {user && (
         <div className="p-4 border-t border-slate-200">
-          <div className="flex items-center space-x-3 text-slate-600">
+          <div className="flex items-center space-x-3 text-slate-600 mb-2">
             <img src={user.avatarUrl} alt="User avatar" className="w-8 h-8 rounded-full" />
             <div>
               <p className="text-sm font-medium">{user.username}</p>
               <p className="text-xs text-slate-400">{user.email}</p>
             </div>
           </div>
+          <Button 
+            variant="link"
+            className="w-full text-red-500 flex items-center space-x-2 py-1 h-auto px-0 text-sm"
+            onClick={handleLogout}
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Sair</span>
+          </Button>
         </div>
       )}
     </aside>
