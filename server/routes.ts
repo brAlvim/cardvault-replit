@@ -53,10 +53,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Fornecedor routes (antigo Collection)
   router.get("/fornecedores", async (req: Request, res: Response) => {
     try {
-      const userId = parseInt(req.query.userId as string);
+      // Se userId não for fornecido, retorna todos os fornecedores (userId 1 é demo)
+      let userId = 1;
       
-      if (isNaN(userId)) {
-        return res.status(400).json({ message: "Invalid user ID" });
+      if (req.query.userId) {
+        userId = parseInt(req.query.userId as string);
+        if (isNaN(userId)) {
+          return res.status(400).json({ message: "Invalid user ID format" });
+        }
       }
       
       const fornecedores = await storage.getFornecedores(userId);
@@ -132,13 +136,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Gift Card routes (antigo Card)
   router.get("/gift-cards", async (req: Request, res: Response) => {
     try {
-      const userId = parseInt(req.query.userId as string);
+      // Se userId não for fornecido, retorna todos os gift cards do usuário 1 (demo)
+      let userId = 1;
+      
+      if (req.query.userId) {
+        userId = parseInt(req.query.userId as string);
+        if (isNaN(userId)) {
+          return res.status(400).json({ message: "Invalid user ID format" });
+        }
+      }
+      
       const fornecedorId = req.query.fornecedorId ? parseInt(req.query.fornecedorId as string) : undefined;
       const search = req.query.search as string | undefined;
-      
-      if (isNaN(userId)) {
-        return res.status(400).json({ message: "Invalid user ID" });
-      }
       
       if (search) {
         const giftCards = await storage.searchGiftCards(userId, search);

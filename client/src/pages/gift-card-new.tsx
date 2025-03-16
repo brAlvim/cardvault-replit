@@ -94,10 +94,10 @@ export default function GiftCardNewPage() {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch fornecedores for dropdown - filtrado por userId e apenas ativos
+  // Fetch fornecedores for dropdown - apenas ativos
   const { data: fornecedores, isLoading: isLoadingFornecedores } = useQuery<Fornecedor[]>({
-    queryKey: ['/api/fornecedores', { userId: 1 }],
-    queryFn: () => fetch('/api/fornecedores?userId=1').then(res => res.json()),
+    queryKey: ['/api/fornecedores'],
+    queryFn: () => fetch('/api/fornecedores').then(res => res.json()),
   });
 
   // Validate form
