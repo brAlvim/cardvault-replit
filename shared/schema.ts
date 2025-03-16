@@ -61,6 +61,7 @@ export const fornecedores = pgTable("fornecedores", {
   status: text("status").default("ativo").notNull(), // 'ativo', 'inativo'
   userId: integer("user_id").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  empresaId: integer("empresa_id").notNull().default(1), // ID da empresa a que o fornecedor pertence
 });
 
 // Gift Card schema (replaces cards)
@@ -76,6 +77,7 @@ export const giftCards = pgTable("gift_cards", {
   observacoes: text("observacoes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at"),
+  empresaId: integer("empresa_id").notNull().default(1), // ID da empresa a que o gift card pertence
   
   // Novos campos para controle detalhado de gift cards
   comprador: text("comprador"), // Nome do usuário atual
@@ -108,12 +110,14 @@ export const transacoes = pgTable("transacoes", {
   ordemInterna: text("ordem_interna"), // Número da ordem interna (Amazon)
   ordemCompra: text("ordem_compra"), // Número da ordem do fornecedor
   nomeUsuario: text("nome_usuario"), // Nome do usuário que realizou a transação
+  empresaId: integer("empresa_id").notNull().default(1), // ID da empresa a que a transação pertence
 });
 
 // Tag schema
 export const tags = pgTable("tags", {
   id: serial("id").primaryKey(),
   nome: text("nome").notNull(),
+  empresaId: integer("empresa_id").notNull().default(1), // ID da empresa a que a tag pertence
 });
 
 // Gift Card tags relationship

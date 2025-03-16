@@ -12,10 +12,41 @@ import {
   Tag,
   InsertTag,
   GiftCardTag,
-  InsertGiftCardTag
+  InsertGiftCardTag,
+  empresas,
 } from "@shared/schema";
+import { z } from "zod";
+
+// Criamos um schema de inserção para a empresa
+export const insertEmpresaSchema = z.object({
+  nome: z.string(),
+  cnpj: z.string().optional(),
+  email: z.string().email(),
+  telefone: z.string().optional(),
+  plano: z.string().default("basico"),
+  status: z.string().default("ativo"),
+  dataExpiracao: z.date().optional(),
+  logoUrl: z.string().optional(),
+  corPrimaria: z.string().optional(),
+  endereco: z.string().optional(),
+  cidade: z.string().optional(),
+  estado: z.string().optional(),
+  cep: z.string().optional(),
+  limiteUsuarios: z.number().default(5),
+});
+
+export type Empresa = typeof empresas.$inferSelect;
+export type InsertEmpresa = z.infer<typeof insertEmpresaSchema>;
 
 export interface IStorage {
+  // Empresa methods
+  getEmpresas(): Promise<Empresa[]>;
+  getEmpresa(id: number): Promise<Empresa | undefined>;
+  getEmpresaByNome(nome: string): Promise<Empresa | undefined>;
+  createEmpresa(empresa: InsertEmpresa): Promise<Empresa>;
+  updateEmpresa(id: number, empresa: Partial<InsertEmpresa>): Promise<Empresa | undefined>;
+  deleteEmpresa(id: number): Promise<boolean>;
+  
   // Perfil methods
   getPerfis(): Promise<Perfil[]>;
   getPerfil(id: number): Promise<Perfil | undefined>;
@@ -69,6 +100,7 @@ export interface IStorage {
 }
 
 export class MemStorage implements IStorage {
+  private empresas: Map<number, Empresa> = new Map();
   private perfis: Map<number, Perfil> = new Map();
   private users: Map<number, User> = new Map();
   private fornecedores: Map<number, Fornecedor> = new Map();
@@ -77,6 +109,7 @@ export class MemStorage implements IStorage {
   private tags: Map<number, Tag> = new Map();
   private giftCardTags: Map<number, GiftCardTag> = new Map();
   
+  private empresaId: number = 1;
   private perfilId: number = 1;
   private userId: number = 1;
   private fornecedorId: number = 1;
