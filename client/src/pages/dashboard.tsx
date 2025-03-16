@@ -56,7 +56,11 @@ export default function Dashboard() {
 
   // Calculate statistics
   const totalGiftCards = giftCards?.length || 0;
-  const totalFornecedores = fornecedores?.length || 0;
+  
+  // Contar apenas fornecedores ativos
+  const fornecedoresAtivos = fornecedores?.filter(f => f.status === "ativo") || [];
+  const totalFornecedores = fornecedoresAtivos.length || 0;
+  
   const totalTransacoes = giftCards?.reduce((sum, giftCard) => {
     // Count how many transactions across all gift cards
     // In a real implementation, we'd have a proper endpoint for this count

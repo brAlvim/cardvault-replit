@@ -17,8 +17,11 @@ interface FornecedorSummaryTableProps {
 }
 
 export default function FornecedorSummaryTable({ giftCards, fornecedores }: FornecedorSummaryTableProps) {
+  // Filtrar apenas fornecedores ativos
+  const fornecedoresAtivos = fornecedores.filter(f => f.status === "ativo");
+  
   // Calcular as estatísticas para cada fornecedor
-  const fornecedorSummaries: FornecedorSummaryItem[] = fornecedores.map(fornecedor => {
+  const fornecedorSummaries: FornecedorSummaryItem[] = fornecedoresAtivos.map(fornecedor => {
     // Filtrar gift cards deste fornecedor
     const fornecedorGiftCards = giftCards.filter(gc => gc.fornecedorId === fornecedor.id);
     
