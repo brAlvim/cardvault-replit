@@ -311,7 +311,9 @@ export default function FornecedoresPage() {
 
   // Alternar status do fornecedor (ativo/inativo)
   const handleToggleStatus = (fornecedor: Fornecedor) => {
+    // Status está sempre em minúsculo no banco de dados
     const novoStatus = fornecedor.status === "ativo" ? "inativo" : "ativo";
+    console.log(`Alterando status de ${fornecedor.nome} de ${fornecedor.status} para ${novoStatus}`);
     toggleStatusMutation.mutate({
       id: fornecedor.id,
       novoStatus: novoStatus

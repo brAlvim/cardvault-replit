@@ -104,8 +104,11 @@ export default function GiftCardNewPage() {
   const fornecedores = useMemo(() => {
     if (!todosFornecedores) return [];
     
-    console.log('Status dos fornecedores:', todosFornecedores.map(f => f.status));
-    return todosFornecedores.filter((f: Fornecedor) => f.status === "Ativo" || f.status === "ativo");
+    // Debug para verificar os status disponíveis
+    console.log('Status dos fornecedores:', todosFornecedores.map(f => ({ nome: f.nome, status: f.status })));
+    
+    // Filtra por status 'ativo' em minúsculas - esse é o padrão que vem do servidor
+    return todosFornecedores.filter((f: Fornecedor) => f.status === "ativo");
   }, [todosFornecedores]);
 
   // Validate form
