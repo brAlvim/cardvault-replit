@@ -1,12 +1,18 @@
 import {
-  users, fornecedores, giftCards, transacoes, tags, giftCardTags, perfis,
-  type User, type InsertUser,
-  type Fornecedor, type InsertFornecedor,
-  type GiftCard, type InsertGiftCard,
-  type Transacao, type InsertTransacao,
-  type Tag, type InsertTag,
-  type GiftCardTag, type InsertGiftCardTag,
-  type Perfil, type InsertPerfil
+  Perfil,
+  InsertPerfil,
+  User,
+  InsertUser,
+  Fornecedor,
+  InsertFornecedor,
+  GiftCard,
+  InsertGiftCard,
+  Transacao,
+  InsertTransacao,
+  Tag,
+  InsertTag,
+  GiftCardTag,
+  InsertGiftCardTag
 } from "@shared/schema";
 
 export interface IStorage {
@@ -63,187 +69,84 @@ export interface IStorage {
 }
 
 export class MemStorage implements IStorage {
-  private perfis: Map<number, Perfil>;
-  private users: Map<number, User>;
-  private fornecedores: Map<number, Fornecedor>;
-  private giftCards: Map<number, GiftCard>;
-  private transacoes: Map<number, Transacao>;
-  private tags: Map<number, Tag>;
-  private giftCardTags: Map<number, GiftCardTag>;
+  private perfis: Map<number, Perfil> = new Map();
+  private users: Map<number, User> = new Map();
+  private fornecedores: Map<number, Fornecedor> = new Map();
+  private giftCards: Map<number, GiftCard> = new Map();
+  private transacoes: Map<number, Transacao> = new Map();
+  private tags: Map<number, Tag> = new Map();
+  private giftCardTags: Map<number, GiftCardTag> = new Map();
   
-  private perfilId: number;
-  private userId: number;
-  private fornecedorId: number;
-  private giftCardId: number;
-  private transacaoId: number;
-  private tagId: number;
-  private giftCardTagId: number;
+  private perfilId: number = 1;
+  private userId: number = 1;
+  private fornecedorId: number = 1;
+  private giftCardId: number = 1;
+  private transacaoId: number = 1;
+  private tagId: number = 1;
+  private giftCardTagId: number = 1;
 
   constructor() {
-    this.users = new Map();
-    this.fornecedores = new Map();
-    this.giftCards = new Map();
-    this.transacoes = new Map();
-    this.tags = new Map();
-    this.giftCardTags = new Map();
-    
-    this.userId = 1;
-    this.fornecedorId = 1;
-    this.giftCardId = 1;
-    this.transacaoId = 1;
-    this.tagId = 1;
-    this.giftCardTagId = 1;
-    
     // Initialize with demo data
     this.initializeDemoData();
   }
 
-  private initializeDemoData() {
-    // Create demo user
-    const demoUser: InsertUser = {
-      username: "demo",
-      password: "password123",
-      email: "demo@example.com",
-      avatarUrl: "https://i.pravatar.cc/40?img=68"
+  // Perfil methods
+  async getPerfis(): Promise<Perfil[]> {
+    return Array.from(this.perfis.values());
+  }
+
+  async getPerfil(id: number): Promise<Perfil | undefined> {
+    return this.perfis.get(id);
+  }
+
+  async getPerfilByNome(nome: string): Promise<Perfil | undefined> {
+    return Array.from(this.perfis.values()).find(
+      (perfil) => perfil.nome === nome
+    );
+  }
+
+  async createPerfil(perfil: InsertPerfil): Promise<Perfil> {
+    const id = this.perfilId++;
+    const timestamp = new Date();
+    const newPerfil: Perfil = { 
+      id, 
+      nome: perfil.nome,
+      descricao: perfil.descricao || null,
+      permissoes: perfil.permissoes,
+      createdAt: timestamp,
+      updatedAt: null
     };
-    this.createUser(demoUser).then(user => {
-      // Fornecedores (anteriormente collections)
-      const fornecedores: InsertFornecedor[] = [
-        { nome: "Amazon", descricao: "Gift Cards da Amazon", website: "https://www.amazon.com", logo: "https://logo.clearbit.com/amazon.com", status: "ativo", userId: user.id },
-        { nome: "Netflix", descricao: "Gift Cards para assinatura Netflix", website: "https://www.netflix.com", logo: "https://logo.clearbit.com/netflix.com", status: "ativo", userId: user.id },
-        { nome: "Spotify", descricao: "Gift Cards para assinatura Spotify", website: "https://www.spotify.com", logo: "https://logo.clearbit.com/spotify.com", status: "ativo", userId: user.id },
-        { nome: "Steam", descricao: "Gift Cards para compras na Steam", website: "https://store.steampowered.com", logo: "https://logo.clearbit.com/steampowered.com", status: "ativo", userId: user.id }
-      ];
-      
-      Promise.all(fornecedores.map(f => this.createFornecedor(f))).then(fornecedorInstances => {
-        // Create tags
-        const tagNames = ["Entretenimento", "Música", "Jogos", "Compras Online", "Streaming", "Presente", "Expirado", "Mensal"];
-        Promise.all(tagNames.map(nome => this.createTag({ nome }))).then(tagInstances => {
+    this.perfis.set(id, newPerfil);
+    return newPerfil;
+  }
 
-          // Gift Cards (anteriormente cards)
-          const today = new Date();
-          const oneMonthFromNow = new Date(today);
-          oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
-          
-          const threeMonthsFromNow = new Date(today);
-          threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3);
-          
-          const demoGiftCards: InsertGiftCard[] = [
-            {
-              codigo: "GC001",
-              valorInicial: 100.00,
-              saldoAtual: 75.00,
-              dataValidade: oneMonthFromNow,
-              status: "ativo",
-              fornecedorId: fornecedorInstances[0].id, // Amazon
-              userId: user.id,
-              observacoes: "Gift card para compras de livros"
-            },
-            {
-              codigo: "GC002",
-              valorInicial: 50.00,
-              saldoAtual: 0.00,
-              dataValidade: threeMonthsFromNow,
-              status: "zerado",
-              fornecedorId: fornecedorInstances[1].id, // Netflix
-              userId: user.id,
-              observacoes: "Gift card para renovação da assinatura"
-            },
-            {
-              codigo: "GC003",
-              valorInicial: 25.00,
-              saldoAtual: 25.00,
-              dataValidade: threeMonthsFromNow,
-              status: "ativo",
-              fornecedorId: fornecedorInstances[2].id, // Spotify
-              userId: user.id,
-              observacoes: "Gift card para assinatura premium"
-            },
-            {
-              codigo: "GC004",
-              valorInicial: 200.00,
-              saldoAtual: 150.00,
-              dataValidade: threeMonthsFromNow,
-              status: "ativo",
-              fornecedorId: fornecedorInstances[3].id, // Steam
-              userId: user.id,
-              observacoes: "Gift card para as compras da Steam Summer Sale"
-            }
-          ];
+  async updatePerfil(id: number, perfilData: Partial<InsertPerfil>): Promise<Perfil | undefined> {
+    const perfil = this.perfis.get(id);
+    if (!perfil) return undefined;
+    
+    const timestamp = new Date();
+    const updatedPerfil: Perfil = { 
+      ...perfil,
+      nome: perfilData.nome !== undefined ? perfilData.nome : perfil.nome,
+      descricao: perfilData.descricao !== undefined ? perfilData.descricao : perfil.descricao,
+      permissoes: perfilData.permissoes !== undefined ? perfilData.permissoes : perfil.permissoes,
+      updatedAt: timestamp 
+    };
+    this.perfis.set(id, updatedPerfil);
+    return updatedPerfil;
+  }
 
-          Promise.all(demoGiftCards.map(giftCard => this.createGiftCard(giftCard))).then(giftCardInstances => {
-            // Transações
-            const twoWeeksAgo = new Date(today);
-            twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
-            
-            const oneWeekAgo = new Date(today);
-            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-
-            const demoTransacoes: InsertTransacao[] = [
-              {
-                giftCardId: giftCardInstances[0].id, // Amazon GC
-                giftCardIds: String(giftCardInstances[0].id),
-                valor: 25.00,
-                descricao: "Compra de livros",
-                userId: user.id,
-                dataTransacao: twoWeeksAgo,
-                status: "Concluída",
-                comprovante: null,
-                motivoCancelamento: null,
-                ordemInterna: null,
-                ordemCompra: null,
-                nomeUsuario: null
-              },
-              {
-                giftCardId: giftCardInstances[1].id, // Netflix GC
-                giftCardIds: String(giftCardInstances[1].id),
-                valor: 50.00,
-                descricao: "Assinatura anual",
-                userId: user.id,
-                dataTransacao: oneWeekAgo,
-                status: "Concluída",
-                comprovante: null,
-                motivoCancelamento: null,
-                ordemInterna: null,
-                ordemCompra: null,
-                nomeUsuario: null
-              },
-              {
-                giftCardId: giftCardInstances[3].id, // Steam GC
-                giftCardIds: String(giftCardInstances[3].id),
-                valor: 50.00,
-                descricao: "Compra de jogo novo",
-                userId: user.id,
-                dataTransacao: new Date(),
-                status: "Concluída",
-                comprovante: null,
-                motivoCancelamento: null,
-                ordemInterna: null,
-                ordemCompra: null,
-                nomeUsuario: null
-              }
-            ];
-
-            Promise.all(demoTransacoes.map(transacao => this.createTransacao(transacao))).then(transacaoInstances => {
-              // Add tags to gift cards
-              this.addTagToGiftCard(giftCardInstances[0].id, tagInstances[3].id); // Amazon - Compras Online
-              this.addTagToGiftCard(giftCardInstances[0].id, tagInstances[5].id); // Amazon - Presente
-              
-              this.addTagToGiftCard(giftCardInstances[1].id, tagInstances[0].id); // Netflix - Entretenimento
-              this.addTagToGiftCard(giftCardInstances[1].id, tagInstances[4].id); // Netflix - Streaming
-              this.addTagToGiftCard(giftCardInstances[1].id, tagInstances[7].id); // Netflix - Mensal
-              
-              this.addTagToGiftCard(giftCardInstances[2].id, tagInstances[1].id); // Spotify - Música
-              this.addTagToGiftCard(giftCardInstances[2].id, tagInstances[4].id); // Spotify - Streaming
-              this.addTagToGiftCard(giftCardInstances[2].id, tagInstances[7].id); // Spotify - Mensal
-              
-              this.addTagToGiftCard(giftCardInstances[3].id, tagInstances[2].id); // Steam - Jogos
-              this.addTagToGiftCard(giftCardInstances[3].id, tagInstances[5].id); // Steam - Presente
-            });
-          });
-        });
-      });
-    });
+  async deletePerfil(id: number): Promise<boolean> {
+    // Não permitir excluir se houver usuários associados
+    const usuarios = Array.from(this.users.values()).filter(
+      (user) => user.perfilId === id
+    );
+    
+    if (usuarios.length > 0) {
+      return false;
+    }
+    
+    return this.perfis.delete(id);
   }
 
   // User methods
@@ -253,19 +156,88 @@ export class MemStorage implements IStorage {
 
   async getUserByUsername(username: string): Promise<User | undefined> {
     return Array.from(this.users.values()).find(
-      (user) => user.username === username,
+      (user) => user.username === username
     );
   }
 
   async createUser(user: InsertUser): Promise<User> {
     const id = this.userId++;
     const timestamp = new Date();
-    const newUser = { ...user, id, createdAt: timestamp };
+    const newUser: User = { 
+      id,
+      username: user.username,
+      password: user.password,
+      email: user.email,
+      avatarUrl: user.avatarUrl || null,
+      perfilId: user.perfilId || 3, // Perfil padrão = usuário regular
+      status: user.status || "ativo",
+      ultimoLogin: null,
+      tokenReset: null,
+      dataExpiracaoToken: null,
+      createdAt: timestamp,
+      updatedAt: null
+    };
     this.users.set(id, newUser);
     return newUser;
   }
 
-  // Fornecedor methods (substitui Collection)
+  async updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined> {
+    const user = this.users.get(id);
+    if (!user) return undefined;
+    
+    const timestamp = new Date();
+    const updatedUser: User = { 
+      ...user,
+      username: userData.username !== undefined ? userData.username : user.username,
+      password: userData.password !== undefined ? userData.password : user.password,
+      email: userData.email !== undefined ? userData.email : user.email,
+      avatarUrl: userData.avatarUrl !== undefined ? userData.avatarUrl : user.avatarUrl,
+      perfilId: userData.perfilId !== undefined ? userData.perfilId : user.perfilId,
+      status: userData.status !== undefined ? userData.status : user.status,
+      updatedAt: timestamp 
+    };
+    this.users.set(id, updatedUser);
+    return updatedUser;
+  }
+
+  async deleteUser(id: number): Promise<boolean> {
+    return this.users.delete(id);
+  }
+
+  async updateUserLastLogin(id: number): Promise<User | undefined> {
+    const user = this.users.get(id);
+    if (!user) return undefined;
+    
+    const timestamp = new Date();
+    const updatedUser: User = { 
+      ...user, 
+      ultimoLogin: timestamp, 
+      updatedAt: timestamp 
+    };
+    this.users.set(id, updatedUser);
+    return updatedUser;
+  }
+
+  async updateUserPasswordResetToken(id: number, token: string): Promise<User | undefined> {
+    const user = this.users.get(id);
+    if (!user) return undefined;
+    
+    const timestamp = new Date();
+    // Token expira em 24h
+    const dataExpiracao = new Date(timestamp);
+    dataExpiracao.setHours(dataExpiracao.getHours() + 24);
+    
+    const updatedUser: User = { 
+      ...user, 
+      tokenReset: token,
+      dataExpiracaoToken: dataExpiracao,
+      updatedAt: timestamp 
+    };
+    this.users.set(id, updatedUser);
+    return updatedUser;
+  }
+
+  // Fornecedor methods (anteriormente collections)
   async getFornecedores(userId: number): Promise<Fornecedor[]> {
     return Array.from(this.fornecedores.values()).filter(
       (fornecedor) => fornecedor.userId === userId
@@ -279,7 +251,16 @@ export class MemStorage implements IStorage {
   async createFornecedor(fornecedor: InsertFornecedor): Promise<Fornecedor> {
     const id = this.fornecedorId++;
     const timestamp = new Date();
-    const newFornecedor = { ...fornecedor, id, createdAt: timestamp };
+    const newFornecedor: Fornecedor = { 
+      id, 
+      nome: fornecedor.nome,
+      descricao: fornecedor.descricao || null,
+      website: fornecedor.website || null,
+      logo: fornecedor.logo || null,
+      status: fornecedor.status,
+      userId: fornecedor.userId,
+      createdAt: timestamp
+    };
     this.fornecedores.set(id, newFornecedor);
     return newFornecedor;
   }
@@ -288,7 +269,15 @@ export class MemStorage implements IStorage {
     const fornecedor = this.fornecedores.get(id);
     if (!fornecedor) return undefined;
     
-    const updatedFornecedor = { ...fornecedor, ...fornecedorData };
+    const updatedFornecedor: Fornecedor = { 
+      ...fornecedor,
+      nome: fornecedorData.nome !== undefined ? fornecedorData.nome : fornecedor.nome,
+      descricao: fornecedorData.descricao !== undefined ? fornecedorData.descricao : fornecedor.descricao,
+      website: fornecedorData.website !== undefined ? fornecedorData.website : fornecedor.website,
+      logo: fornecedorData.logo !== undefined ? fornecedorData.logo : fornecedor.logo,
+      status: fornecedorData.status !== undefined ? fornecedorData.status : fornecedor.status,
+      userId: fornecedorData.userId !== undefined ? fornecedorData.userId : fornecedor.userId,
+    };
     this.fornecedores.set(id, updatedFornecedor);
     return updatedFornecedor;
   }
@@ -297,7 +286,7 @@ export class MemStorage implements IStorage {
     return this.fornecedores.delete(id);
   }
 
-  // Gift Card methods (substitui Card)
+  // Gift Card methods (anteriormente cards)
   async getGiftCards(userId: number, fornecedorId?: number): Promise<GiftCard[]> {
     let giftCards = Array.from(this.giftCards.values()).filter(
       (giftCard) => giftCard.userId === userId
@@ -322,7 +311,7 @@ export class MemStorage implements IStorage {
       return {
         ...giftCard,
         valorPendente
-      };
+      } as GiftCard;
     });
     
     return giftCardsComValorPendente;
@@ -332,9 +321,8 @@ export class MemStorage implements IStorage {
     const giftCard = this.giftCards.get(id);
     
     if (giftCard) {
-      // Busca as transações associadas ao gift card para calcular o valor pendente
       const transacoes = Array.from(this.transacoes.values()).filter(
-        transacao => transacao.giftCardId === id && transacao.status === "Concluída"
+        transacao => transacao.giftCardId === giftCard.id && transacao.status === "Concluída"
       );
       
       // Calcula o valor total das transações
@@ -343,20 +331,40 @@ export class MemStorage implements IStorage {
       // Atualiza o valor pendente como valorInicial - valorTotalTransacoes
       const valorPendente = Math.max(0, giftCard.valorInicial - valorTotalTransacoes);
       
-      // Retorna o gift card com o valor pendente atualizado
       return {
         ...giftCard,
         valorPendente
-      };
+      } as GiftCard;
     }
     
-    return giftCard;
+    return undefined;
   }
 
   async createGiftCard(giftCard: InsertGiftCard): Promise<GiftCard> {
     const id = this.giftCardId++;
     const timestamp = new Date();
-    const newGiftCard = { ...giftCard, id, createdAt: timestamp, updatedAt: timestamp };
+    const newGiftCard: GiftCard = { 
+      id,
+      codigo: giftCard.codigo,
+      valorInicial: giftCard.valorInicial,
+      saldoAtual: giftCard.saldoAtual,
+      dataValidade: giftCard.dataValidade || null,
+      status: giftCard.status,
+      fornecedorId: giftCard.fornecedorId,
+      userId: giftCard.userId,
+      observacoes: giftCard.observacoes || null,
+      createdAt: timestamp,
+      updatedAt: null,
+      dataCadastro: timestamp,
+      dataCompra: giftCard.dataCompra || null,
+      dataAtivacao: giftCard.dataAtivacao || null,
+      dataUltimoUso: null,
+      dataCancelamento: null,
+      motivoCancelamento: null,
+      codigoOrdemCompra: giftCard.codigoOrdemCompra || null,
+      desconto: giftCard.desconto || null,
+      ordemUsado: giftCard.ordemUsado || null
+    };
     this.giftCards.set(id, newGiftCard);
     return newGiftCard;
   }
@@ -366,7 +374,22 @@ export class MemStorage implements IStorage {
     if (!giftCard) return undefined;
     
     const timestamp = new Date();
-    const updatedGiftCard = { ...giftCard, ...giftCardData, updatedAt: timestamp };
+    const updatedGiftCard: GiftCard = { 
+      ...giftCard,
+      codigo: giftCardData.codigo !== undefined ? giftCardData.codigo : giftCard.codigo,
+      valorInicial: giftCardData.valorInicial !== undefined ? giftCardData.valorInicial : giftCard.valorInicial,
+      saldoAtual: giftCardData.saldoAtual !== undefined ? giftCardData.saldoAtual : giftCard.saldoAtual,
+      dataValidade: giftCardData.dataValidade !== undefined ? giftCardData.dataValidade : giftCard.dataValidade,
+      status: giftCardData.status !== undefined ? giftCardData.status : giftCard.status,
+      fornecedorId: giftCardData.fornecedorId !== undefined ? giftCardData.fornecedorId : giftCard.fornecedorId,
+      observacoes: giftCardData.observacoes !== undefined ? giftCardData.observacoes : giftCard.observacoes,
+      dataCompra: giftCardData.dataCompra !== undefined ? giftCardData.dataCompra : giftCard.dataCompra,
+      dataAtivacao: giftCardData.dataAtivacao !== undefined ? giftCardData.dataAtivacao : giftCard.dataAtivacao,
+      codigoOrdemCompra: giftCardData.codigoOrdemCompra !== undefined ? giftCardData.codigoOrdemCompra : giftCard.codigoOrdemCompra,
+      desconto: giftCardData.desconto !== undefined ? giftCardData.desconto : giftCard.desconto,
+      ordemUsado: giftCardData.ordemUsado !== undefined ? giftCardData.ordemUsado : giftCard.ordemUsado,
+      updatedAt: timestamp 
+    };
     this.giftCards.set(id, updatedGiftCard);
     return updatedGiftCard;
   }
@@ -380,10 +403,10 @@ export class MemStorage implements IStorage {
     const dataLimite = new Date(hoje);
     dataLimite.setDate(dataLimite.getDate() + dias);
     
-    const giftCards = Array.from(this.giftCards.values()).filter(
+    let giftCards = Array.from(this.giftCards.values()).filter(
       (giftCard) => 
         giftCard.userId === userId && 
-        giftCard.dataValidade && 
+        giftCard.dataValidade !== null &&
         giftCard.dataValidade <= dataLimite
     );
     
@@ -402,20 +425,21 @@ export class MemStorage implements IStorage {
       return {
         ...giftCard,
         valorPendente
-      };
+      } as GiftCard;
     });
     
     return giftCardsComValorPendente;
   }
-
+  
   async getGiftCardsByTag(tagId: number): Promise<GiftCard[]> {
     const giftCardTagRelations = Array.from(this.giftCardTags.values()).filter(
-      (relation) => relation.tagId === tagId
+      relation => relation.tagId === tagId
     );
     
     const giftCardIds = giftCardTagRelations.map(relation => relation.giftCardId);
-    const giftCards = Array.from(this.giftCards.values()).filter(
-      (giftCard) => giftCardIds.includes(giftCard.id)
+    
+    let giftCards = Array.from(this.giftCards.values()).filter(
+      giftCard => giftCardIds.includes(giftCard.id)
     );
     
     // Para cada gift card, calculamos o valor pendente
@@ -433,7 +457,7 @@ export class MemStorage implements IStorage {
       return {
         ...giftCard,
         valorPendente
-      };
+      } as GiftCard;
     });
     
     return giftCardsComValorPendente;
@@ -441,13 +465,14 @@ export class MemStorage implements IStorage {
 
   async searchGiftCards(userId: number, searchTerm: string): Promise<GiftCard[]> {
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
-    const giftCards = Array.from(this.giftCards.values()).filter(
+    
+    let giftCards = Array.from(this.giftCards.values()).filter(
       (giftCard) => 
-        giftCard.userId === userId &&
+        giftCard.userId === userId && 
         (
           giftCard.codigo.toLowerCase().includes(lowerCaseSearchTerm) ||
-          giftCard.observacoes?.toLowerCase().includes(lowerCaseSearchTerm) ||
-          giftCard.status.toLowerCase().includes(lowerCaseSearchTerm)
+          (giftCard.observacoes && giftCard.observacoes.toLowerCase().includes(lowerCaseSearchTerm)) ||
+          (giftCard.codigoOrdemCompra && giftCard.codigoOrdemCompra.toLowerCase().includes(lowerCaseSearchTerm))
         )
     );
     
@@ -466,13 +491,13 @@ export class MemStorage implements IStorage {
       return {
         ...giftCard,
         valorPendente
-      };
+      } as GiftCard;
     });
     
     return giftCardsComValorPendente;
   }
-
-  // Transação methods
+  
+  // Transacoes methods
   async getTransacoes(giftCardId: number): Promise<Transacao[]> {
     return Array.from(this.transacoes.values()).filter(
       (transacao) => transacao.giftCardId === giftCardId
@@ -484,63 +509,63 @@ export class MemStorage implements IStorage {
   }
 
   async createTransacao(transacao: InsertTransacao): Promise<Transacao> {
-    console.log("Criando transação:", transacao);
     const id = this.transacaoId++;
+    const timestamp = new Date();
     
-    // Define valores padrão para campos obrigatórios
-    if (!transacao.status) transacao.status = "concluida";
-    if (!transacao.dataTransacao) transacao.dataTransacao = new Date();
-    
-    // Cria a transação com os dados recebidos
-    const newTransacao = { ...transacao, id };
-    console.log("Nova transação processada:", newTransacao);
-    
-    // Verifica se temos giftCardIds (múltiplos gift cards)
-    let giftCardIdsArray: number[] = [];
-    
-    if (newTransacao.giftCardIds) {
-      // Converte a string de IDs para array de números
-      giftCardIdsArray = newTransacao.giftCardIds
-        .split(',')
-        .map(id => parseInt(id))
-        .filter(id => !isNaN(id));
-      console.log("Gift cards processados:", giftCardIdsArray);
-    } else {
-      // Compatibilidade com formato antigo
-      giftCardIdsArray = [newTransacao.giftCardId];
-      newTransacao.giftCardIds = String(newTransacao.giftCardId);
-      console.log("Usando gift card principal:", newTransacao.giftCardId);
-    }
-    
-    // Salva a transação
-    this.transacoes.set(id, newTransacao);
-    console.log("Transação salva com ID:", id);
-    
-    // Atualiza o saldo de todos os gift cards envolvidos se a transação for concluída
-    // Nota: A verificação estava com "Concluída" com acento, mas no código está como "concluida"
-    if ((transacao.status === "concluida" || transacao.status === "Concluída") && giftCardIdsArray.length > 0) {
-      console.log("Atualizando saldos dos gift cards para transação concluída");
-      
-      // Distribui o valor proporcionalmente entre os gift cards
-      const valorPorGiftCard = transacao.valor / giftCardIdsArray.length;
-      console.log("Valor por gift card:", valorPorGiftCard);
-      
-      for (const giftCardId of giftCardIdsArray) {
-        const giftCard = this.giftCards.get(giftCardId);
+    // Se for uma transação com ID já existente, verificamos se é um reembolso
+    if (transacao.refundDe) {
+      const transacaoOriginal = this.transacoes.get(transacao.refundDe);
+      if (transacaoOriginal) {
+        // Marca a transação original como reembolsada
+        this.updateTransacao(transacaoOriginal.id, {
+          status: "Reembolsada"
+        });
+        
+        // Se a transação original atualizou um gift card, precisamos atualizar o saldo de volta
+        const giftCard = this.giftCards.get(transacaoOriginal.giftCardId);
         if (giftCard) {
-          const novoSaldo = Math.max(0, giftCard.saldoAtual - valorPorGiftCard);
-          // Aqui também estamos normalizando o formato do status
-          const status = novoSaldo <= 0 ? "zerado" : "ativo";
-          console.log(`Gift card ${giftCardId}: saldo antigo = ${giftCard.saldoAtual}, novo = ${novoSaldo}`);
-          this.updateGiftCard(giftCard.id, { saldoAtual: novoSaldo, status });
-        } else {
-          console.error(`Gift card ${giftCardId} não encontrado!`);
+          const valorAtualizado = giftCard.saldoAtual + transacaoOriginal.valor;
+          this.updateGiftCard(giftCard.id, {
+            saldoAtual: valorAtualizado,
+            status: valorAtualizado > 0 ? "ativo" : "zerado"
+          });
         }
       }
-    } else {
-      console.log(`Não atualizando saldos. Status = ${transacao.status}, GiftCards = ${giftCardIdsArray.length}`);
     }
     
+    // Se a transação for "Concluída", atualizamos o saldo do gift card
+    if (transacao.status === "Concluída") {
+      const giftCard = this.giftCards.get(transacao.giftCardId);
+      if (giftCard) {
+        const valorAtualizado = Math.max(0, giftCard.saldoAtual - transacao.valor);
+        this.updateGiftCard(giftCard.id, {
+          saldoAtual: valorAtualizado,
+          status: valorAtualizado > 0 ? "ativo" : "zerado",
+          dataUltimoUso: timestamp
+        });
+      }
+    }
+    
+    const newTransacao: Transacao = {
+      id,
+      giftCardId: transacao.giftCardId,
+      giftCardIds: transacao.giftCardIds || String(transacao.giftCardId),
+      valor: transacao.valor,
+      descricao: transacao.descricao,
+      userId: transacao.userId,
+      dataTransacao: transacao.dataTransacao || timestamp,
+      status: transacao.status,
+      comprovante: transacao.comprovante || null,
+      motivoCancelamento: transacao.motivoCancelamento || null,
+      refundDe: transacao.refundDe || null,
+      motivoRefund: transacao.motivoRefund || null,
+      valorRefund: transacao.valorRefund || null,
+      ordemInterna: transacao.ordemInterna || null,
+      ordemCompra: transacao.ordemCompra || null,
+      nomeUsuario: transacao.nomeUsuario || null
+    };
+    
+    this.transacoes.set(id, newTransacao);
     return newTransacao;
   }
 
@@ -548,88 +573,69 @@ export class MemStorage implements IStorage {
     const transacao = this.transacoes.get(id);
     if (!transacao) return undefined;
     
-    const updatedTransacao = { ...transacao, ...transacaoData };
-    this.transacoes.set(id, updatedTransacao);
+    const timestamp = new Date();
     
-    // Se mudou o status, processa as alterações de saldo em todos os gift cards
-    if (transacaoData.status) {
-      // Obter array de IDs de gift cards
-      let giftCardIdsArray: number[] = [];
-      
-      if (transacao.giftCardIds) {
-        // Converte a string de IDs para array de números
-        giftCardIdsArray = transacao.giftCardIds
-          .split(',')
-          .map(id => parseInt(id))
-          .filter(id => !isNaN(id));
-      } else {
-        // Compatibilidade com formato antigo
-        giftCardIdsArray = [transacao.giftCardId];
-      }
-      
-      // Calcula o valor por gift card
-      const valorPorGiftCard = transacao.valor / giftCardIdsArray.length;
-      
-      // Processa cada gift card
-      for (const giftCardId of giftCardIdsArray) {
-        const giftCard = this.giftCards.get(giftCardId);
-        if (giftCard) {
-          let novoSaldo = giftCard.saldoAtual;
-          
-          // Se mudou de não-concluída para concluída
-          if (transacao.status !== "Concluída" && transacaoData.status === "Concluída") {
-            novoSaldo = Math.max(0, giftCard.saldoAtual - valorPorGiftCard);
-          }
-          // Se mudou de concluída para cancelada
-          else if (transacao.status === "Concluída" && transacaoData.status === "Cancelada") {
-            novoSaldo = giftCard.saldoAtual + valorPorGiftCard;
-          }
-          
-          const status = novoSaldo <= 0 ? "Zerado" : "Ativo";
-          this.updateGiftCard(giftCard.id, { saldoAtual: novoSaldo, status });
-        }
+    // Se estiver alterando o status para "Concluída", atualizamos o saldo do gift card
+    if (transacaoData.status === "Concluída" && transacao.status !== "Concluída") {
+      const giftCard = this.giftCards.get(transacao.giftCardId);
+      if (giftCard) {
+        const valorAtualizado = Math.max(0, giftCard.saldoAtual - transacao.valor);
+        this.updateGiftCard(giftCard.id, {
+          saldoAtual: valorAtualizado,
+          status: valorAtualizado > 0 ? "ativo" : "zerado",
+          dataUltimoUso: timestamp
+        });
       }
     }
     
+    // Se estiver alterando o status para "Cancelada", revertemos o saldo do gift card, se aplicável
+    if (transacaoData.status === "Cancelada" && transacao.status === "Concluída") {
+      const giftCard = this.giftCards.get(transacao.giftCardId);
+      if (giftCard) {
+        const valorAtualizado = giftCard.saldoAtual + transacao.valor;
+        this.updateGiftCard(giftCard.id, {
+          saldoAtual: valorAtualizado,
+          status: "ativo"
+        });
+      }
+    }
+    
+    const updatedTransacao: Transacao = {
+      ...transacao,
+      descricao: transacaoData.descricao !== undefined ? transacaoData.descricao : transacao.descricao,
+      valor: transacaoData.valor !== undefined ? transacaoData.valor : transacao.valor,
+      status: transacaoData.status !== undefined ? transacaoData.status : transacao.status,
+      comprovante: transacaoData.comprovante !== undefined ? transacaoData.comprovante : transacao.comprovante,
+      motivoCancelamento: transacaoData.motivoCancelamento !== undefined ? transacaoData.motivoCancelamento : transacao.motivoCancelamento,
+      refundDe: transacaoData.refundDe !== undefined ? transacaoData.refundDe : transacao.refundDe,
+      motivoRefund: transacaoData.motivoRefund !== undefined ? transacaoData.motivoRefund : transacao.motivoRefund,
+      valorRefund: transacaoData.valorRefund !== undefined ? transacaoData.valorRefund : transacao.valorRefund,
+      ordemInterna: transacaoData.ordemInterna !== undefined ? transacaoData.ordemInterna : transacao.ordemInterna,
+      ordemCompra: transacaoData.ordemCompra !== undefined ? transacaoData.ordemCompra : transacao.ordemCompra,
+      nomeUsuario: transacaoData.nomeUsuario !== undefined ? transacaoData.nomeUsuario : transacao.nomeUsuario
+    };
+    
+    this.transacoes.set(id, updatedTransacao);
     return updatedTransacao;
   }
 
   async deleteTransacao(id: number): Promise<boolean> {
-    // Não deveria apagar transações, apenas marcar como canceladas
     const transacao = this.transacoes.get(id);
     if (transacao && transacao.status === "Concluída") {
-      // Se estiver deletando uma transação concluída, devolve o saldo para todos os gift cards
-      
-      // Obter array de IDs de gift cards
-      let giftCardIdsArray: number[] = [];
-      
-      if (transacao.giftCardIds) {
-        // Converte a string de IDs para array de números
-        giftCardIdsArray = transacao.giftCardIds
-          .split(',')
-          .map(id => parseInt(id))
-          .filter(id => !isNaN(id));
-      } else {
-        // Compatibilidade com formato antigo
-        giftCardIdsArray = [transacao.giftCardId];
-      }
-      
-      // Calcula o valor por gift card
-      const valorPorGiftCard = transacao.valor / giftCardIdsArray.length;
-      
-      // Devolve o saldo para cada gift card
-      for (const giftCardId of giftCardIdsArray) {
-        const giftCard = this.giftCards.get(giftCardId);
-        if (giftCard) {
-          const novoSaldo = giftCard.saldoAtual + valorPorGiftCard;
-          const status = "Ativo"; // Se está devolvendo valor, sempre volta a ficar ativo
-          this.updateGiftCard(giftCard.id, { saldoAtual: novoSaldo, status });
-        }
+      // Se for uma transação concluída, restauramos o saldo do gift card
+      const giftCard = this.giftCards.get(transacao.giftCardId);
+      if (giftCard) {
+        const valorAtualizado = giftCard.saldoAtual + transacao.valor;
+        this.updateGiftCard(giftCard.id, {
+          saldoAtual: valorAtualizado,
+          status: "ativo"
+        });
       }
     }
+    
     return this.transacoes.delete(id);
   }
-
+  
   // Tag methods
   async getTags(): Promise<Tag[]> {
     return Array.from(this.tags.values());
@@ -641,40 +647,265 @@ export class MemStorage implements IStorage {
 
   async createTag(tag: InsertTag): Promise<Tag> {
     const id = this.tagId++;
-    const newTag = { ...tag, id };
+    const timestamp = new Date();
+    const newTag: Tag = { 
+      id, 
+      nome: tag.nome,
+      createdAt: timestamp 
+    };
     this.tags.set(id, newTag);
     return newTag;
   }
-
+  
   // Gift Card Tag methods
   async addTagToGiftCard(giftCardId: number, tagId: number): Promise<GiftCardTag> {
-    const id = this.giftCardTagId++;
-    const newGiftCardTag = { id, giftCardId, tagId };
-    this.giftCardTags.set(id, newGiftCardTag);
-    return newGiftCardTag;
-  }
-
-  async removeTagFromGiftCard(giftCardId: number, tagId: number): Promise<boolean> {
-    const giftCardTagToRemove = Array.from(this.giftCardTags.values()).find(
-      (giftCardTag) => giftCardTag.giftCardId === giftCardId && giftCardTag.tagId === tagId
+    // Verificar se a relação já existe
+    const existe = Array.from(this.giftCardTags.values()).find(
+      rel => rel.giftCardId === giftCardId && rel.tagId === tagId
     );
     
-    if (giftCardTagToRemove) {
-      return this.giftCardTags.delete(giftCardTagToRemove.id);
+    if (existe) {
+      return existe;
+    }
+    
+    const id = this.giftCardTagId++;
+    const newRelation: GiftCardTag = {
+      id,
+      giftCardId,
+      tagId,
+      createdAt: new Date()
+    };
+    
+    this.giftCardTags.set(id, newRelation);
+    return newRelation;
+  }
+  
+  async removeTagFromGiftCard(giftCardId: number, tagId: number): Promise<boolean> {
+    const relation = Array.from(this.giftCardTags.values()).find(
+      rel => rel.giftCardId === giftCardId && rel.tagId === tagId
+    );
+    
+    if (relation) {
+      return this.giftCardTags.delete(relation.id);
     }
     
     return false;
   }
-
+  
   async getGiftCardTags(giftCardId: number): Promise<Tag[]> {
-    const giftCardTagRelations = Array.from(this.giftCardTags.values()).filter(
-      (relation) => relation.giftCardId === giftCardId
+    const relations = Array.from(this.giftCardTags.values()).filter(
+      rel => rel.giftCardId === giftCardId
     );
     
-    const tagIds = giftCardTagRelations.map(relation => relation.tagId);
+    const tagIds = relations.map(rel => rel.tagId);
+    
     return Array.from(this.tags.values()).filter(
-      (tag) => tagIds.includes(tag.id)
+      tag => tagIds.includes(tag.id)
     );
+  }
+
+  private initializeDemoData() {
+    // Criar perfis padrão
+    const perfisData: InsertPerfil[] = [
+      {
+        nome: "admin",
+        descricao: "Administrador do sistema com acesso total",
+        permissoes: [
+          "user.view", "user.create", "user.edit", "user.delete",
+          "perfil.view", "perfil.create", "perfil.edit", "perfil.delete",
+          "fornecedor.view", "fornecedor.create", "fornecedor.edit", "fornecedor.delete",
+          "giftcard.view", "giftcard.create", "giftcard.edit", "giftcard.delete",
+          "transacao.view", "transacao.create", "transacao.edit", "transacao.delete",
+          "tag.view", "tag.create", "tag.edit", "tag.delete",
+          "relatorio.view", "relatorio.export"
+        ]
+      },
+      {
+        nome: "gerente",
+        descricao: "Gerente com acesso a relatórios e gerenciamento de equipe",
+        permissoes: [
+          "user.view",
+          "fornecedor.view", "fornecedor.create", "fornecedor.edit",
+          "giftcard.view", "giftcard.create", "giftcard.edit",
+          "transacao.view", "transacao.create", "transacao.edit",
+          "tag.view", "tag.create", "tag.edit",
+          "relatorio.view", "relatorio.export"
+        ]
+      },
+      {
+        nome: "usuario",
+        descricao: "Usuário regular com acesso básico",
+        permissoes: [
+          "fornecedor.view",
+          "giftcard.view", "giftcard.create", "giftcard.edit",
+          "transacao.view", "transacao.create",
+          "tag.view", "tag.create"
+        ]
+      },
+      {
+        nome: "convidado",
+        descricao: "Usuário com acesso somente leitura",
+        permissoes: [
+          "fornecedor.view",
+          "giftcard.view",
+          "transacao.view",
+          "tag.view"
+        ]
+      }
+    ];
+    
+    // Criar perfis no sistema
+    Promise.all(perfisData.map(perfil => this.createPerfil(perfil)))
+      .then(perfis => {
+        // Create demo user
+        const demoUser: InsertUser = {
+          username: "demo",
+          password: "password123",
+          email: "demo@example.com",
+          avatarUrl: "https://i.pravatar.cc/40?img=68",
+          perfilId: perfis[0].id, // Administrador
+          status: "ativo"
+        };
+        
+        this.createUser(demoUser).then(user => {
+          // Fornecedores (anteriormente collections)
+          const fornecedores: InsertFornecedor[] = [
+            { nome: "Amazon", descricao: "Gift Cards da Amazon", website: "https://www.amazon.com", logo: "https://logo.clearbit.com/amazon.com", status: "ativo", userId: user.id },
+            { nome: "Netflix", descricao: "Gift Cards para assinatura Netflix", website: "https://www.netflix.com", logo: "https://logo.clearbit.com/netflix.com", status: "ativo", userId: user.id },
+            { nome: "Spotify", descricao: "Gift Cards para assinatura Spotify", website: "https://www.spotify.com", logo: "https://logo.clearbit.com/spotify.com", status: "ativo", userId: user.id },
+            { nome: "Steam", descricao: "Gift Cards para compras na Steam", website: "https://store.steampowered.com", logo: "https://logo.clearbit.com/steampowered.com", status: "ativo", userId: user.id }
+          ];
+          
+          Promise.all(fornecedores.map(f => this.createFornecedor(f))).then(fornecedorInstances => {
+            // Create tags
+            const tagNames = ["Entretenimento", "Música", "Jogos", "Compras Online", "Streaming", "Presente", "Expirado", "Mensal"];
+            Promise.all(tagNames.map(nome => this.createTag({ nome }))).then(tagInstances => {
+
+              // Gift Cards (anteriormente cards)
+              const today = new Date();
+              const oneMonthFromNow = new Date(today);
+              oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
+              
+              const threeMonthsFromNow = new Date(today);
+              threeMonthsFromNow.setMonth(threeMonthsFromNow.getMonth() + 3);
+              
+              const demoGiftCards: InsertGiftCard[] = [
+                {
+                  codigo: "GC001",
+                  valorInicial: 100.00,
+                  saldoAtual: 75.00,
+                  dataValidade: oneMonthFromNow,
+                  status: "ativo",
+                  fornecedorId: fornecedorInstances[0].id, // Amazon
+                  userId: user.id,
+                  observacoes: "Gift card para compras de livros"
+                },
+                {
+                  codigo: "GC002",
+                  valorInicial: 50.00,
+                  saldoAtual: 0.00,
+                  dataValidade: threeMonthsFromNow,
+                  status: "zerado",
+                  fornecedorId: fornecedorInstances[1].id, // Netflix
+                  userId: user.id,
+                  observacoes: "Gift card para renovação da assinatura"
+                },
+                {
+                  codigo: "GC003",
+                  valorInicial: 25.00,
+                  saldoAtual: 25.00,
+                  dataValidade: threeMonthsFromNow,
+                  status: "ativo",
+                  fornecedorId: fornecedorInstances[2].id, // Spotify
+                  userId: user.id,
+                  observacoes: "Gift card para assinatura premium"
+                },
+                {
+                  codigo: "GC004",
+                  valorInicial: 200.00,
+                  saldoAtual: 150.00,
+                  dataValidade: threeMonthsFromNow,
+                  status: "ativo",
+                  fornecedorId: fornecedorInstances[3].id, // Steam
+                  userId: user.id,
+                  observacoes: "Gift card para as compras da Steam Summer Sale"
+                }
+              ];
+
+              Promise.all(demoGiftCards.map(giftCard => this.createGiftCard(giftCard))).then(giftCardInstances => {
+                // Transações
+                const twoWeeksAgo = new Date(today);
+                twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+                
+                const oneWeekAgo = new Date(today);
+                oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+                const demoTransacoes: InsertTransacao[] = [
+                  {
+                    giftCardId: giftCardInstances[0].id, // Amazon GC
+                    giftCardIds: String(giftCardInstances[0].id),
+                    valor: 25.00,
+                    descricao: "Compra de livros",
+                    userId: user.id,
+                    dataTransacao: twoWeeksAgo,
+                    status: "Concluída",
+                    comprovante: null,
+                    motivoCancelamento: null,
+                    ordemInterna: null,
+                    ordemCompra: null,
+                    nomeUsuario: null
+                  },
+                  {
+                    giftCardId: giftCardInstances[1].id, // Netflix GC
+                    giftCardIds: String(giftCardInstances[1].id),
+                    valor: 50.00,
+                    descricao: "Assinatura anual",
+                    userId: user.id,
+                    dataTransacao: oneWeekAgo,
+                    status: "Concluída",
+                    comprovante: null,
+                    motivoCancelamento: null,
+                    ordemInterna: null,
+                    ordemCompra: null,
+                    nomeUsuario: null
+                  },
+                  {
+                    giftCardId: giftCardInstances[3].id, // Steam GC
+                    giftCardIds: String(giftCardInstances[3].id),
+                    valor: 50.00,
+                    descricao: "Compra de jogo novo",
+                    userId: user.id,
+                    dataTransacao: new Date(),
+                    status: "Concluída",
+                    comprovante: null,
+                    motivoCancelamento: null,
+                    ordemInterna: null,
+                    ordemCompra: null,
+                    nomeUsuario: null
+                  }
+                ];
+
+                Promise.all(demoTransacoes.map(transacao => this.createTransacao(transacao))).then(transacaoInstances => {
+                  // Add tags to gift cards
+                  this.addTagToGiftCard(giftCardInstances[0].id, tagInstances[3].id); // Amazon - Compras Online
+                  this.addTagToGiftCard(giftCardInstances[0].id, tagInstances[5].id); // Amazon - Presente
+                  
+                  this.addTagToGiftCard(giftCardInstances[1].id, tagInstances[0].id); // Netflix - Entretenimento
+                  this.addTagToGiftCard(giftCardInstances[1].id, tagInstances[4].id); // Netflix - Streaming
+                  this.addTagToGiftCard(giftCardInstances[1].id, tagInstances[7].id); // Netflix - Mensal
+                  
+                  this.addTagToGiftCard(giftCardInstances[2].id, tagInstances[1].id); // Spotify - Música
+                  this.addTagToGiftCard(giftCardInstances[2].id, tagInstances[4].id); // Spotify - Streaming
+                  this.addTagToGiftCard(giftCardInstances[2].id, tagInstances[7].id); // Spotify - Mensal
+                  
+                  this.addTagToGiftCard(giftCardInstances[3].id, tagInstances[2].id); // Steam - Jogos
+                  this.addTagToGiftCard(giftCardInstances[3].id, tagInstances[5].id); // Steam - Presente
+                });
+              });
+            });
+          });
+        });
+      });
   }
 }
 
