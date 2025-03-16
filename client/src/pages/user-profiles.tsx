@@ -36,6 +36,7 @@ interface User {
   perfilId: number;
   perfilNome: string;
   ativo: boolean;
+  status?: string; // Opcional para compatibilidade
   lastLogin: string;
 }
 
@@ -589,16 +590,16 @@ export default function UserProfilesPage() {
                             <TableCell>{user.email}</TableCell>
                             <TableCell>
                               <span className="bg-primary/10 text-primary text-xs px-2 py-1 rounded-full">
-                                {user.perfilNome}
+                                {user.perfilNome || (perfis.find(p => p.id === user.perfilId)?.nome || 'Desconhecido')}
                               </span>
                             </TableCell>
                             <TableCell>
                               <span className={`px-2 py-1 rounded-full text-xs ${
-                                user.ativo 
+                                user.ativo || user.status === 'ativo'
                                   ? 'bg-green-100 text-green-800' 
                                   : 'bg-red-100 text-red-800'
                               }`}>
-                                {user.ativo ? 'Ativo' : 'Inativo'}
+                                {user.ativo || user.status === 'ativo' ? 'Ativo' : 'Inativo'}
                               </span>
                             </TableCell>
                             <TableCell>{formatDate(user.lastLogin)}</TableCell>
