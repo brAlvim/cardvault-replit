@@ -13,6 +13,7 @@ import GiftCardNewFixed from "@/pages/gift-card-new-fixed";
 import CalculadoraSimples from "@/pages/CalculadoraSimples";
 import Fornecedores from "@/pages/fornecedores";
 import Transacoes from "@/pages/transacoes";
+import UserProfiles from "@/pages/user-profiles";
 
 function Router() {
   return (
@@ -27,6 +28,8 @@ function Router() {
       <Route path="/calculadora" component={CalculadoraSimples} />
       <Route path="/transacoes" component={Transacoes} />
       <Route path="/transacoes/:id" component={Transacoes} />
+      <Route path="/user-profiles" component={UserProfiles} />
+      <Route path="/admin" component={UserProfiles} />
       <Route component={NotFound} />
     </Switch>
   );
