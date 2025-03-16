@@ -167,27 +167,45 @@ export class MemStorage implements IStorage {
             const demoTransacoes: InsertTransacao[] = [
               {
                 giftCardId: giftCardInstances[0].id, // Amazon GC
+                giftCardIds: String(giftCardInstances[0].id),
                 valor: 25.00,
                 descricao: "Compra de livros",
                 userId: user.id,
                 dataTransacao: twoWeeksAgo,
-                status: "Concluída"
+                status: "Concluída",
+                comprovante: null,
+                motivoCancelamento: null,
+                ordemInterna: null,
+                ordemCompra: null,
+                nomeUsuario: null
               },
               {
                 giftCardId: giftCardInstances[1].id, // Netflix GC
+                giftCardIds: String(giftCardInstances[1].id),
                 valor: 50.00,
                 descricao: "Assinatura anual",
                 userId: user.id,
                 dataTransacao: oneWeekAgo,
-                status: "Concluída"
+                status: "Concluída",
+                comprovante: null,
+                motivoCancelamento: null,
+                ordemInterna: null,
+                ordemCompra: null,
+                nomeUsuario: null
               },
               {
                 giftCardId: giftCardInstances[3].id, // Steam GC
+                giftCardIds: String(giftCardInstances[3].id),
                 valor: 50.00,
                 descricao: "Compra de jogo novo",
                 userId: user.id,
                 dataTransacao: new Date(),
-                status: "Concluída"
+                status: "Concluída",
+                comprovante: null,
+                motivoCancelamento: null,
+                ordemInterna: null,
+                ordemCompra: null,
+                nomeUsuario: null
               }
             ];
 
@@ -453,15 +471,37 @@ export class MemStorage implements IStorage {
   async createTransacao(transacao: InsertTransacao): Promise<Transacao> {
     const id = this.transacaoId++;
     const newTransacao = { ...transacao, id };
+    
+    // Verifica se temos giftCardIds (múltiplos gift cards)
+    let giftCardIdsArray: number[] = [];
+    
+    if (newTransacao.giftCardIds) {
+      // Converte a string de IDs para array de números
+      giftCardIdsArray = newTransacao.giftCardIds
+        .split(',')
+        .map(id => parseInt(id))
+        .filter(id => !isNaN(id));
+    } else {
+      // Compatibilidade com formato antigo
+      giftCardIdsArray = [newTransacao.giftCardId];
+      newTransacao.giftCardIds = String(newTransacao.giftCardId);
+    }
+    
+    // Salva a transação
     this.transacoes.set(id, newTransacao);
     
-    // Atualiza o saldo do gift card se a transação for concluída
-    if (transacao.status === "Concluída") {
-      const giftCard = this.giftCards.get(transacao.giftCardId);
-      if (giftCard) {
-        const novoSaldo = Math.max(0, giftCard.saldoAtual - transacao.valor);
-        const status = novoSaldo <= 0 ? "Zerado" : "Ativo";
-        this.updateGiftCard(giftCard.id, { saldoAtual: novoSaldo, status });
+    // Atualiza o saldo de todos os gift cards envolvidos se a transação for concluída
+    if (transacao.status === "Concluída" && giftCardIdsArray.length > 0) {
+      // Distribui o valor proporcionalmente entre os gift cards
+      const valorPorGiftCard = transacao.valor / giftCardIdsArray.length;
+      
+      for (const giftCardId of giftCardIdsArray) {
+        const giftCard = this.giftCards.get(giftCardId);
+        if (giftCard) {
+          const novoSaldo = Math.max(0, giftCard.saldoAtual - valorPorGiftCard);
+          const status = novoSaldo <= 0 ? "Zerado" : "Ativo";
+          this.updateGiftCard(giftCard.id, { saldoAtual: novoSaldo, status });
+        }
       }
     }
     

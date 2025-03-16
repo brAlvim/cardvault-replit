@@ -611,9 +611,10 @@ export default function TransacoesPage() {
                             <div key={gCard.id} className="flex items-center p-2 border rounded bg-white">
                               <div className="flex-1">
                                 <p className="text-sm font-medium">{gCard.codigo}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {gCard.fornecedorNome} - Saldo: {formatMoney(gCard.saldoAtual)}
-                                </p>
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-muted-foreground">{gCard.fornecedorNome}</span>
+                                  <span className="font-medium text-green-600">Saldo: {formatMoney(gCard.saldoAtual)}</span>
+                                </div>
                               </div>
                               <Button 
                                 variant="ghost" 
@@ -668,9 +669,11 @@ export default function TransacoesPage() {
                               const currentGC = allGiftCards.find(g => g.id === giftCardId);
                               if (currentGC) {
                                 const fornecedor = allFornecedores.find(f => f.id === currentGC.fornecedorId);
+                                // Extrair os últimos 4 dígitos para exibição
+                                const ultimosDigitos = currentGC.codigo.slice(-4);
                                 const newGC: SelectedGiftCard = {
                                   id: currentGC.id,
-                                  codigo: currentGC.codigo,
+                                  codigo: `${currentGC.codigo} (${ultimosDigitos})`,
                                   saldoAtual: currentGC.saldoAtual,
                                   fornecedorNome: fornecedor?.nome || 'Desconhecido'
                                 };
@@ -686,9 +689,11 @@ export default function TransacoesPage() {
                             const firstAvailable = availableGiftCards[0];
                             if (firstAvailable) {
                               const fornecedor = allFornecedores.find(f => f.id === firstAvailable.fornecedorId);
+                              // Extrair os últimos 4 dígitos para exibição
+                              const ultimosDigitos = firstAvailable.codigo.slice(-4);
                               const newGC: SelectedGiftCard = {
                                 id: firstAvailable.id,
-                                codigo: firstAvailable.codigo,
+                                codigo: `${firstAvailable.codigo} (${ultimosDigitos})`,
                                 saldoAtual: firstAvailable.saldoAtual,
                                 fornecedorNome: fornecedor?.nome || 'Desconhecido'
                               };
