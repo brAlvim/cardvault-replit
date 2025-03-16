@@ -48,9 +48,11 @@ export default function TopNavigation({ onMenuClick, onSearch }: TopNavigationPr
           <Button variant="ghost" size="icon" title="Notifications">
             <Bell className="h-5 w-5 text-slate-600" />
           </Button>
-          <Button variant="ghost" size="icon" title="Acessar CardVault" onClick={() => window.location.href = '/'}>
-            <Cog className="h-5 w-5 text-slate-600" />
-          </Button>
+          <a href="https://workspace.lalvim1.repl.co" title="Acessar CardVault">
+            <Button variant="ghost" size="icon" title="Acessar CardVault">
+              <Cog className="h-5 w-5 text-slate-600" />
+            </Button>
+          </a>
           <Button variant="ghost" size="icon" className="md:hidden" title="Profile">
             <img src="https://i.pravatar.cc/40?img=68" alt="User avatar" className="w-8 h-8 rounded-full" />
           </Button>
