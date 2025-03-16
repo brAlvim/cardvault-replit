@@ -96,9 +96,8 @@ export default function GiftCardNewPage() {
 
   // Fetch fornecedores for dropdown - filtrado por userId e apenas ativos
   const { data: fornecedores, isLoading: isLoadingFornecedores } = useQuery<Fornecedor[]>({
-    queryKey: [`/api/fornecedores?userId=${userData?.id || 1}`],
-    queryFn: () => fetch(`/api/fornecedores?userId=${userData?.id || 1}`).then(res => res.json()),
-    enabled: !!userData, // Só executa quando userData estiver disponível
+    queryKey: ['/api/fornecedores', { userId: 1 }],
+    queryFn: () => fetch('/api/fornecedores?userId=1').then(res => res.json()),
   });
 
   // Validate form
