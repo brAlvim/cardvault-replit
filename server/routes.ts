@@ -111,6 +111,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   router.put("/fornecedores/:id", async (req: Request, res: Response) => {
     try {
       const fornecedorId = parseInt(req.params.id);
+      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      
+      // Verificar se o fornecedor pertence à empresa especificada
+      if (empresaId) {
+        const fornecedor = await storage.getFornecedor(fornecedorId, empresaId);
+        if (!fornecedor) {
+          return res.status(404).json({ message: "Fornecedor not found for this company" });
+        }
+      }
+      
       const fornecedorData = insertFornecedorSchema.partial().parse(req.body);
       
       const updatedFornecedor = await storage.updateFornecedor(fornecedorId, fornecedorData);
@@ -131,6 +141,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   router.delete("/fornecedores/:id", async (req: Request, res: Response) => {
     try {
       const fornecedorId = parseInt(req.params.id);
+      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      
+      // Verificar se o fornecedor pertence à empresa especificada
+      if (empresaId) {
+        const fornecedor = await storage.getFornecedor(fornecedorId, empresaId);
+        if (!fornecedor) {
+          return res.status(404).json({ message: "Fornecedor not found for this company" });
+        }
+      }
+      
       const success = await storage.deleteFornecedor(fornecedorId);
       
       if (!success) {
@@ -157,14 +177,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const fornecedorId = req.query.fornecedorId ? parseInt(req.query.fornecedorId as string) : undefined;
+      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
       const search = req.query.search as string | undefined;
       
       if (search) {
+        // TODO: Atualizar o método searchGiftCards para suportar empresaId quando necessário
         const giftCards = await storage.searchGiftCards(userId, search);
-        return res.json(giftCards);
+        
+        // Filtrar por empresa se necessário
+        const filteredGiftCards = empresaId 
+          ? giftCards.filter(card => card.empresaId === empresaId)
+          : giftCards;
+          
+        return res.json(filteredGiftCards);
       }
       
-      const giftCards = await storage.getGiftCards(userId, fornecedorId);
+      const giftCards = await storage.getGiftCards(userId, fornecedorId, empresaId);
       res.json(giftCards);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
@@ -173,6 +201,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   router.post("/gift-cards", async (req: Request, res: Response) => {
     try {
+      // Garantir que empresaId seja incluído se vier como query parameter mas não no body
+      if (!req.body.empresaId && req.query.empresaId) {
+        req.body.empresaId = parseInt(req.query.empresaId as string);
+      }
+      
       const giftCardData = insertGiftCardSchema.parse(req.body);
       const giftCard = await storage.createGiftCard(giftCardData);
       res.status(201).json(giftCard);
@@ -187,7 +220,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   router.get("/gift-cards/:id", async (req: Request, res: Response) => {
     try {
       const giftCardId = parseInt(req.params.id);
-      const giftCard = await storage.getGiftCard(giftCardId);
+      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      const giftCard = await storage.getGiftCard(giftCardId, empresaId);
       
       if (!giftCard) {
         return res.status(404).json({ message: "Gift Card not found" });
@@ -202,6 +236,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   router.put("/gift-cards/:id", async (req: Request, res: Response) => {
     try {
       const giftCardId = parseInt(req.params.id);
+      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      
+      // Verificar se o gift card pertence à empresa antes de atualizar
+      if (empresaId) {
+        const giftCard = await storage.getGiftCard(giftCardId, empresaId);
+        if (!giftCard) {
+          return res.status(404).json({ message: "Gift Card not found for this company" });
+        }
+      }
+      
       const giftCardData = insertGiftCardSchema.partial().parse(req.body);
       
       const updatedGiftCard = await storage.updateGiftCard(giftCardId, giftCardData);
@@ -222,6 +266,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   router.delete("/gift-cards/:id", async (req: Request, res: Response) => {
     try {
       const giftCardId = parseInt(req.params.id);
+      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      
+      // Verificar se o gift card pertence à empresa antes de excluir
+      if (empresaId) {
+        const giftCard = await storage.getGiftCard(giftCardId, empresaId);
+        if (!giftCard) {
+          return res.status(404).json({ message: "Gift Card not found for this company" });
+        }
+      }
+      
       const success = await storage.deleteGiftCard(giftCardId);
       
       if (!success) {
@@ -243,7 +297,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid number of days" });
       }
       
-      const giftCards = await storage.getGiftCardsVencimento(userId, dias);
+      // Obter o empresaId se fornecido como parâmetro de consulta
+      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      
+      // TODO: Atualizar o método getGiftCardsVencimento para suportar empresaId quando necessário
+      let giftCards = await storage.getGiftCardsVencimento(userId, dias);
+      
+      // Filtrar manualmente por empresa, se especificada (até que o método seja atualizado)
+      if (empresaId) {
+        giftCards = giftCards.filter(giftCard => giftCard.empresaId === empresaId);
+      }
+      
       res.json(giftCards);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
@@ -460,6 +524,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.body.giftCardIds = String(req.body.giftCardId);
       }
 
+      // Garantir que empresaId seja incluído se vier como query parameter mas não no body
+      if (!req.body.empresaId && req.query.empresaId) {
+        req.body.empresaId = parseInt(req.query.empresaId as string);
+      }
+
+      // Se o giftCardId for fornecido, verificar se o cartão pertence à empresa
+      const empresaId = req.body.empresaId || (req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined);
+      if (empresaId && req.body.giftCardId) {
+        const giftCard = await storage.getGiftCard(req.body.giftCardId, empresaId);
+        if (!giftCard) {
+          return res.status(404).json({ message: "Gift Card not found for this company" });
+        }
+      }
+
       console.log("Dados normalizados:", req.body);
       
       const transacaoData = insertTransacaoSchema.parse(req.body);
@@ -503,6 +581,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   router.put("/transacoes/:id", async (req: Request, res: Response) => {
     try {
       const transacaoId = parseInt(req.params.id);
+      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      
+      // Verificar se a transação pertence à empresa especificada
+      if (empresaId) {
+        const transacao = await storage.getTransacao(transacaoId, empresaId);
+        if (!transacao) {
+          return res.status(404).json({ message: "Transação not found for this company" });
+        }
+      }
+      
+      // Garantir que empresaId seja incluído se vier como query parameter mas não no body
+      if (!req.body.empresaId && req.query.empresaId) {
+        req.body.empresaId = parseInt(req.query.empresaId as string);
+      }
+      
       const transacaoData = insertTransacaoSchema.partial().parse(req.body);
       
       const updatedTransacao = await storage.updateTransacao(transacaoId, transacaoData);
@@ -523,6 +616,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   router.delete("/transacoes/:id", async (req: Request, res: Response) => {
     try {
       const transacaoId = parseInt(req.params.id);
+      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      
+      // Verificar se a transação pertence à empresa especificada
+      if (empresaId) {
+        const transacao = await storage.getTransacao(transacaoId, empresaId);
+        if (!transacao) {
+          return res.status(404).json({ message: "Transação not found for this company" });
+        }
+      }
+      
       const success = await storage.deleteTransacao(transacaoId);
       
       if (!success) {
