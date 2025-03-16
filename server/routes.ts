@@ -51,6 +51,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Internal server error" });
     }
   });
+  
+  // Obter todos os usuários
+  router.get("/users", async (req: Request, res: Response) => {
+    try {
+      // Obter o empresaId do query string ou usar um padrão (empresa demo)
+      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : 1;
+      const users = await storage.getUsersByEmpresa(empresaId);
+      console.log("Enviando usuários:", users);
+      res.json(users);
+    } catch (error) {
+      console.error("Erro ao buscar usuários:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Atualizar um usuário
+  router.put("/users/:id", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const userData = req.body;
+      
+      console.log("Atualizando usuário:", userId, userData);
+      
+      const user = await storage.updateUser(userId, userData);
+      
+      if (!user) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      res.json(user);
+    } catch (error) {
+      console.error("Erro ao atualizar usuário:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Excluir um usuário
+  router.delete("/users/:id", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const success = await storage.deleteUser(userId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      res.status(200).json({ success: true });
+    } catch (error) {
+      console.error("Erro ao excluir usuário:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
 
   // Fornecedor routes (antigo Collection)
   router.get("/fornecedores", async (req: Request, res: Response) => {
@@ -684,6 +736,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const empresas = await storage.getEmpresas();
       res.json(empresas);
     } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Rota para obter todos os perfis
+  router.get("/perfis", async (req: Request, res: Response) => {
+    try {
+      const perfis = await storage.getPerfis();
+      console.log("Enviando perfis:", perfis); // Log para depuração
+      res.json(perfis);
+    } catch (error) {
+      console.error("Erro ao buscar perfis:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Rota para obter um perfil específico pelo ID
+  router.get("/perfis/:id", async (req: Request, res: Response) => {
+    try {
+      const perfilId = parseInt(req.params.id);
+      const perfil = await storage.getPerfil(perfilId);
+      
+      if (!perfil) {
+        return res.status(404).json({ message: "Perfil não encontrado" });
+      }
+      
+      res.json(perfil);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Criar um novo perfil
+  router.post("/perfis", async (req: Request, res: Response) => {
+    try {
+      console.log("Recebendo dados para criar perfil:", req.body);
+      // Garantir que permissões seja um array
+      if (req.body.permissoes && !Array.isArray(req.body.permissoes)) {
+        req.body.permissoes = String(req.body.permissoes).split(',').map(p => p.trim());
+      }
+      
+      const perfil = await storage.createPerfil(req.body);
+      console.log("Perfil criado:", perfil);
+      res.status(201).json(perfil);
+    } catch (error) {
+      console.error("Erro ao criar perfil:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Atualizar um perfil existente
+  router.put("/perfis/:id", async (req: Request, res: Response) => {
+    try {
+      const perfilId = parseInt(req.params.id);
+      
+      // Garantir que permissões seja um array
+      if (req.body.permissoes && !Array.isArray(req.body.permissoes)) {
+        req.body.permissoes = String(req.body.permissoes).split(',').map(p => p.trim());
+      }
+      
+      const perfil = await storage.updatePerfil(perfilId, req.body);
+      
+      if (!perfil) {
+        return res.status(404).json({ message: "Perfil não encontrado" });
+      }
+      
+      res.json(perfil);
+    } catch (error) {
+      console.error("Erro ao atualizar perfil:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Excluir um perfil
+  router.delete("/perfis/:id", async (req: Request, res: Response) => {
+    try {
+      const perfilId = parseInt(req.params.id);
+      const success = await storage.deletePerfil(perfilId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Perfil não encontrado" });
+      }
+      
+      res.status(200).json({ success: true });
+    } catch (error) {
+      console.error("Erro ao excluir perfil:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
