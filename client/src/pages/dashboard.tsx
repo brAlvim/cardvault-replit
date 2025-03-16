@@ -96,13 +96,13 @@ export default function Dashboard() {
   const fornecedoresAtivos = fornecedores?.filter(f => f.status === "ativo") || [];
   const totalFornecedores = fornecedoresAtivos.length || 0;
   
-  const totalTransacoes = giftCards?.reduce((sum, giftCard) => {
+  const totalTransacoes = Array.isArray(giftCards) ? giftCards.reduce((sum, giftCard) => {
     // Count how many transactions across all gift cards
     // In a real implementation, we'd have a proper endpoint for this count
     return sum + 2; // Placeholder count
-  }, 0) || 0;
+  }, 0) : 0;
   
-  const saldoTotal = giftCards?.reduce((sum, giftCard) => sum + giftCard.saldoAtual, 0) || 0;
+  const saldoTotal = Array.isArray(giftCards) ? giftCards.reduce((sum, giftCard) => sum + giftCard.saldoAtual, 0) : 0;
 
   // Format date from ISO to local format
   const formatDate = (dateString: Date | null) => {
