@@ -179,6 +179,12 @@ export default function TransacoesPage() {
     },
   });
   
+  // Get current user
+  const { data: user } = useQuery({
+    queryKey: ['/api/users', 1], // Temporário: futuro usar o ID do usuário logado
+    queryFn: () => fetch('/api/users/1').then(res => res.json()),
+  });
+
   // Reset form when opening the dialog
   useEffect(() => {
     if (isTransacaoDialogOpen) {
@@ -195,7 +201,7 @@ export default function TransacoesPage() {
           motivoCancelamento: selectedTransacao.motivoCancelamento || undefined,
           ordemInterna: selectedTransacao.ordemInterna || undefined,
           ordemCompra: selectedTransacao.ordemCompra || undefined,
-          nomeUsuario: selectedTransacao.nomeUsuario || undefined,
+          nomeUsuario: selectedTransacao.nomeUsuario || user?.username || undefined,
         };
         form.reset(formData);
       } else {
@@ -205,10 +211,11 @@ export default function TransacoesPage() {
           descricao: '',
           status: 'concluida',
           dataTransacao: new Date(),
+          nomeUsuario: user?.username || '',
         });
       }
     }
-  }, [isTransacaoDialogOpen, selectedTransacao, form, giftCardId]);
+  }, [isTransacaoDialogOpen, selectedTransacao, form, giftCardId, user]);
   
   // Mutation para criar transação
   const createTransacao = useMutation({
@@ -397,6 +404,77 @@ export default function TransacoesPage() {
                 
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    {/* Seção de dados do responsável e ordens - Topo do formulário */}
+                    <div className="p-4 border rounded-lg bg-gray-50 space-y-4 mb-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="ordemInterna"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="font-medium">Ordem Interna Amazon</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="Número da ordem interna (Amazon)" 
+                                  {...field} 
+                                  value={field.value || ''}
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                Número da ordem na Amazon
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="ordemCompra"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="font-medium">Ordem de Compra Fornecedor</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="Número da ordem do fornecedor" 
+                                  {...field} 
+                                  value={field.value || ''}
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                Número da ordem do fornecedor
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
+                      <FormField
+                        control={form.control}
+                        name="nomeUsuario"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="font-medium">Responsável</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Nome de quem está realizando a transação" 
+                                {...field} 
+                                value={field.value || ''}
+                                disabled
+                                className="bg-gray-100 text-gray-800"
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Nome da pessoa responsável pela transação (preenchido automaticamente)
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    {/* Detalhes da transação */}
                     <FormField
                       control={form.control}
                       name="valor"
@@ -534,71 +612,6 @@ export default function TransacoesPage() {
                         )}
                       />
                     )}
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="ordemInterna"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Ordem Interna</FormLabel>
-                            <FormControl>
-                              <Input 
-                                placeholder="Número da ordem interna (Amazon)" 
-                                {...field} 
-                                value={field.value || ''}
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              Número da ordem Amazon
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <FormField
-                        control={form.control}
-                        name="ordemCompra"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Ordem de Compra</FormLabel>
-                            <FormControl>
-                              <Input 
-                                placeholder="Número da ordem do fornecedor" 
-                                {...field} 
-                                value={field.value || ''}
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              Número da ordem do fornecedor
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    
-                    <FormField
-                      control={form.control}
-                      name="nomeUsuario"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nome do Usuário</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="Nome de quem está realizando a transação" 
-                              {...field} 
-                              value={field.value || ''}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Nome da pessoa responsável pela transação
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
                     
                     <DialogFooter>
                       <DialogClose asChild>
