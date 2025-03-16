@@ -255,9 +255,11 @@ export default function TransacoesPage() {
               if (!card) return null;
               
               const fornecedor = allFornecedores.find(f => f.id === card.fornecedorId);
+              // Extrair os últimos 4 dígitos para exibição
+              const ultimosDigitos = card.codigo.slice(-4);
               return {
                 id: card.id,
-                codigo: card.codigo,
+                codigo: `${card.codigo} (${ultimosDigitos})`,
                 saldoAtual: card.saldoAtual,
                 fornecedorNome: fornecedor?.nome || 'Desconhecido'
               }
@@ -269,9 +271,11 @@ export default function TransacoesPage() {
             const card = allGiftCards.find(g => g.id === selectedTransacao.giftCardId);
             if (card) {
               const fornecedor = allFornecedores.find(f => f.id === card.fornecedorId);
+              // Extrair os últimos 4 dígitos para exibição
+              const ultimosDigitos = card.codigo.slice(-4);
               const selectedCard: SelectedGiftCard = {
                 id: card.id,
-                codigo: card.codigo,
+                codigo: `${card.codigo} (${ultimosDigitos})`,
                 saldoAtual: card.saldoAtual,
                 fornecedorNome: fornecedor?.nome || 'Desconhecido'
               };
@@ -298,9 +302,11 @@ export default function TransacoesPage() {
           const card = allGiftCards.find(g => g.id === giftCardId);
           if (card) {
             const fornecedor = allFornecedores.find(f => f.id === card.fornecedorId);
+            // Extrair os últimos 4 dígitos para exibição
+            const ultimosDigitos = card.codigo.slice(-4);
             const selectedCard: SelectedGiftCard = {
               id: card.id,
-              codigo: card.codigo,
+              codigo: `${card.codigo} (${ultimosDigitos})`,
               saldoAtual: card.saldoAtual,
               fornecedorNome: fornecedor?.nome || 'Desconhecido'
             };
