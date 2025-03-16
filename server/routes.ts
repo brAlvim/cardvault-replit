@@ -367,7 +367,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  router.get("/gift-cards/vencimento/:dias/:userId", async (req: Request, res: Response) => {
+  router.get("/gift-cards/vencimento/:dias/:userId", requireAuth, async (req: Request, res: Response) => {
     try {
       const userId = parseInt(req.params.userId);
       const dias = parseInt(req.params.dias);
@@ -387,8 +387,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         giftCards = giftCards.filter(giftCard => giftCard.empresaId === empresaId);
       }
       
+      // Verificar se o usuário é do perfil convidado
+      const user = (req as any).user;
+      const isGuest = await isGuestProfile(user.perfilId);
+      
+      // Filtrar dados confidenciais se for perfil convidado
+      if (isGuest) {
+        giftCards = filterGiftCardArray(giftCards, true);
+      }
+      
       res.json(giftCards);
     } catch (error) {
+      console.error("Erro ao buscar gift cards com vencimento próximo:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
@@ -439,7 +449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  router.get("/gift-cards/tag/:tagId", async (req: Request, res: Response) => {
+  router.get("/gift-cards/tag/:tagId", requireAuth, async (req: Request, res: Response) => {
     try {
       const tagId = parseInt(req.params.tagId);
       const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
@@ -455,12 +465,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const giftCards = await storage.getGiftCardsByTag(tagId);
       
       // Filtrar os gift cards por empresa se necessário
-      const filteredGiftCards = empresaId 
+      let filteredGiftCards = empresaId 
         ? giftCards.filter(card => card.empresaId === empresaId)
         : giftCards;
+      
+      // Verificar se o usuário é do perfil convidado
+      const user = (req as any).user;
+      const isGuest = await isGuestProfile(user.perfilId);
+      
+      // Filtrar dados confidenciais se for perfil convidado
+      if (isGuest) {
+        filteredGiftCards = filterGiftCardArray(filteredGiftCards, true);
+      }
         
       res.json(filteredGiftCards);
     } catch (error) {
+      console.error("Erro ao buscar gift cards por tag:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
