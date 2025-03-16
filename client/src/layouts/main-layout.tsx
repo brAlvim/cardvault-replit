@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import Sidebar from '@/components/sidebar';
 import TopNavigation from '@/components/top-navigation';
 import MobileSidebar from '@/components/mobile-sidebar';
@@ -12,29 +13,61 @@ interface MainLayoutProps {
 export default function MainLayout({ children }: MainLayoutProps) {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-
-  // Get user
-  const { data: user } = useQuery({
-    queryKey: ['/api/users/1'], // Hardcoded for now, would normally be the logged-in user
+  const [location] = useLocation();
+  
+  // Verificar se estamos na página de login
+  const isLoginPage = location === '/login';
+  
+  // Verificar se há um token no localStorage
+  const isAuthenticated = !!localStorage.getItem('token');
+  
+  // Obter dados somente se autenticado
+  const { data: userData } = useQuery({
+    queryKey: ['/api/auth/me'],
+    enabled: isAuthenticated && !isLoginPage,
   });
-
-  // Get collections
+  
+  // Get collections somente se autenticado
   const { data: collections } = useQuery<Collection[]>({
-    queryKey: ['/api/collections', { userId: 1 }], // Hardcoded for now
-    queryFn: () => fetch('/api/collections?userId=1').then(res => res.json()),
+    queryKey: ['/api/collections'],
+    enabled: isAuthenticated && !isLoginPage,
   });
+
+  const getUserData = () => {
+    const userFromStorage = localStorage.getItem('user');
+    if (userFromStorage) {
+      try {
+        return JSON.parse(userFromStorage);
+      } catch (e) {
+        return null;
+      }
+    }
+    return userData;
+  };
+
+  const user = getUserData();
 
   const handleSearch = (term: string) => {
     setSearchTerm(term);
     // Search functionality would be implemented in the specific page components
   };
 
+  // Layout simplificado para a página de login
+  if (isLoginPage) {
+    return (
+      <div className="h-screen bg-slate-50">
+        {children}
+      </div>
+    );
+  }
+
+  // Layout completo para o restante da aplicação
   return (
     <div className="flex h-screen bg-slate-100">
       {/* Sidebar (Desktop) */}
       <Sidebar 
         collections={collections || []} 
-        user={user || { username: 'Mark Johnson', email: 'mark@example.com', avatarUrl: 'https://i.pravatar.cc/40?img=68' }}
+        user={user}
       />
       
       {/* Mobile Sidebar */}
@@ -42,7 +75,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
         isOpen={isMobileSidebarOpen}
         onClose={() => setIsMobileSidebarOpen(false)}
         collections={collections || []}
-        user={user || { username: 'Mark Johnson', email: 'mark@example.com', avatarUrl: 'https://i.pravatar.cc/40?img=68' }}
+        user={user}
       />
       
       {/* Main Content */}

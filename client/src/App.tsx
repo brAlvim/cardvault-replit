@@ -1,4 +1,4 @@
-import { Switch, Route, useLocation } from "wouter";
+import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -17,27 +17,67 @@ import Transacoes from "@/pages/transacoes";
 import UserProfiles from "@/pages/user-profiles";
 import Login from "@/pages/login";
 
+// Componente de rota protegida que verifica autenticação
+const ProtectedRoute = ({ component: Component, ...rest }: { component: React.ComponentType, path: string }) => {
+  const isAuthenticated = () => {
+    const token = localStorage.getItem('token');
+    return !!token;
+  };
+
+  const [, setLocation] = useLocation();
+
+  if (!isAuthenticated()) {
+    // Redirecionar para o login se não estiver autenticado
+    setLocation('/login');
+    return null;
+  }
+
+  return <Route {...rest} component={Component} />;
+};
+
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Dashboard} />
-      <Route path="/dashboard" component={Dashboard} />
-      <Route path="/collection/:id" component={Collection} />
-      <Route path="/gift-cards" component={GiftCards} />
-      <Route path="/gift-cards/new" component={GiftCardNewFixed} />
-      <Route path="/gift-cards/:id" component={GiftCardDetails} />
-      <Route path="/fornecedores" component={Fornecedores} />
-      <Route path="/calculadora" component={CalculadoraSimples} />
-      <Route path="/transacoes" component={Transacoes} />
-      <Route path="/transacoes/:id" component={Transacoes} />
-      <Route path="/user-profiles" component={UserProfiles} />
-      <Route path="/admin" component={UserProfiles} />
+      {/* Rota de login - aberta para todos */}
+      <Route path="/login" component={Login} />
+      
+      {/* Redirecionar a rota raiz para dashboard ou login dependendo da autenticação */}
+      <Route path="/">
+        {() => {
+          const isAuthenticated = !!localStorage.getItem('token');
+          return isAuthenticated ? <Redirect to="/dashboard" /> : <Redirect to="/login" />;
+        }}
+      </Route>
+      
+      {/* Rotas protegidas */}
+      <ProtectedRoute path="/dashboard" component={Dashboard} />
+      <ProtectedRoute path="/collection/:id" component={Collection} />
+      <ProtectedRoute path="/gift-cards" component={GiftCards} />
+      <ProtectedRoute path="/gift-cards/new" component={GiftCardNewFixed} />
+      <ProtectedRoute path="/gift-cards/:id" component={GiftCardDetails} />
+      <ProtectedRoute path="/fornecedores" component={Fornecedores} />
+      <ProtectedRoute path="/calculadora" component={CalculadoraSimples} />
+      <ProtectedRoute path="/transacoes" component={Transacoes} />
+      <ProtectedRoute path="/transacoes/:id" component={Transacoes} />
+      <ProtectedRoute path="/user-profiles" component={UserProfiles} />
+      <ProtectedRoute path="/admin" component={UserProfiles} />
+      
+      {/* Rota 404 - página não encontrada */}
       <Route component={NotFound} />
     </Switch>
   );
 }
 
 function App() {
+  // Verificar token ao iniciar a aplicação
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      // Se não houver token, garantir que queryClient não tenha dados em cache
+      queryClient.clear();
+    }
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <MainLayout>
