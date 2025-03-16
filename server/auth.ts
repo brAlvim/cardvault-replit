@@ -29,13 +29,12 @@ export async function login(req: Request, res: Response) {
     const { email, password } = validatedData;
 
     // Buscar usuário pelo email
-    // Implementar um método getUserByEmail no storage
     const user = await storage.getUserByEmail(email);
     if (!user) {
       return res.status(401).json({ message: "Credenciais inválidas" });
     }
 
-    // Verificar se o usuário está ativo (usando o status ao invés de ativo)
+    // Verificar se o usuário está ativo
     if (user.status !== 'ativo') {
       return res.status(403).json({ message: "Usuário inativo. Entre em contato com o administrador." });
     }
@@ -43,6 +42,18 @@ export async function login(req: Request, res: Response) {
     // Verificar a senha (em produção, deve-se usar bcrypt ou similar)
     if (user.password !== password) {
       return res.status(401).json({ message: "Credenciais inválidas" });
+    }
+
+    // Buscar o perfil do usuário
+    const perfil = await storage.getPerfil(user.perfilId);
+    if (!perfil) {
+      return res.status(403).json({ message: "Perfil do usuário não encontrado" });
+    }
+
+    // Buscar a empresa do usuário
+    const empresa = await storage.getEmpresa(user.empresaId);
+    if (!empresa) {
+      return res.status(403).json({ message: "Empresa do usuário não encontrada" });
     }
 
     // Atualizar último login
@@ -69,8 +80,9 @@ export async function login(req: Request, res: Response) {
         nome: user.nome,
         email: user.email,
         empresaId: user.empresaId,
+        empresaNome: empresa.nome,
         perfilId: user.perfilId,
-        perfilNome: user.perfilNome,
+        perfilNome: perfil.nome,
       },
     });
   } catch (error) {
