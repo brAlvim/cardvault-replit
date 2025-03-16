@@ -122,6 +122,87 @@ export class MemStorage implements IStorage {
     // Initialize with demo data
     this.initializeDemoData();
   }
+  
+  // Empresa methods
+  async getEmpresas(): Promise<Empresa[]> {
+    return Array.from(this.empresas.values());
+  }
+
+  async getEmpresa(id: number): Promise<Empresa | undefined> {
+    return this.empresas.get(id);
+  }
+
+  async getEmpresaByNome(nome: string): Promise<Empresa | undefined> {
+    return Array.from(this.empresas.values()).find(
+      (empresa) => empresa.nome === nome
+    );
+  }
+
+  async createEmpresa(empresa: InsertEmpresa): Promise<Empresa> {
+    const id = this.empresaId++;
+    const timestamp = new Date();
+    const newEmpresa: Empresa = { 
+      id, 
+      nome: empresa.nome,
+      cnpj: empresa.cnpj || null,
+      email: empresa.email,
+      telefone: empresa.telefone || null,
+      plano: empresa.plano || "basico",
+      status: empresa.status || "ativo",
+      dataExpiracao: empresa.dataExpiracao || null,
+      logoUrl: empresa.logoUrl || null,
+      corPrimaria: empresa.corPrimaria || null,
+      endereco: empresa.endereco || null,
+      cidade: empresa.cidade || null,
+      estado: empresa.estado || null,
+      cep: empresa.cep || null,
+      limiteUsuarios: empresa.limiteUsuarios || 5,
+      createdAt: timestamp,
+      updatedAt: null
+    };
+    this.empresas.set(id, newEmpresa);
+    return newEmpresa;
+  }
+
+  async updateEmpresa(id: number, empresaData: Partial<InsertEmpresa>): Promise<Empresa | undefined> {
+    const empresa = this.empresas.get(id);
+    if (!empresa) return undefined;
+    
+    const timestamp = new Date();
+    const updatedEmpresa: Empresa = { 
+      ...empresa,
+      nome: empresaData.nome !== undefined ? empresaData.nome : empresa.nome,
+      cnpj: empresaData.cnpj !== undefined ? empresaData.cnpj : empresa.cnpj,
+      email: empresaData.email !== undefined ? empresaData.email : empresa.email,
+      telefone: empresaData.telefone !== undefined ? empresaData.telefone : empresa.telefone,
+      plano: empresaData.plano !== undefined ? empresaData.plano : empresa.plano,
+      status: empresaData.status !== undefined ? empresaData.status : empresa.status,
+      dataExpiracao: empresaData.dataExpiracao !== undefined ? empresaData.dataExpiracao : empresa.dataExpiracao,
+      logoUrl: empresaData.logoUrl !== undefined ? empresaData.logoUrl : empresa.logoUrl,
+      corPrimaria: empresaData.corPrimaria !== undefined ? empresaData.corPrimaria : empresa.corPrimaria,
+      endereco: empresaData.endereco !== undefined ? empresaData.endereco : empresa.endereco,
+      cidade: empresaData.cidade !== undefined ? empresaData.cidade : empresa.cidade,
+      estado: empresaData.estado !== undefined ? empresaData.estado : empresa.estado,
+      cep: empresaData.cep !== undefined ? empresaData.cep : empresa.cep,
+      limiteUsuarios: empresaData.limiteUsuarios !== undefined ? empresaData.limiteUsuarios : empresa.limiteUsuarios,
+      updatedAt: timestamp 
+    };
+    this.empresas.set(id, updatedEmpresa);
+    return updatedEmpresa;
+  }
+
+  async deleteEmpresa(id: number): Promise<boolean> {
+    // Não permitir excluir se houver usuários associados
+    const usuarios = Array.from(this.users.values()).filter(
+      (user) => user.empresaId === id
+    );
+    
+    if (usuarios.length > 0) {
+      return false;
+    }
+    
+    return this.empresas.delete(id);
+  }
 
   // Perfil methods
   async getPerfis(): Promise<Perfil[]> {
@@ -204,6 +285,8 @@ export class MemStorage implements IStorage {
       avatarUrl: user.avatarUrl || null,
       perfilId: user.perfilId || 3, // Perfil padrão = usuário regular
       status: user.status || "ativo",
+      nome: user.nome || null,
+      empresaId: user.empresaId || 1, // Empresa padrão = 1
       ultimoLogin: null,
       tokenReset: null,
       dataExpiracaoToken: null,
@@ -227,6 +310,8 @@ export class MemStorage implements IStorage {
       avatarUrl: userData.avatarUrl !== undefined ? userData.avatarUrl : user.avatarUrl,
       perfilId: userData.perfilId !== undefined ? userData.perfilId : user.perfilId,
       status: userData.status !== undefined ? userData.status : user.status,
+      nome: userData.nome !== undefined ? userData.nome : user.nome,
+      empresaId: userData.empresaId !== undefined ? userData.empresaId : user.empresaId,
       updatedAt: timestamp 
     };
     this.users.set(id, updatedUser);
@@ -738,6 +823,24 @@ export class MemStorage implements IStorage {
   }
 
   private initializeDemoData() {
+    // Inicializa dados da empresa
+    const demoEmpresa: InsertEmpresa = {
+      nome: "CardVault Inc.",
+      cnpj: "12.345.678/0001-99",
+      email: "contato@cardvault.com",
+      telefone: "+55 11 1234-5678",
+      plano: "empresarial",
+      status: "ativo",
+      dataExpiracao: new Date("2026-12-31"),
+      logoUrl: "https://logo.cardvault.com/logo.png",
+      corPrimaria: "#4361ee",
+      endereco: "Av. Paulista, 1000",
+      cidade: "São Paulo",
+      estado: "SP",
+      cep: "01310-100",
+      limiteUsuarios: 50
+    };
+    this.createEmpresa(demoEmpresa);
     // Criar perfis padrão
     const perfisData: InsertPerfil[] = [
       {
@@ -795,6 +898,8 @@ export class MemStorage implements IStorage {
           username: "demo",
           password: "password123",
           email: "demo@example.com",
+          nome: "Administrador Demo",
+          empresaId: 1, // Empresa criada anteriormente
           avatarUrl: "https://i.pravatar.cc/40?img=68",
           perfilId: perfis[0].id, // Administrador
           status: "ativo"
@@ -803,10 +908,10 @@ export class MemStorage implements IStorage {
         this.createUser(demoUser).then(user => {
           // Fornecedores (anteriormente collections)
           const fornecedores: InsertFornecedor[] = [
-            { nome: "Amazon", descricao: "Gift Cards da Amazon", website: "https://www.amazon.com", logo: "https://logo.clearbit.com/amazon.com", status: "ativo", userId: user.id },
-            { nome: "Netflix", descricao: "Gift Cards para assinatura Netflix", website: "https://www.netflix.com", logo: "https://logo.clearbit.com/netflix.com", status: "ativo", userId: user.id },
-            { nome: "Spotify", descricao: "Gift Cards para assinatura Spotify", website: "https://www.spotify.com", logo: "https://logo.clearbit.com/spotify.com", status: "ativo", userId: user.id },
-            { nome: "Steam", descricao: "Gift Cards para compras na Steam", website: "https://store.steampowered.com", logo: "https://logo.clearbit.com/steampowered.com", status: "ativo", userId: user.id }
+            { nome: "Amazon", descricao: "Gift Cards da Amazon", website: "https://www.amazon.com", logo: "https://logo.clearbit.com/amazon.com", status: "ativo", userId: user.id, empresaId: user.empresaId },
+            { nome: "Netflix", descricao: "Gift Cards para assinatura Netflix", website: "https://www.netflix.com", logo: "https://logo.clearbit.com/netflix.com", status: "ativo", userId: user.id, empresaId: user.empresaId },
+            { nome: "Spotify", descricao: "Gift Cards para assinatura Spotify", website: "https://www.spotify.com", logo: "https://logo.clearbit.com/spotify.com", status: "ativo", userId: user.id, empresaId: user.empresaId },
+            { nome: "Steam", descricao: "Gift Cards para compras na Steam", website: "https://store.steampowered.com", logo: "https://logo.clearbit.com/steampowered.com", status: "ativo", userId: user.id, empresaId: user.empresaId }
           ];
           
           Promise.all(fornecedores.map(f => this.createFornecedor(f))).then(fornecedorInstances => {
@@ -831,6 +936,7 @@ export class MemStorage implements IStorage {
                   status: "ativo",
                   fornecedorId: fornecedorInstances[0].id, // Amazon
                   userId: user.id,
+                  empresaId: user.empresaId,
                   observacoes: "Gift card para compras de livros"
                 },
                 {
@@ -841,6 +947,7 @@ export class MemStorage implements IStorage {
                   status: "zerado",
                   fornecedorId: fornecedorInstances[1].id, // Netflix
                   userId: user.id,
+                  empresaId: user.empresaId,
                   observacoes: "Gift card para renovação da assinatura"
                 },
                 {
@@ -851,6 +958,7 @@ export class MemStorage implements IStorage {
                   status: "ativo",
                   fornecedorId: fornecedorInstances[2].id, // Spotify
                   userId: user.id,
+                  empresaId: user.empresaId,
                   observacoes: "Gift card para assinatura premium"
                 },
                 {
@@ -861,6 +969,7 @@ export class MemStorage implements IStorage {
                   status: "ativo",
                   fornecedorId: fornecedorInstances[3].id, // Steam
                   userId: user.id,
+                  empresaId: user.empresaId,
                   observacoes: "Gift card para as compras da Steam Summer Sale"
                 }
               ];
@@ -880,6 +989,7 @@ export class MemStorage implements IStorage {
                     valor: 25.00,
                     descricao: "Compra de livros",
                     userId: user.id,
+                    empresaId: user.empresaId,
                     dataTransacao: twoWeeksAgo,
                     status: "Concluída",
                     comprovante: null,
@@ -894,6 +1004,7 @@ export class MemStorage implements IStorage {
                     valor: 50.00,
                     descricao: "Assinatura anual",
                     userId: user.id,
+                    empresaId: user.empresaId,
                     dataTransacao: oneWeekAgo,
                     status: "Concluída",
                     comprovante: null,
@@ -908,6 +1019,7 @@ export class MemStorage implements IStorage {
                     valor: 50.00,
                     descricao: "Compra de jogo novo",
                     userId: user.id,
+                    empresaId: user.empresaId,
                     dataTransacao: new Date(),
                     status: "Concluída",
                     comprovante: null,
