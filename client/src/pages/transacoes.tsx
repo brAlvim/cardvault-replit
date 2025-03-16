@@ -193,6 +193,9 @@ export default function TransacoesPage() {
           dataTransacao: new Date(selectedTransacao.dataTransacao),
           comprovante: selectedTransacao.comprovante || undefined,
           motivoCancelamento: selectedTransacao.motivoCancelamento || undefined,
+          ordemInterna: selectedTransacao.ordemInterna || undefined,
+          ordemCompra: selectedTransacao.ordemCompra || undefined,
+          nomeUsuario: selectedTransacao.nomeUsuario || undefined,
         };
         form.reset(formData);
       } else {
@@ -532,6 +535,71 @@ export default function TransacoesPage() {
                       />
                     )}
                     
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="ordemInterna"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Ordem Interna</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Número da ordem interna (Amazon)" 
+                                {...field} 
+                                value={field.value || ''}
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Número da ordem Amazon
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="ordemCompra"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Ordem de Compra</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Número da ordem do fornecedor" 
+                                {...field} 
+                                value={field.value || ''}
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Número da ordem do fornecedor
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <FormField
+                      control={form.control}
+                      name="nomeUsuario"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nome do Usuário</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="Nome de quem está realizando a transação" 
+                              {...field} 
+                              value={field.value || ''}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Nome da pessoa responsável pela transação
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
                     <DialogFooter>
                       <DialogClose asChild>
                         <Button variant="outline" type="button">
@@ -643,6 +711,8 @@ export default function TransacoesPage() {
                   <TableRow>
                     <TableHead>Data</TableHead>
                     <TableHead>Descrição</TableHead>
+                    <TableHead>Ordem</TableHead>
+                    <TableHead>Responsável</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
                     <TableHead className="text-center">Status</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
@@ -658,6 +728,31 @@ export default function TransacoesPage() {
                           <div className="text-xs text-muted-foreground mt-1">
                             Motivo: {transacao.motivoCancelamento}
                           </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {(transacao.ordemInterna || transacao.ordemCompra) ? (
+                          <div>
+                            {transacao.ordemInterna && (
+                              <div className="text-xs">
+                                <span className="font-medium">Amazon:</span> {transacao.ordemInterna}
+                              </div>
+                            )}
+                            {transacao.ordemCompra && (
+                              <div className="text-xs">
+                                <span className="font-medium">Fornecedor:</span> {transacao.ordemCompra}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Não informado</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {transacao.nomeUsuario ? (
+                          <span className="text-sm">{transacao.nomeUsuario}</span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Não informado</span>
                         )}
                       </TableCell>
                       <TableCell className="text-right font-medium">
