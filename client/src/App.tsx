@@ -12,6 +12,7 @@ import GiftCardNew from "@/pages/gift-card-new";
 import GiftCardNewFixed from "@/pages/gift-card-new-fixed";
 import CalculadoraSimples from "@/pages/CalculadoraSimples";
 import Fornecedores from "@/pages/fornecedores";
+import Transacoes from "@/pages/transacoes";
 
 function Router() {
   return (
@@ -24,6 +25,7 @@ function Router() {
       <Route path="/gift-cards/:id" component={GiftCardDetails} />
       <Route path="/fornecedores" component={Fornecedores} />
       <Route path="/calculadora" component={CalculadoraSimples} />
+      <Route path="/transacoes/:id" component={Transacoes} />
       <Route component={NotFound} />
     </Switch>
   );
