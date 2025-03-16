@@ -1,7 +1,7 @@
 import { Fornecedor } from '@shared/schema';
 import { useLocation } from 'wouter';
 import { Badge } from '@/components/ui/badge';
-import { CreditCard, Store, Tag, Receipt, BarChart3, Home } from 'lucide-react';
+import { CreditCard, Store, Tag, Receipt, BarChart3, Home, Users } from 'lucide-react';
 
 interface SidebarProps {
   collections: any[]; // Temporário - será atualizado para Fornecedor[]
@@ -86,6 +86,17 @@ export default function Sidebar({ collections, user }: SidebarProps) {
             >
               <BarChart3 className="h-4 w-4" />
               <span>Relatórios</span>
+            </a>
+          </li>
+          <li>
+            <a 
+              href="/user-profiles"
+              className={`flex items-center space-x-3 p-2 rounded-lg ${
+                location.includes('/user-profiles') ? 'bg-blue-50 text-primary font-medium' : 'text-slate-600 hover:bg-slate-100'
+              } transition-colors`}
+            >
+              <Users className="h-4 w-4" />
+              <span>Perfis e Usuários</span>
             </a>
           </li>
         </ul>

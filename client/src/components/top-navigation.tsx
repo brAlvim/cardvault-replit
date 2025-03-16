@@ -49,8 +49,8 @@ export default function TopNavigation({ onMenuClick, onSearch }: TopNavigationPr
           <Button variant="ghost" size="icon" title="Notifications">
             <Bell className="h-5 w-5 text-slate-600" />
           </Button>
-          <Link href="/dashboard">
-            <Button variant="ghost" size="icon" title="Acessar Dashboard">
+          <Link href="/user-profiles">
+            <Button variant="ghost" size="icon" title="Perfis e Usuários">
               <Cog className="h-5 w-5 text-slate-600" />
             </Button>
           </Link>
