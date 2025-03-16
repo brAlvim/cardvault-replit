@@ -547,10 +547,12 @@ export default function TransacoesPage() {
       data.giftCardId = selectedGiftCards[0].id;
     }
     
-    // Remover o campo dataTransacao para permitir que o servidor defina o valor padrão
-    if (data.dataTransacao) {
-      delete data.dataTransacao;
-    }
+    // Criar uma cópia dos dados sem o campo dataTransacao
+    // para permitir que o servidor defina o valor padrão
+    const { dataTransacao, ...dataToSend } = { ...data };
+    // Isso cria uma nova cópia sem o campo dataTransacao
+    
+    // Substituir data por dataToSend ao enviar para o servidor
     
     // Log detalhado dos dados antes de enviar
     console.log("Dados finais para envio:", {
@@ -572,7 +574,7 @@ export default function TransacoesPage() {
       });
       updateTransacao.mutate({
         id: selectedTransacao.id,
-        data,
+        data: dataToSend,
       });
     } else {
       // Senão, cria uma nova
@@ -580,7 +582,7 @@ export default function TransacoesPage() {
         title: "Criando transação",
         description: "Enviando dados para o servidor...",
       });
-      createTransacao.mutate(data);
+      createTransacao.mutate(dataToSend);
     }
   };
   
