@@ -128,18 +128,34 @@ export default function UserProfilesPage() {
   // Consultas para buscar perfis e usuários
   const { data: perfis = [], isLoading: perfisLoading, error: perfisError } = useQuery({
     queryKey: ['/api/perfis'],
-    queryFn: () => apiRequest<Perfil[]>('GET', '/api/perfis'),
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/perfis');
+      if (!response.ok) {
+        throw new Error('Erro ao buscar perfis');
+      }
+      return await response.json();
+    }
   });
 
   const { data: users = [], isLoading: usersLoading, error: usersError } = useQuery({
     queryKey: ['/api/users'],
-    queryFn: () => apiRequest<User[]>('GET', '/api/users'),
+    queryFn: async () => {
+      const response = await apiRequest('GET', '/api/users');
+      if (!response.ok) {
+        throw new Error('Erro ao buscar usuários');
+      }
+      return await response.json();
+    }
   });
 
   // Mutations para criar/editar/excluir perfis
   const createPerfilMutation = useMutation({
-    mutationFn: (newPerfil: PerfilFormValues) => {
-      return apiRequest<Perfil>('POST', '/api/perfis', undefined, { body: JSON.stringify(newPerfil) });
+    mutationFn: async (newPerfil: PerfilFormValues) => {
+      const response = await apiRequest('POST', '/api/perfis', newPerfil);
+      if (!response.ok) {
+        throw new Error('Erro ao criar perfil');
+      }
+      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/perfis'] });
@@ -160,8 +176,12 @@ export default function UserProfilesPage() {
   });
 
   const updatePerfilMutation = useMutation({
-    mutationFn: (updatedPerfil: { id: number, data: Partial<PerfilFormValues> }) => {
-      return apiRequest<Perfil>('PUT', `/api/perfis/${updatedPerfil.id}`, undefined, { body: JSON.stringify(updatedPerfil.data) });
+    mutationFn: async (updatedPerfil: { id: number, data: Partial<PerfilFormValues> }) => {
+      const response = await apiRequest('PUT', `/api/perfis/${updatedPerfil.id}`, updatedPerfil.data);
+      if (!response.ok) {
+        throw new Error('Erro ao atualizar perfil');
+      }
+      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/perfis'] });
@@ -183,8 +203,12 @@ export default function UserProfilesPage() {
   });
 
   const deletePerfilMutation = useMutation({
-    mutationFn: (id: number) => {
-      return apiRequest<boolean>('DELETE', `/api/perfis/${id}`);
+    mutationFn: async (id: number) => {
+      const response = await apiRequest('DELETE', `/api/perfis/${id}`);
+      if (!response.ok) {
+        throw new Error('Erro ao excluir perfil');
+      }
+      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/perfis'] });
@@ -205,8 +229,12 @@ export default function UserProfilesPage() {
 
   // Mutations para criar/editar/excluir usuários
   const createUserMutation = useMutation({
-    mutationFn: (newUser: UserFormValues) => {
-      return apiRequest<User>('POST', '/api/users', undefined, { body: JSON.stringify(newUser) });
+    mutationFn: async (newUser: UserFormValues) => {
+      const response = await apiRequest('POST', '/api/users', newUser);
+      if (!response.ok) {
+        throw new Error('Erro ao criar usuário');
+      }
+      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
@@ -227,8 +255,12 @@ export default function UserProfilesPage() {
   });
 
   const updateUserMutation = useMutation({
-    mutationFn: (updatedUser: { id: number, data: Partial<UserFormValues> }) => {
-      return apiRequest<User>('PUT', `/api/users/${updatedUser.id}`, undefined, { body: JSON.stringify(updatedUser.data) });
+    mutationFn: async (updatedUser: { id: number, data: Partial<UserFormValues> }) => {
+      const response = await apiRequest('PUT', `/api/users/${updatedUser.id}`, updatedUser.data);
+      if (!response.ok) {
+        throw new Error('Erro ao atualizar usuário');
+      }
+      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
