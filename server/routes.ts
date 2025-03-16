@@ -1,4 +1,4 @@
-import express, { type Express, Request, Response } from "express";
+import express, { type Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { 
@@ -12,6 +12,7 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
+import { login, requireAuth, requirePermission } from "./auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const router = express.Router();
@@ -669,6 +670,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }));
       
       res.json(collections);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Rotas de autenticação
+  router.post("/auth/login", login);
+  
+  // Rota para obter empresas (sem autenticação)
+  router.get("/empresas", async (req: Request, res: Response) => {
+    try {
+      const empresas = await storage.getEmpresas();
+      res.json(empresas);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Aplicar middleware de autenticação apenas em rotas protegidas
+  // Exemplo de uma rota protegida que requer autenticação
+  router.get("/auth/me", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json({
+        id: user.id,
+        username: user.username,
+        nome: user.nome,
+        email: user.email,
+        empresaId: user.empresaId,
+        perfilId: user.perfilId,
+        perfilNome: user.perfilNome
+      });
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
     }
