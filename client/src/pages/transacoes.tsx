@@ -164,6 +164,7 @@ export default function TransacoesPage() {
   const [isTransacaoDialogOpen, setIsTransacaoDialogOpen] = useState(false);
   const [selectedTransacao, setSelectedTransacao] = useState<Transacao | null>(null);
   const [selectedGiftCards, setSelectedGiftCards] = useState<SelectedGiftCard[]>([]);
+  const [selectedFornecedorId, setSelectedFornecedorId] = useState<number | null>(null);
   
   // Query para buscar gift card
   const { data: giftCard, isLoading: isLoadingGiftCard } = useQuery<GiftCard>({
@@ -601,28 +602,8 @@ export default function TransacoesPage() {
                         />
                       </div>
                       
-                      <FormField
-                        control={form.control}
-                        name="nomeUsuario"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="font-medium">Responsável</FormLabel>
-                            <FormControl>
-                              <Input 
-                                placeholder="Nome de quem está realizando a transação" 
-                                {...field} 
-                                value={field.value || ''}
-                                disabled
-                                className="bg-gray-100 text-gray-800"
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              Nome da pessoa responsável pela transação (preenchido automaticamente)
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      {/* O campo de responsável foi removido da interface, 
+                      mas continuará sendo enviado através do onSubmit */}
                     </div>
                     
                     {/* Seleção de Gift Cards */}
