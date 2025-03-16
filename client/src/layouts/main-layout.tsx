@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import Sidebar from '@/components/sidebar';
 import TopNavigation from '@/components/top-navigation';
 import MobileSidebar from '@/components/mobile-sidebar';
-import { Collection } from '@shared/schema';
+import { Fornecedor } from '@shared/schema';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -28,7 +28,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   });
   
   // Get collections somente se autenticado
-  const { data: collections } = useQuery<Collection[]>({
+  const { data: collections } = useQuery<Fornecedor[]>({
     queryKey: ['/api/collections'],
     enabled: isAuthenticated && !isLoginPage,
   });

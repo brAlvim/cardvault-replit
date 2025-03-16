@@ -1,7 +1,7 @@
 import { Fornecedor } from '@shared/schema';
 import { useLocation } from 'wouter';
 import { Badge } from '@/components/ui/badge';
-import { CreditCard, Store, Tag, Receipt, BarChart3, Home, Users, LogOut } from 'lucide-react';
+import { CreditCard, Store, Receipt, BarChart3, Home, Users, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -100,17 +100,7 @@ export default function Sidebar({ collections, user }: SidebarProps) {
               <span>Transações</span>
             </a>
           </li>
-          <li>
-            <a 
-              href="/tags"
-              className={`flex items-center space-x-3 p-2 rounded-lg ${
-                location.includes('/tags') ? 'bg-blue-50 text-primary font-medium' : 'text-slate-600 hover:bg-slate-100'
-              } transition-colors`}
-            >
-              <Tag className="h-4 w-4" />
-              <span>Tags</span>
-            </a>
-          </li>
+
           <li>
             <a 
               href="/relatorios"
