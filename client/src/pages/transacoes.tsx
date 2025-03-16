@@ -426,8 +426,7 @@ export default function TransacoesPage() {
         queryClient.invalidateQueries({ queryKey: ['/api/transacoes', giftCardId] });
         queryClient.invalidateQueries({ queryKey: ['/api/gift-cards', giftCardId] });
       } else {
-        queryClient.invalidateQueries({ queryKey: ['/api/transacoes/all'] });
-        // Também invalidar todas as transações
+        // Invalidar todas as transações
         queryClient.invalidateQueries({ queryKey: ['/api/transacoes'] });
         // E atualizar os gift cards para refletir os novos saldos
         queryClient.invalidateQueries({ queryKey: ['/api/gift-cards'] });
