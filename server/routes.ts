@@ -64,7 +64,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      const fornecedores = await storage.getFornecedores(userId);
+      // Filtrar por empresa se especificado
+      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      
+      const fornecedores = await storage.getFornecedores(userId, empresaId);
       res.json(fornecedores);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
@@ -73,6 +76,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   router.post("/fornecedores", async (req: Request, res: Response) => {
     try {
+      // Garantir que empresaId seja incluído se vier como query parameter mas não no body
+      if (!req.body.empresaId && req.query.empresaId) {
+        req.body.empresaId = parseInt(req.query.empresaId as string);
+      }
+      
       const fornecedorData = insertFornecedorSchema.parse(req.body);
       const fornecedor = await storage.createFornecedor(fornecedorData);
       res.status(201).json(fornecedor);
@@ -87,7 +95,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   router.get("/fornecedores/:id", async (req: Request, res: Response) => {
     try {
       const fornecedorId = parseInt(req.params.id);
-      const fornecedor = await storage.getFornecedor(fornecedorId);
+      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      const fornecedor = await storage.getFornecedor(fornecedorId, empresaId);
       
       if (!fornecedor) {
         return res.status(404).json({ message: "Fornecedor not found" });
@@ -242,9 +251,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Tag routes
-  router.get("/tags", async (_req: Request, res: Response) => {
+  router.get("/tags", async (req: Request, res: Response) => {
     try {
-      const tags = await storage.getTags();
+      // Filtrar por empresa se especificado
+      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      const tags = await storage.getTags(empresaId);
       res.json(tags);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
@@ -253,6 +264,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   router.post("/tags", async (req: Request, res: Response) => {
     try {
+      // Garantir que o empresaId seja armazenado
+      if (!req.body.empresaId && req.query.empresaId) {
+        req.body.empresaId = parseInt(req.query.empresaId as string);
+      }
+      
       const tagData = insertTagSchema.parse(req.body);
       const tag = await storage.createTag(tagData);
       res.status(201).json(tag);
@@ -267,7 +283,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   router.get("/tags/:id", async (req: Request, res: Response) => {
     try {
       const tagId = parseInt(req.params.id);
-      const tag = await storage.getTag(tagId);
+      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      const tag = await storage.getTag(tagId, empresaId);
       
       if (!tag) {
         return res.status(404).json({ message: "Tag not found" });
@@ -282,8 +299,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   router.get("/gift-cards/tag/:tagId", async (req: Request, res: Response) => {
     try {
       const tagId = parseInt(req.params.tagId);
+      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      
+      // Verificar se o tagId pertence à empresa especificada, se houver
+      if (empresaId) {
+        const tag = await storage.getTag(tagId, empresaId);
+        if (!tag) {
+          return res.status(404).json({ message: "Tag not found for this company" });
+        }
+      }
+      
       const giftCards = await storage.getGiftCardsByTag(tagId);
-      res.json(giftCards);
+      
+      // Filtrar os gift cards por empresa se necessário
+      const filteredGiftCards = empresaId 
+        ? giftCards.filter(card => card.empresaId === empresaId)
+        : giftCards;
+        
+      res.json(filteredGiftCards);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
     }
@@ -292,7 +325,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   router.get("/gift-cards/:giftCardId/tags", async (req: Request, res: Response) => {
     try {
       const giftCardId = parseInt(req.params.giftCardId);
-      const tags = await storage.getGiftCardTags(giftCardId);
+      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      const tags = await storage.getGiftCardTags(giftCardId, empresaId);
       res.json(tags);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
@@ -330,10 +364,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Transação routes (novo)
   // Nova rota para buscar todas as transações
-  router.get("/transacoes", async (_req: Request, res: Response) => {
+  router.get("/transacoes", async (req: Request, res: Response) => {
     try {
-      // Obtém todas as transações - uma implementação simplificada que retorna todas
-      // Na implementação real, isso teria paginação e filtros
+      // Verifica se há um filtro por empresa
+      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      
+      if (empresaId) {
+        // Se houver empresaId, usa o método de busca específico para a empresa
+        const transacoes = await storage.getTransacoesByEmpresa(empresaId);
+        
+        // Ordena por data decrescente (mais recentes primeiro)
+        transacoes.sort((a, b) => {
+          return new Date(b.dataTransacao).getTime() - new Date(a.dataTransacao).getTime();
+        });
+        
+        return res.json(transacoes);
+      }
+      
+      // Implementação padrão (sem filtro por empresa)
       const todasTransacoes: Transacao[] = [];
       
       // Itera por todos os gift cards para coletar suas transações
@@ -367,7 +415,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (isNaN(giftCardId)) {
         return res.status(400).json({ message: "ID de Gift Card inválido" });
       }
-      const transacoes = await storage.getTransacoes(giftCardId);
+      
+      // Verifica se há um filtro por empresa
+      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      
+      // Busca o gift card para verificar se ele pertence à empresa especificada
+      if (empresaId) {
+        const giftCard = await storage.getGiftCard(giftCardId, empresaId);
+        if (!giftCard) {
+          return res.status(404).json({ message: "Gift Card not found for this company" });
+        }
+      }
+      
+      const transacoes = await storage.getTransacoes(giftCardId, empresaId);
       res.json(transacoes);
     } catch (error) {
       res.status(500).json({ message: "Internal server error" });
@@ -425,7 +485,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   router.get("/transacoes/detalhes/:id", async (req: Request, res: Response) => {
     try {
       const transacaoId = parseInt(req.params.id);
-      const transacao = await storage.getTransacao(transacaoId);
+      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      
+      // Busca a transação com possível filtro por empresa
+      const transacao = await storage.getTransacao(transacaoId, empresaId);
       
       if (!transacao) {
         return res.status(404).json({ message: "Transação not found" });
@@ -486,7 +549,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      const fornecedores = await storage.getFornecedores(userId);
+      // Filtra por empresa se especificada
+      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      
+      const fornecedores = await storage.getFornecedores(userId, empresaId);
       
       // Filtrar para retornar apenas fornecedores ativos
       const fornecedoresAtivos = fornecedores.filter(f => f.status === "ativo");
@@ -495,7 +561,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const collections = fornecedoresAtivos.map(f => ({
         id: f.id,
         nome: f.nome,
-        logo: f.logo
+        logo: f.logo,
+        empresaId: f.empresaId // Inclui o empresaId para facilitar futuras filtragens
       }));
       
       res.json(collections);

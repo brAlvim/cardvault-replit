@@ -101,7 +101,7 @@ export interface IStorage {
   // Gift Card Tag methods
   addTagToGiftCard(giftCardId: number, tagId: number): Promise<GiftCardTag>;
   removeTagFromGiftCard(giftCardId: number, tagId: number): Promise<boolean>;
-  getGiftCardTags(giftCardId: number): Promise<Tag[]>;
+  getGiftCardTags(giftCardId: number, empresaId?: number): Promise<Tag[]>;
 }
 
 export class MemStorage implements IStorage {
