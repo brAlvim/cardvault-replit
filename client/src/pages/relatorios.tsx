@@ -17,7 +17,19 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
-// Tipos
+// Criar uma declaração de módulo para o file-saver
+declare module 'file-saver';
+
+// Estender os tipos existentes
+interface GiftCardExtended extends GiftCard {
+  fornecedorNome?: string;  // Nome do fornecedor para exibição
+}
+
+interface TransacaoExtended extends Transacao {
+  giftCardCodigo?: string;  // Código do gift card para exibição
+}
+
+// Tipos para estatísticas
 interface EstatisticasFornecedor {
   id: number;
   nome: string;
@@ -85,22 +97,22 @@ export default function RelatoriosPage() {
   // Buscar estatísticas
   const { data: estatisticas, isLoading: isLoadingEstatisticas } = useQuery<Estatisticas>({
     queryKey: ["/api/relatorios/estatisticas"],
-    queryFn: getQueryFn({}),
+    queryFn: getQueryFn({ on401: "throw" }),
   });
   
   // Lazy loading para os outros dados
   const [loadGiftCards, setLoadGiftCards] = useState(false);
   const [loadTransacoes, setLoadTransacoes] = useState(false);
   
-  const { data: giftCards, isLoading: isLoadingGiftCards } = useQuery<GiftCard[]>({
+  const { data: giftCards, isLoading: isLoadingGiftCards } = useQuery<GiftCardExtended[]>({
     queryKey: ["/api/relatorios/gift-cards/export"],
-    queryFn: getQueryFn({}),
+    queryFn: getQueryFn({ on401: "throw" }),
     enabled: loadGiftCards,
   });
   
-  const { data: transacoes, isLoading: isLoadingTransacoes } = useQuery<Transacao[]>({
+  const { data: transacoes, isLoading: isLoadingTransacoes } = useQuery<TransacaoExtended[]>({
     queryKey: ["/api/relatorios/transacoes/export"],
-    queryFn: getQueryFn({}),
+    queryFn: getQueryFn({ on401: "throw" }),
     enabled: loadTransacoes,
   });
   
