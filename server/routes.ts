@@ -675,9 +675,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Rotas de autenticação
+  // Rota de login (sem autenticação)
   router.post("/auth/login", login);
-  
+
   // Rota para obter empresas (sem autenticação)
   router.get("/empresas", async (req: Request, res: Response) => {
     try {
@@ -689,7 +689,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Aplicar middleware de autenticação apenas em rotas protegidas
-  // Exemplo de uma rota protegida que requer autenticação
+  // Rota para obter dados do usuário autenticado
   router.get("/auth/me", requireAuth, async (req: Request, res: Response) => {
     try {
       const userId = (req as any).user.id;
@@ -699,18 +699,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
+      // Buscar dados adicionais
+      const perfil = await storage.getPerfil(user.perfilId);
+      const empresa = await storage.getEmpresa(user.empresaId);
+      
       res.json({
         id: user.id,
         username: user.username,
         nome: user.nome,
         email: user.email,
         empresaId: user.empresaId,
+        empresaNome: empresa?.nome,
         perfilId: user.perfilId,
-        perfilNome: user.perfilNome
+        perfilNome: perfil?.nome
       });
     } catch (error) {
+      console.error("Erro ao buscar dados do usuário:", error);
       res.status(500).json({ message: "Internal server error" });
     }
+  });
+
+  // Rota de logout (protegida por autenticação)
+  router.post("/auth/logout", requireAuth, (req: Request, res: Response) => {
+    // No backend com JWT, o logout é gerenciado pelo cliente
+    // O servidor apenas confirma que a requisição foi recebida
+    res.status(200).json({ message: "Logout realizado com sucesso" });
   });
 
   // Mount the API router

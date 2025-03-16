@@ -33,30 +33,52 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     try {
-      const response = await apiRequest("POST", "/api/auth/login", {
-        email: data.email,
-        password: data.password,
+      // Usar fetch diretamente para ter mais controle sobre o tratamento de erros
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+        }),
       });
 
-      if (response.ok) {
-        const userData = await response.json();
-        // Armazenar dados do usuário e token no localStorage
-        localStorage.setItem("user", JSON.stringify(userData.user));
-        localStorage.setItem("token", userData.token);
-        localStorage.setItem("empresaId", userData.user.empresaId.toString());
+      // Verificar se a resposta deu certo
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = "Credenciais inválidas";
         
-        toast({
-          title: "Login realizado com sucesso",
-          description: `Bem-vindo(a) ${userData.user.nome || userData.user.email.split('@')[0]}!`,
-        });
+        try {
+          // Tentar converter para JSON se possível
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.message || errorMessage;
+        } catch (e) {
+          // Se não for JSON, usar texto completo
+          console.error("Resposta de erro não é JSON:", errorText);
+        }
         
-        // Redirecionar para o dashboard
-        setLocation("/");
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Credenciais inválidas");
+        throw new Error(errorMessage);
       }
+
+      // Se chegou aqui, a resposta é ok
+      const userData = await response.json();
+      
+      // Armazenar dados do usuário e token no localStorage
+      localStorage.setItem("user", JSON.stringify(userData.user));
+      localStorage.setItem("token", userData.token);
+      localStorage.setItem("empresaId", userData.user.empresaId.toString());
+      
+      toast({
+        title: "Login realizado com sucesso",
+        description: `Bem-vindo(a) ${userData.user.nome || userData.user.email.split('@')[0]}!`,
+      });
+      
+      // Redirecionar para o dashboard
+      setLocation("/dashboard");
     } catch (error: any) {
+      console.error("Erro durante login:", error);
       toast({
         variant: "destructive",
         title: "Erro ao fazer login",
