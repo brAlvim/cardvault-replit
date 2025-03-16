@@ -239,22 +239,46 @@ export default function TransacoesPage() {
   });
 
   // Reset form when opening the dialog
+  // Este useEffect controla o fluxo do formulário de transação
+  // Controlado por flag para executar apenas uma vez quando o diálogo é aberto
+  const [dialogInitialized, setDialogInitialized] = useState(false);
+  
   useEffect(() => {
-    if (isTransacaoDialogOpen) {
+    // Este efeito é apenas para inicializar o formulário quando o diálogo é aberto
+    // Quando o diálogo é fechado, resetamos o estado
+    if (!isTransacaoDialogOpen) {
+      setDialogInitialized(false);
+      return;
+    }
+    
+    // Se já inicializamos este diálogo, não fazemos nada
+    if (dialogInitialized) {
+      return;
+    }
+    
+    // Se não temos dados de gift cards ou fornecedores ainda, não tenta processar
+    if (!allGiftCards?.length || !allFornecedores?.length) {
+      return;
+    }
+    
+    // Marca como inicializado para evitar múltiplas execuções
+    setDialogInitialized(true);
+    
+    try {
       if (selectedTransacao) {
-        // Convertendo transacao para o formato esperado pelo form
+        // Transação existente - preenche o formulário com dados da transação selecionada
         const formData: TransacaoFormReset = {
           valor: selectedTransacao.valor,
           descricao: selectedTransacao.descricao,
-          status: selectedTransacao.status,
+          status: selectedTransacao.status || 'concluida',
           giftCardId: selectedTransacao.giftCardId,
           userId: selectedTransacao.userId,
-          dataTransacao: new Date(selectedTransacao.dataTransacao),
+          dataTransacao: new Date(selectedTransacao.dataTransacao || new Date()),
           comprovante: selectedTransacao.comprovante || undefined,
           motivoCancelamento: selectedTransacao.motivoCancelamento || undefined,
-          valorRefund: selectedTransacao.valorRefund,
+          valorRefund: selectedTransacao.valorRefund || undefined,
           motivoRefund: selectedTransacao.motivoRefund || undefined,
-          refundDe: selectedTransacao.refundDe,
+          refundDe: selectedTransacao.refundDe || undefined,
           ordemInterna: selectedTransacao.ordemInterna || undefined,
           ordemCompra: selectedTransacao.ordemCompra || undefined,
           nomeUsuario: selectedTransacao.nomeUsuario || user?.username || undefined,
@@ -263,49 +287,45 @@ export default function TransacoesPage() {
         form.reset(formData);
         
         // Carregar os gift cards incluídos na transação
-        try {
-          if (selectedTransacao.giftCardIds) {
-            const ids = selectedTransacao.giftCardIds.split(',').map(id => parseInt(id));
+        let newSelectedCards: SelectedGiftCard[] = [];
+        
+        if (selectedTransacao.giftCardIds) {
+          // Para transações com múltiplos gift cards
+          const ids = selectedTransacao.giftCardIds.split(',').map(id => parseInt(id));
+          
+          newSelectedCards = ids.map(id => {
+            const card = allGiftCards.find(g => g.id === id);
+            if (!card) return null;
             
-            const selectedCards = ids.map(id => {
-              const card = allGiftCards.find(g => g.id === id);
-              if (!card) return null;
-              
-              const fornecedor = allFornecedores.find(f => f.id === card.fornecedorId);
-              // Extrair os últimos 4 dígitos para exibição
-              const ultimosDigitos = card.codigo.slice(-4);
-              return {
-                id: card.id,
-                codigo: `${card.codigo} (${ultimosDigitos})`,
-                saldoAtual: card.saldoAtual,
-                fornecedorNome: fornecedor?.nome || 'Desconhecido'
-              }
-            }).filter(Boolean) as SelectedGiftCard[];
-            
-            setSelectedGiftCards(selectedCards);
-          } else if (selectedTransacao.giftCardId) {
-            // Compatibilidade com transações antigas
-            const card = allGiftCards.find(g => g.id === selectedTransacao.giftCardId);
-            if (card) {
-              const fornecedor = allFornecedores.find(f => f.id === card.fornecedorId);
-              // Extrair os últimos 4 dígitos para exibição
-              const ultimosDigitos = card.codigo.slice(-4);
-              const selectedCard: SelectedGiftCard = {
-                id: card.id,
-                codigo: `${card.codigo} (${ultimosDigitos})`,
-                saldoAtual: card.saldoAtual,
-                fornecedorNome: fornecedor?.nome || 'Desconhecido'
-              };
-              setSelectedGiftCards([selectedCard]);
+            const fornecedor = allFornecedores.find(f => f.id === card.fornecedorId);
+            const ultimosDigitos = card.codigo.slice(-4);
+            return {
+              id: card.id,
+              codigo: `${card.codigo} (${ultimosDigitos})`,
+              saldoAtual: card.saldoAtual,
+              fornecedorNome: fornecedor?.nome || 'Desconhecido'
             }
+          }).filter(Boolean) as SelectedGiftCard[];
+        } else if (selectedTransacao.giftCardId) {
+          // Compatibilidade com transações antigas de gift card único
+          const card = allGiftCards.find(g => g.id === selectedTransacao.giftCardId);
+          if (card) {
+            const fornecedor = allFornecedores.find(f => f.id === card.fornecedorId);
+            const ultimosDigitos = card.codigo.slice(-4);
+            newSelectedCards = [{
+              id: card.id,
+              codigo: `${card.codigo} (${ultimosDigitos})`,
+              saldoAtual: card.saldoAtual,
+              fornecedorNome: fornecedor?.nome || 'Desconhecido'
+            }];
           }
-        } catch (error) {
-          console.error("Erro ao carregar gift cards da transação:", error);
         }
+        
+        setSelectedGiftCards(newSelectedCards);
       } else {
         // Nova transação - reseta o formulário
         form.reset({
-          giftCardId,
+          giftCardId: giftCardId || undefined,
           valor: 0,
           descricao: '',
           status: 'concluida',
@@ -314,12 +334,11 @@ export default function TransacoesPage() {
           giftCardIds: '',
         });
         
-        // Se tiver um gift card atual, adiciona ele à lista
+        // Se tiver um gift card específico (via URL), adiciona ele à lista
         if (giftCardId > 0 && giftCard) {
           const card = allGiftCards.find(g => g.id === giftCardId);
           if (card) {
             const fornecedor = allFornecedores.find(f => f.id === card.fornecedorId);
-            // Extrair os últimos 4 dígitos para exibição
             const ultimosDigitos = card.codigo.slice(-4);
             const selectedCard: SelectedGiftCard = {
               id: card.id,
@@ -328,6 +347,8 @@ export default function TransacoesPage() {
               fornecedorNome: fornecedor?.nome || 'Desconhecido'
             };
             setSelectedGiftCards([selectedCard]);
+            
+            // Atualiza o campo de gift cards IDs sem disparar efeitos colaterais
             form.setValue('giftCardIds', String(selectedCard.id));
           } else {
             setSelectedGiftCards([]);
@@ -336,11 +357,10 @@ export default function TransacoesPage() {
           setSelectedGiftCards([]);
         }
       }
-    } else {
-      // Quando o diálogo é fechado, limpa os gift cards selecionados
-      setSelectedGiftCards([]);
+    } catch (error) {
+      console.error("Erro ao inicializar formulário:", error);
     }
-  }, [isTransacaoDialogOpen, selectedTransacao, form, giftCardId, user, allGiftCards, allFornecedores, giftCard]);
+  }, [isTransacaoDialogOpen, dialogInitialized, selectedTransacao, allGiftCards, allFornecedores, giftCardId, giftCard, user, form]);
   
   // Mutation para criar transação
   const createTransacao = useMutation({
@@ -527,10 +547,10 @@ export default function TransacoesPage() {
     const preparedTransacao = prepareTransacaoForForm(transacao);
     
     // Identifica os gift cards da transação original
-    const giftCardIds = preparedTransacao.giftCardIds.split(',').map(id => parseInt(id));
+    const giftCardIds = preparedTransacao.giftCardIds.split(',').map((idStr: string) => parseInt(idStr));
     
     // Recupera os gift cards originais da lista completa
-    const originalGiftCards = giftCardIds.map(id => {
+    const originalGiftCards = giftCardIds.map((id: number) => {
       const gc = allGiftCards.find(g => g.id === id);
       if (!gc) return null;
       
