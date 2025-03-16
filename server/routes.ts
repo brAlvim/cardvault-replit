@@ -401,6 +401,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rota para collections (usado pelo sidebar)
+  // Esta rota retorna apenas os fornecedores ativos
+  router.get("/collections", async (req: Request, res: Response) => {
+    try {
+      // Se userId não for fornecido, retorna todos os fornecedores (userId 1 é demo)
+      let userId = 1;
+      
+      if (req.query.userId) {
+        userId = parseInt(req.query.userId as string);
+        if (isNaN(userId)) {
+          return res.status(400).json({ message: "Invalid user ID format" });
+        }
+      }
+      
+      const fornecedores = await storage.getFornecedores(userId);
+      
+      // Filtrar para retornar apenas fornecedores ativos
+      const fornecedoresAtivos = fornecedores.filter(f => f.status === "ativo");
+      
+      // Mapear para o formato esperado pelo sidebar
+      const collections = fornecedoresAtivos.map(f => ({
+        id: f.id,
+        nome: f.nome,
+        logo: f.logo
+      }));
+      
+      res.json(collections);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Mount the API router
   app.use("/api", router);
 
