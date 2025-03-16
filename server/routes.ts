@@ -7,7 +7,8 @@ import {
   insertTagSchema, 
   insertUserSchema,
   insertTransacaoSchema,
-  insertGiftCardTagSchema
+  insertGiftCardTagSchema,
+  Transacao // Adiciona a importação do tipo
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
@@ -328,9 +329,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Transação routes (novo)
+  // Nova rota para buscar todas as transações
+  router.get("/transacoes", async (_req: Request, res: Response) => {
+    try {
+      // Obtém todas as transações - uma implementação simplificada que retorna todas
+      // Na implementação real, isso teria paginação e filtros
+      const todasTransacoes: Transacao[] = [];
+      
+      // Itera por todos os gift cards para coletar suas transações
+      const giftCards = await storage.getGiftCards(1); // Usuário demo fixo para simplificar
+      for (const card of giftCards) {
+        const transacoes = await storage.getTransacoes(card.id);
+        todasTransacoes.push(...transacoes);
+      }
+      
+      // Ordena por data decrescente (mais recentes primeiro)
+      todasTransacoes.sort((a, b) => {
+        return new Date(b.dataTransacao).getTime() - new Date(a.dataTransacao).getTime();
+      });
+      
+      res.json(todasTransacoes);
+    } catch (error) {
+      console.error("Erro ao buscar todas as transações:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Rota para buscar transações de um gift card específico
   router.get("/transacoes/:giftCardId", async (req: Request, res: Response) => {
     try {
       const giftCardId = parseInt(req.params.giftCardId);
+      if (isNaN(giftCardId)) {
+        return res.status(400).json({ message: "ID de Gift Card inválido" });
+      }
       const transacoes = await storage.getTransacoes(giftCardId);
       res.json(transacoes);
     } catch (error) {

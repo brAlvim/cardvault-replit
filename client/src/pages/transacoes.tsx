@@ -187,11 +187,18 @@ export default function TransacoesPage() {
     enabled: !!giftCard?.fornecedorId,
   });
   
-  // Query para buscar transações de um gift card específico
+  // Query para buscar transações - usa diferentes endpoints dependendo se estamos em uma rota específica de gift card
   const { data: transacoes, isLoading: isLoadingTransacoes, refetch: refetchTransacoes } = useQuery<Transacao[]>({
-    queryKey: ['/api/transacoes', giftCardId],
-    queryFn: () => fetch(`/api/transacoes/${giftCardId}`).then(res => res.json()),
-    enabled: isRouteMatch && giftCardId > 0,
+    queryKey: isRouteMatch ? ['/api/transacoes', giftCardId] : ['/api/transacoes'],
+    queryFn: () => {
+      // Se estamos em uma rota específica de gift card, busca apenas as transações daquele card
+      if (isRouteMatch && giftCardId > 0) {
+        return fetch(`/api/transacoes/${giftCardId}`).then(res => res.json());
+      } 
+      // Caso contrário, busca todas as transações
+      return fetch('/api/transacoes').then(res => res.json());
+    },
+    enabled: isRouteMatch ? giftCardId > 0 : true, // Só ativa se tivermos um ID válido em rota específica
   });
   
   // Query para buscar todos os gift cards disponíveis (para seleção múltipla)
