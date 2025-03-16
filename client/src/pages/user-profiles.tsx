@@ -66,7 +66,7 @@ const userFormSchema = z.object({
   }),
   password: z.string().min(6, {
     message: "Senha deve ter pelo menos 6 caracteres.",
-  }),
+  }).optional(),
   perfilId: z.number({
     required_error: "Selecione um perfil.",
   }),
@@ -184,7 +184,7 @@ export default function UserProfilesPage() {
 
   const deletePerfilMutation = useMutation({
     mutationFn: (id: number) => {
-      return apiRequest('DELETE', `/api/perfis/${id}`);
+      return apiRequest<boolean>('DELETE', `/api/perfis/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/perfis'] });
@@ -206,7 +206,7 @@ export default function UserProfilesPage() {
   // Mutations para criar/editar/excluir usuários
   const createUserMutation = useMutation({
     mutationFn: (newUser: UserFormValues) => {
-      return apiRequest('POST', '/api/users', newUser);
+      return apiRequest<User>('POST', '/api/users', undefined, { body: JSON.stringify(newUser) });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
@@ -228,7 +228,7 @@ export default function UserProfilesPage() {
 
   const updateUserMutation = useMutation({
     mutationFn: (updatedUser: { id: number, data: Partial<UserFormValues> }) => {
-      return apiRequest('PUT', `/api/users/${updatedUser.id}`, updatedUser.data);
+      return apiRequest<User>('PUT', `/api/users/${updatedUser.id}`, undefined, { body: JSON.stringify(updatedUser.data) });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
@@ -251,7 +251,7 @@ export default function UserProfilesPage() {
 
   const deleteUserMutation = useMutation({
     mutationFn: (id: number) => {
-      return apiRequest('DELETE', `/api/users/${id}`);
+      return apiRequest<boolean>('DELETE', `/api/users/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
@@ -281,12 +281,14 @@ export default function UserProfilesPage() {
 
   const onUserSubmit = (data: UserFormValues) => {
     if (editingUser) {
-      // Remover a senha se estiver vazia (não alterada)
+      // Criar uma cópia sem incluir a senha se estiver vazia
       const userData = { ...data };
-      if (!userData.password) {
-        delete userData.password;
+      if (!userData.password || userData.password === "") {
+        const { password, ...restData } = userData;
+        updateUserMutation.mutate({ id: editingUser.id, data: restData });
+      } else {
+        updateUserMutation.mutate({ id: editingUser.id, data: userData });
       }
-      updateUserMutation.mutate({ id: editingUser.id, data: userData });
     } else {
       createUserMutation.mutate(data);
     }
