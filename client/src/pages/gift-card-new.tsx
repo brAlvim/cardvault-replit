@@ -103,7 +103,9 @@ export default function GiftCardNewPage() {
   // Filtra apenas fornecedores ativos
   const fornecedores = useMemo(() => {
     if (!todosFornecedores) return [];
-    return todosFornecedores.filter((f: Fornecedor) => f.status === "ativo");
+    
+    console.log('Status dos fornecedores:', todosFornecedores.map(f => f.status));
+    return todosFornecedores.filter((f: Fornecedor) => f.status === "Ativo" || f.status === "ativo");
   }, [todosFornecedores]);
 
   // Validate form
