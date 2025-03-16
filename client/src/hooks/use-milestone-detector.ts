@@ -134,7 +134,9 @@ export function useMilestoneDetector({
     // Combinamos marcos padrão e personalizados
     const allMilestones = [...defaultMilestones, ...customMilestones];
     
-    // Calculamos métricas relevantes
+    // Verificamos se é um array e calculamos métricas relevantes
+    if (!Array.isArray(giftCards)) return;
+    
     const giftCardCount = giftCards.length;
     const totalValue = giftCards.reduce((sum, card) => sum + card.saldoAtual, 0);
     const uniqueProviders = new Set(giftCards.map(card => card.fornecedorId)).size;
