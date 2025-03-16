@@ -54,10 +54,10 @@ export default function GiftCardNewPageFixed() {
     queryFn: () => fetch('/api/users/1').then(res => res.json()),
   });
   
-  // Fetch fornecedores for dropdown
+  // Fetch fornecedores for dropdown - usando a rota collections que já filtra por ativos
   const { data: fornecedores, isLoading: isLoadingFornecedores } = useQuery<Fornecedor[]>({
-    queryKey: ['/api/fornecedores'],
-    queryFn: () => fetch('/api/fornecedores').then(res => res.json()),
+    queryKey: ['/api/collections'],
+    queryFn: () => fetch('/api/collections').then(res => res.json()),
   });
   
   // Efeito para recalcular quando os valores mudarem

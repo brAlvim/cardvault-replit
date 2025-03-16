@@ -94,22 +94,11 @@ export default function GiftCardNewPage() {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch fornecedores for dropdown - filtrando apenas os ativos
-  const { data: todosFornecedores, isLoading: isLoadingFornecedores } = useQuery<Fornecedor[]>({
-    queryKey: ['/api/fornecedores'],
-    queryFn: () => fetch('/api/fornecedores').then(res => res.json()),
+  // Fetch fornecedores for dropdown - usando a rota collections que já filtra por ativos
+  const { data: fornecedores, isLoading: isLoadingFornecedores } = useQuery<Fornecedor[]>({
+    queryKey: ['/api/collections'],
+    queryFn: () => fetch('/api/collections').then(res => res.json()),
   });
-  
-  // Filtra apenas fornecedores ativos
-  const fornecedores = useMemo(() => {
-    if (!todosFornecedores) return [];
-    
-    // Debug para verificar os status disponíveis
-    console.log('Status dos fornecedores:', todosFornecedores.map(f => ({ nome: f.nome, status: f.status })));
-    
-    // Filtra por status 'ativo' em minúsculas - esse é o padrão que vem do servidor
-    return todosFornecedores.filter((f: Fornecedor) => f.status === "ativo");
-  }, [todosFornecedores]);
 
   // Validate form
   const isFormValid = (): boolean => {
