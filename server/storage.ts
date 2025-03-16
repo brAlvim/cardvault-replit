@@ -58,6 +58,7 @@ export interface IStorage {
   // User methods
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUsersByEmpresa(empresaId: number): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined>;
   deleteUser(id: number): Promise<boolean>;
@@ -65,15 +66,17 @@ export interface IStorage {
   updateUserPasswordResetToken(id: number, token: string): Promise<User | undefined>;
 
   // Fornecedor methods (substitui Collection)
-  getFornecedores(userId: number): Promise<Fornecedor[]>;
-  getFornecedor(id: number): Promise<Fornecedor | undefined>;
+  getFornecedores(userId: number, empresaId?: number): Promise<Fornecedor[]>;
+  getFornecedor(id: number, empresaId?: number): Promise<Fornecedor | undefined>;
+  getFornecedoresByEmpresa(empresaId: number): Promise<Fornecedor[]>;
   createFornecedor(fornecedor: InsertFornecedor): Promise<Fornecedor>;
   updateFornecedor(id: number, fornecedor: Partial<InsertFornecedor>): Promise<Fornecedor | undefined>;
   deleteFornecedor(id: number): Promise<boolean>;
 
   // Gift Card methods (substitui Card)
-  getGiftCards(userId: number, fornecedorId?: number): Promise<GiftCard[]>;
-  getGiftCard(id: number): Promise<GiftCard | undefined>;
+  getGiftCards(userId: number, fornecedorId?: number, empresaId?: number): Promise<GiftCard[]>;
+  getGiftCardsByEmpresa(empresaId: number): Promise<GiftCard[]>;
+  getGiftCard(id: number, empresaId?: number): Promise<GiftCard | undefined>;
   createGiftCard(giftCard: InsertGiftCard): Promise<GiftCard>;
   updateGiftCard(id: number, giftCard: Partial<InsertGiftCard>): Promise<GiftCard | undefined>;
   deleteGiftCard(id: number): Promise<boolean>;
@@ -82,15 +85,17 @@ export interface IStorage {
   searchGiftCards(userId: number, searchTerm: string): Promise<GiftCard[]>;
 
   // Transação methods (novo)
-  getTransacoes(giftCardId: number): Promise<Transacao[]>;
-  getTransacao(id: number): Promise<Transacao | undefined>;
+  getTransacoes(giftCardId: number, empresaId?: number): Promise<Transacao[]>;
+  getTransacoesByEmpresa(empresaId: number): Promise<Transacao[]>;
+  getTransacao(id: number, empresaId?: number): Promise<Transacao | undefined>;
   createTransacao(transacao: InsertTransacao): Promise<Transacao>;
   updateTransacao(id: number, transacao: Partial<InsertTransacao>): Promise<Transacao | undefined>;
   deleteTransacao(id: number): Promise<boolean>;
 
   // Tag methods
-  getTags(): Promise<Tag[]>;
-  getTag(id: number): Promise<Tag | undefined>;
+  getTags(empresaId?: number): Promise<Tag[]>;
+  getTag(id: number, empresaId?: number): Promise<Tag | undefined>;
+  getTagsByEmpresa(empresaId: number): Promise<Tag[]>; 
   createTag(tag: InsertTag): Promise<Tag>;
   
   // Gift Card Tag methods
@@ -273,6 +278,12 @@ export class MemStorage implements IStorage {
       (user) => user.username === username
     );
   }
+  
+  async getUsersByEmpresa(empresaId: number): Promise<User[]> {
+    return Array.from(this.users.values()).filter(
+      (user) => user.empresaId === empresaId
+    );
+  }
 
   async createUser(user: InsertUser): Promise<User> {
     const id = this.userId++;
@@ -356,14 +367,36 @@ export class MemStorage implements IStorage {
   }
 
   // Fornecedor methods (anteriormente collections)
-  async getFornecedores(userId: number): Promise<Fornecedor[]> {
-    return Array.from(this.fornecedores.values()).filter(
+  async getFornecedores(userId: number, empresaId?: number): Promise<Fornecedor[]> {
+    let fornecedores = Array.from(this.fornecedores.values()).filter(
       (fornecedor) => fornecedor.userId === userId
     );
+    
+    // Se for especificado um empresaId, filtramos por ele
+    if (empresaId) {
+      fornecedores = fornecedores.filter(
+        (fornecedor) => fornecedor.empresaId === empresaId
+      );
+    }
+    
+    return fornecedores;
   }
 
-  async getFornecedor(id: number): Promise<Fornecedor | undefined> {
-    return this.fornecedores.get(id);
+  async getFornecedor(id: number, empresaId?: number): Promise<Fornecedor | undefined> {
+    const fornecedor = this.fornecedores.get(id);
+    
+    // Verifica se o fornecedor pertence à empresa especificada
+    if (fornecedor && empresaId && fornecedor.empresaId !== empresaId) {
+      return undefined;
+    }
+    
+    return fornecedor;
+  }
+  
+  async getFornecedoresByEmpresa(empresaId: number): Promise<Fornecedor[]> {
+    return Array.from(this.fornecedores.values()).filter(
+      (fornecedor) => fornecedor.empresaId === empresaId
+    );
   }
 
   async createFornecedor(fornecedor: InsertFornecedor): Promise<Fornecedor> {
@@ -405,13 +438,18 @@ export class MemStorage implements IStorage {
   }
 
   // Gift Card methods (anteriormente cards)
-  async getGiftCards(userId: number, fornecedorId?: number): Promise<GiftCard[]> {
+  async getGiftCards(userId: number, fornecedorId?: number, empresaId?: number): Promise<GiftCard[]> {
     let giftCards = Array.from(this.giftCards.values()).filter(
       (giftCard) => giftCard.userId === userId
     );
     
     if (fornecedorId) {
       giftCards = giftCards.filter(giftCard => giftCard.fornecedorId === fornecedorId);
+    }
+    
+    // Se for especificado um empresaId, filtramos por ele
+    if (empresaId) {
+      giftCards = giftCards.filter(giftCard => giftCard.empresaId === empresaId);
     }
     
     // Para cada gift card, calculamos o valor pendente
@@ -435,8 +473,39 @@ export class MemStorage implements IStorage {
     return giftCardsComValorPendente;
   }
 
-  async getGiftCard(id: number): Promise<GiftCard | undefined> {
+  async getGiftCardsByEmpresa(empresaId: number): Promise<GiftCard[]> {
+    let giftCards = Array.from(this.giftCards.values()).filter(
+      (giftCard) => giftCard.empresaId === empresaId
+    );
+    
+    // Para cada gift card, calculamos o valor pendente
+    const giftCardsComValorPendente = giftCards.map((giftCard) => {
+      const transacoes = Array.from(this.transacoes.values()).filter(
+        transacao => transacao.giftCardId === giftCard.id && transacao.status === "Concluída"
+      );
+      
+      // Calcula o valor total das transações
+      const valorTotalTransacoes = transacoes.reduce((total, transacao) => total + transacao.valor, 0);
+      
+      // Atualiza o valor pendente como valorInicial - valorTotalTransacoes
+      const valorPendente = Math.max(0, giftCard.valorInicial - valorTotalTransacoes);
+      
+      return {
+        ...giftCard,
+        valorPendente
+      } as GiftCard;
+    });
+    
+    return giftCardsComValorPendente;
+  }
+
+  async getGiftCard(id: number, empresaId?: number): Promise<GiftCard | undefined> {
     const giftCard = this.giftCards.get(id);
+    
+    // Verifica se o gift card pertence à empresa especificada
+    if (giftCard && empresaId && giftCard.empresaId !== empresaId) {
+      return undefined;
+    }
     
     if (giftCard) {
       const transacoes = Array.from(this.transacoes.values()).filter(
@@ -470,6 +539,7 @@ export class MemStorage implements IStorage {
       status: giftCard.status,
       fornecedorId: giftCard.fornecedorId,
       userId: giftCard.userId,
+      empresaId: giftCard.empresaId || 1, // Empresa padrão = 1 se não for fornecida
       observacoes: giftCard.observacoes || null,
       createdAt: timestamp,
       updatedAt: null,
@@ -616,14 +686,36 @@ export class MemStorage implements IStorage {
   }
   
   // Transacoes methods
-  async getTransacoes(giftCardId: number): Promise<Transacao[]> {
-    return Array.from(this.transacoes.values()).filter(
+  async getTransacoes(giftCardId: number, empresaId?: number): Promise<Transacao[]> {
+    let transacoes = Array.from(this.transacoes.values()).filter(
       (transacao) => transacao.giftCardId === giftCardId
+    );
+    
+    // Se for especificado um empresaId, filtramos por ele
+    if (empresaId) {
+      transacoes = transacoes.filter(
+        (transacao) => transacao.empresaId === empresaId
+      );
+    }
+    
+    return transacoes;
+  }
+  
+  async getTransacoesByEmpresa(empresaId: number): Promise<Transacao[]> {
+    return Array.from(this.transacoes.values()).filter(
+      (transacao) => transacao.empresaId === empresaId
     );
   }
 
-  async getTransacao(id: number): Promise<Transacao | undefined> {
-    return this.transacoes.get(id);
+  async getTransacao(id: number, empresaId?: number): Promise<Transacao | undefined> {
+    const transacao = this.transacoes.get(id);
+    
+    // Verifica se a transação pertence à empresa especificada
+    if (transacao && empresaId && transacao.empresaId !== empresaId) {
+      return undefined;
+    }
+    
+    return transacao;
   }
 
   async createTransacao(transacao: InsertTransacao): Promise<Transacao> {
@@ -671,6 +763,7 @@ export class MemStorage implements IStorage {
       valor: transacao.valor,
       descricao: transacao.descricao,
       userId: transacao.userId,
+      empresaId: transacao.empresaId || 1, // Empresa padrão = 1 se não for fornecida
       dataTransacao: transacao.dataTransacao || timestamp,
       status: transacao.status,
       comprovante: transacao.comprovante || null,
@@ -755,12 +848,32 @@ export class MemStorage implements IStorage {
   }
   
   // Tag methods
-  async getTags(): Promise<Tag[]> {
-    return Array.from(this.tags.values());
+  async getTags(empresaId?: number): Promise<Tag[]> {
+    let tags = Array.from(this.tags.values());
+    
+    // Se for especificado um empresaId, filtramos por ele
+    if (empresaId) {
+      tags = tags.filter(tag => tag.empresaId === empresaId);
+    }
+    
+    return tags;
   }
 
-  async getTag(id: number): Promise<Tag | undefined> {
-    return this.tags.get(id);
+  async getTag(id: number, empresaId?: number): Promise<Tag | undefined> {
+    const tag = this.tags.get(id);
+    
+    // Verifica se a tag pertence à empresa especificada
+    if (tag && empresaId && tag.empresaId !== empresaId) {
+      return undefined;
+    }
+    
+    return tag;
+  }
+
+  async getTagsByEmpresa(empresaId: number): Promise<Tag[]> {
+    return Array.from(this.tags.values()).filter(
+      (tag) => tag.empresaId === empresaId
+    );
   }
 
   async createTag(tag: InsertTag): Promise<Tag> {
@@ -769,6 +882,7 @@ export class MemStorage implements IStorage {
     const newTag: Tag = { 
       id, 
       nome: tag.nome,
+      empresaId: tag.empresaId || 1, // Empresa padrão = 1 se não for fornecida
       createdAt: timestamp 
     };
     this.tags.set(id, newTag);
@@ -810,16 +924,23 @@ export class MemStorage implements IStorage {
     return false;
   }
   
-  async getGiftCardTags(giftCardId: number): Promise<Tag[]> {
+  async getGiftCardTags(giftCardId: number, empresaId?: number): Promise<Tag[]> {
     const relations = Array.from(this.giftCardTags.values()).filter(
       rel => rel.giftCardId === giftCardId
     );
     
     const tagIds = relations.map(rel => rel.tagId);
     
-    return Array.from(this.tags.values()).filter(
+    let tags = Array.from(this.tags.values()).filter(
       tag => tagIds.includes(tag.id)
     );
+    
+    // Se for especificado um empresaId, filtramos por ele
+    if (empresaId) {
+      tags = tags.filter(tag => tag.empresaId === empresaId);
+    }
+    
+    return tags;
   }
 
   private initializeDemoData() {
