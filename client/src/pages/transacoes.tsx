@@ -157,6 +157,7 @@ export default function TransacoesPage() {
   
   const [isTransacaoDialogOpen, setIsTransacaoDialogOpen] = useState(false);
   const [selectedTransacao, setSelectedTransacao] = useState<Transacao | null>(null);
+  const [selectedGiftCards, setSelectedGiftCards] = useState<SelectedGiftCard[]>([]);
   
   // Query para buscar gift card
   const { data: giftCard, isLoading: isLoadingGiftCard } = useQuery<GiftCard>({
@@ -179,11 +180,37 @@ export default function TransacoesPage() {
     enabled: giftCardId > 0,
   });
   
-  // Formulário de transação
+  // Query para buscar todos os gift cards disponíveis (para seleção múltipla)
+  const { data: allGiftCards = [] } = useQuery<GiftCard[]>({
+    queryKey: ['/api/gift-cards'],
+    queryFn: () => fetch('/api/gift-cards').then(res => res.json()),
+  });
+  
+  // Query para buscar todos os fornecedores (para mostrar informações dos gift cards)
+  const { data: allFornecedores = [] } = useQuery<Fornecedor[]>({
+    queryKey: ['/api/fornecedores'],
+    queryFn: () => fetch('/api/fornecedores').then(res => res.json()),
+  });
+  
+  // Função para preparar uma transação para o formulário
+  const prepareTransacaoForForm = (transacao: Transacao): any => {
+    if (!transacao.giftCardIds) {
+      // Se não tiver o campo giftCardIds (transações antigas),
+      // adiciona o campo com o valor do giftCardId
+      return {
+        ...transacao,
+        giftCardIds: String(transacao.giftCardId)
+      };
+    }
+    return transacao;
+  };
+
+  // Formulário de transação  
   const form = useForm<TransacaoFormValues>({
     resolver: zodResolver(transacaoFormSchema),
     defaultValues: {
       giftCardId,
+      giftCardIds: '',
       valor: 0,
       descricao: '',
       status: 'concluida',
@@ -214,9 +241,48 @@ export default function TransacoesPage() {
           ordemInterna: selectedTransacao.ordemInterna || undefined,
           ordemCompra: selectedTransacao.ordemCompra || undefined,
           nomeUsuario: selectedTransacao.nomeUsuario || user?.username || undefined,
+          giftCardIds: selectedTransacao.giftCardIds || String(selectedTransacao.giftCardId),
         };
         form.reset(formData);
+        
+        // Carregar os gift cards incluídos na transação
+        try {
+          if (selectedTransacao.giftCardIds) {
+            const ids = selectedTransacao.giftCardIds.split(',').map(id => parseInt(id));
+            
+            const selectedCards = ids.map(id => {
+              const card = allGiftCards.find(g => g.id === id);
+              if (!card) return null;
+              
+              const fornecedor = allFornecedores.find(f => f.id === card.fornecedorId);
+              return {
+                id: card.id,
+                codigo: card.codigo,
+                saldoAtual: card.saldoAtual,
+                fornecedorNome: fornecedor?.nome || 'Desconhecido'
+              }
+            }).filter(Boolean) as SelectedGiftCard[];
+            
+            setSelectedGiftCards(selectedCards);
+          } else if (selectedTransacao.giftCardId) {
+            // Compatibilidade com transações antigas
+            const card = allGiftCards.find(g => g.id === selectedTransacao.giftCardId);
+            if (card) {
+              const fornecedor = allFornecedores.find(f => f.id === card.fornecedorId);
+              const selectedCard: SelectedGiftCard = {
+                id: card.id,
+                codigo: card.codigo,
+                saldoAtual: card.saldoAtual,
+                fornecedorNome: fornecedor?.nome || 'Desconhecido'
+              };
+              setSelectedGiftCards([selectedCard]);
+            }
+          }
+        } catch (error) {
+          console.error("Erro ao carregar gift cards da transação:", error);
+        }
       } else {
+        // Nova transação - reseta o formulário
         form.reset({
           giftCardId,
           valor: 0,
@@ -224,10 +290,34 @@ export default function TransacoesPage() {
           status: 'concluida',
           dataTransacao: new Date(),
           nomeUsuario: user?.username || '',
+          giftCardIds: '',
         });
+        
+        // Se tiver um gift card atual, adiciona ele à lista
+        if (giftCardId > 0 && giftCard) {
+          const card = allGiftCards.find(g => g.id === giftCardId);
+          if (card) {
+            const fornecedor = allFornecedores.find(f => f.id === card.fornecedorId);
+            const selectedCard: SelectedGiftCard = {
+              id: card.id,
+              codigo: card.codigo,
+              saldoAtual: card.saldoAtual,
+              fornecedorNome: fornecedor?.nome || 'Desconhecido'
+            };
+            setSelectedGiftCards([selectedCard]);
+            form.setValue('giftCardIds', String(selectedCard.id));
+          } else {
+            setSelectedGiftCards([]);
+          }
+        } else {
+          setSelectedGiftCards([]);
+        }
       }
+    } else {
+      // Quando o diálogo é fechado, limpa os gift cards selecionados
+      setSelectedGiftCards([]);
     }
-  }, [isTransacaoDialogOpen, selectedTransacao, form, giftCardId, user]);
+  }, [isTransacaoDialogOpen, selectedTransacao, form, giftCardId, user, allGiftCards, allFornecedores, giftCard]);
   
   // Mutation para criar transação
   const createTransacao = useMutation({
@@ -328,6 +418,24 @@ export default function TransacoesPage() {
   const onSubmit = (data: TransacaoFormValues) => {
     console.log("Enviando formulário:", data);
     
+    // Verifica se há gift cards selecionados
+    if (selectedGiftCards.length === 0) {
+      toast({
+        title: "Erro",
+        description: "Selecione pelo menos um gift card para a transação.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Adiciona os IDs dos gift cards selecionados
+    const giftCardIds = selectedGiftCards.map(g => g.id).join(',');
+    data.giftCardIds = giftCardIds;
+    
+    // Adiciona o ID do usuário logado e o nome
+    data.userId = user?.id || 1;
+    data.nomeUsuario = user?.username || data.nomeUsuario || 'Usuário';
+    
     // Se estiver editando, atualiza a transação
     if (selectedTransacao) {
       updateTransacao.mutate({
@@ -342,7 +450,9 @@ export default function TransacoesPage() {
   
   // Manipulador para abrir diálogo de edição
   const handleEditTransacao = (transacao: Transacao) => {
-    setSelectedTransacao(transacao);
+    // Usa a função de preparação para garantir que transação tenha o campo giftCardIds
+    const preparedTransacao = prepareTransacaoForForm(transacao);
+    setSelectedTransacao(preparedTransacao);
     setIsTransacaoDialogOpen(true);
   };
   
@@ -484,6 +594,120 @@ export default function TransacoesPage() {
                           </FormItem>
                         )}
                       />
+                    </div>
+                    
+                    {/* Seleção de Gift Cards */}
+                    <div className="p-4 border rounded-lg bg-blue-50 space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="text-sm font-semibold text-blue-800">Gift Cards para esta transação</h3>
+                        <Badge variant="outline" className="bg-blue-100 text-blue-800">
+                          {selectedGiftCards.length} de 10 selecionados
+                        </Badge>
+                      </div>
+                      
+                      {selectedGiftCards.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {selectedGiftCards.map((gCard) => (
+                            <div key={gCard.id} className="flex items-center p-2 border rounded bg-white">
+                              <div className="flex-1">
+                                <p className="text-sm font-medium">{gCard.codigo}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {gCard.fornecedorNome} - Saldo: {formatMoney(gCard.saldoAtual)}
+                                </p>
+                              </div>
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                className="h-6 w-6 text-red-500"
+                                onClick={() => {
+                                  setSelectedGiftCards(selectedGiftCards.filter(g => g.id !== gCard.id));
+                                  
+                                  // Atualiza o campo giftCardIds no formulário
+                                  const newIds = selectedGiftCards
+                                    .filter(g => g.id !== gCard.id)
+                                    .map(g => g.id)
+                                    .join(',');
+                                  
+                                  form.setValue('giftCardIds', newIds);
+                                }}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="py-4 text-center text-sm text-muted-foreground">
+                          Nenhum gift card selecionado. Selecione ao menos um abaixo.
+                        </div>
+                      )}
+                      
+                      <div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          disabled={selectedGiftCards.length >= 10}
+                          onClick={() => {
+                            // Obtém todos os gift cards que ainda não foram selecionados
+                            const availableGiftCards = allGiftCards
+                              .filter(g => !selectedGiftCards.some(sg => sg.id === g.id));
+                            
+                            if (availableGiftCards.length === 0) {
+                              toast({
+                                title: "Atenção",
+                                description: "Todos os gift cards já foram selecionados.",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+                            
+                            // Se ainda não tem nenhum selecionado, adiciona o atual
+                            if (selectedGiftCards.length === 0 && giftCardId > 0) {
+                              const currentGC = allGiftCards.find(g => g.id === giftCardId);
+                              if (currentGC) {
+                                const fornecedor = allFornecedores.find(f => f.id === currentGC.fornecedorId);
+                                const newGC: SelectedGiftCard = {
+                                  id: currentGC.id,
+                                  codigo: currentGC.codigo,
+                                  saldoAtual: currentGC.saldoAtual,
+                                  fornecedorNome: fornecedor?.nome || 'Desconhecido'
+                                };
+                                
+                                setSelectedGiftCards([newGC]);
+                                form.setValue('giftCardIds', String(newGC.id));
+                                return;
+                              }
+                            }
+                            
+                            // Abre um diálogo de seleção (será implementado em seguida)
+                            // Por enquanto, apenas adiciona o primeiro gift card disponível
+                            const firstAvailable = availableGiftCards[0];
+                            if (firstAvailable) {
+                              const fornecedor = allFornecedores.find(f => f.id === firstAvailable.fornecedorId);
+                              const newGC: SelectedGiftCard = {
+                                id: firstAvailable.id,
+                                codigo: firstAvailable.codigo,
+                                saldoAtual: firstAvailable.saldoAtual,
+                                fornecedorNome: fornecedor?.nome || 'Desconhecido'
+                              };
+                              
+                              const newSelected = [...selectedGiftCards, newGC];
+                              setSelectedGiftCards(newSelected);
+                              
+                              // Atualiza o campo giftCardIds no formulário
+                              const newIds = newSelected.map(g => g.id).join(',');
+                              form.setValue('giftCardIds', newIds);
+                            }
+                          }}
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          {selectedGiftCards.length === 0 
+                            ? "Adicionar Gift Card" 
+                            : "Adicionar outro Gift Card"}
+                        </Button>
+                      </div>
                     </div>
                     
                     {/* Detalhes da transação */}
