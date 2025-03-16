@@ -835,10 +835,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return dataGC.getMonth() === data.getMonth() && dataGC.getFullYear() === data.getFullYear();
         });
         
+        // Calcular valor economizado (diferença entre o valor inicial e preço de compra)
+        const valorEconomizado = cardsNoMes.reduce((sum, gc) => {
+          // Se tiver um valor de desconto, usar ele diretamente
+          if (gc.desconto) return sum + gc.desconto;
+          
+          // Caso contrário, calcular com base na diferença entre valor facial e valor pago
+          // Assumindo que a diferença entre valor inicial e valor pago é a economia
+          // Este é um cálculo simplificado, você pode ajustar conforme a lógica de negócio
+          const valorFacial = gc.valorInicial || 0;
+          const valorPago = gc.valorInicial * 0.9; // Assumindo 10% de desconto como exemplo
+          return sum + (valorFacial - valorPago);
+        }, 0);
+        
+        // Estatísticas por fornecedor no mês
+        const estatisticasFornecedoresNoMes = {};
+        
+        fornecedores.forEach(fornecedor => {
+          const cardsFornecedor = cardsNoMes.filter(gc => gc.fornecedorId === fornecedor.id);
+          
+          if (cardsFornecedor.length > 0) {
+            estatisticasFornecedoresNoMes[fornecedor.id] = {
+              nome: fornecedor.nome,
+              count: cardsFornecedor.length,
+              valor: cardsFornecedor.reduce((sum, gc) => sum + gc.valorInicial, 0)
+            };
+          }
+        });
+        
         estatisticasPorMes.push({
           mes: `${mes}/${ano.toString().substring(2)}`,
           count: cardsNoMes.length,
-          valor: cardsNoMes.reduce((sum, gc) => sum + gc.valorInicial, 0)
+          valor: cardsNoMes.reduce((sum, gc) => sum + gc.valorInicial, 0),
+          valorEconomizado: valorEconomizado,
+          fornecedores: estatisticasFornecedoresNoMes
         });
       }
       

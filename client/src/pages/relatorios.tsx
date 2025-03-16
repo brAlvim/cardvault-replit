@@ -38,10 +38,18 @@ interface EstatisticasFornecedor {
   valorMedio: number;
 }
 
+interface EstatisticasFornecedorMes {
+  nome: string;
+  count: number;
+  valor: number;
+}
+
 interface EstatisticasMes {
   mes: string;
   count: number;
   valor: number;
+  valorEconomizado: number;
+  fornecedores: Record<number, EstatisticasFornecedorMes>;
 }
 
 interface EstatisticasGerais {
@@ -99,6 +107,9 @@ export default function RelatoriosPage() {
     queryKey: ["/api/relatorios/estatisticas"],
     queryFn: getQueryFn({ on401: "throw" }),
   });
+  
+  // Estado para filtro de fornecedor na evolução mensal
+  const [fornecedorFiltro, setFornecedorFiltro] = useState<number | null>(null);
   
   // Lazy loading para os outros dados
   const [loadGiftCards, setLoadGiftCards] = useState(false);
@@ -339,14 +350,53 @@ export default function RelatoriosPage() {
                 {/* Gráfico de Linha: Evolução por Mês */}
                 <Card className="lg:col-span-2">
                   <CardHeader>
-                    <CardTitle>Evolução por Mês</CardTitle>
-                    <CardDescription>Novos gift cards adicionados e valor inicial total por mês</CardDescription>
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
+                      <div>
+                        <CardTitle>Evolução por Mês</CardTitle>
+                        <CardDescription>Novos gift cards adicionados e valor total por mês</CardDescription>
+                      </div>
+                      
+                      {/* Filtro de fornecedor */}
+                      <div className="mt-4 sm:mt-0">
+                        <select 
+                          className="w-full sm:w-auto px-3 py-2 border border-input rounded-md text-sm"
+                          value={fornecedorFiltro ? fornecedorFiltro : ""}
+                          onChange={(e) => setFornecedorFiltro(e.target.value ? Number(e.target.value) : null)}
+                        >
+                          <option value="">Todos os fornecedores</option>
+                          {estatisticas.estatisticasPorFornecedor.map((f) => (
+                            <option key={f.id} value={f.id}>{f.nome}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <div className="h-80">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart
-                          data={estatisticas.estatisticasPorMes}
+                          data={estatisticas.estatisticasPorMes.map(mes => {
+                            if (fornecedorFiltro) {
+                              // Se tiver filtro de fornecedor e o fornecedor tem dados no mês
+                              if (mes.fornecedores[fornecedorFiltro]) {
+                                const fornData = mes.fornecedores[fornecedorFiltro];
+                                return {
+                                  ...mes,
+                                  count: fornData.count,
+                                  valor: fornData.valor
+                                };
+                              } else {
+                                // Se o fornecedor não tem dados no mês, retornar zeros
+                                return {
+                                  ...mes,
+                                  count: 0,
+                                  valor: 0
+                                };
+                              }
+                            }
+                            // Se não tiver filtro, retornar o mês normalmente
+                            return mes;
+                          })}
                           margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                         >
                           <CartesianGrid strokeDasharray="3 3" />
@@ -356,6 +406,7 @@ export default function RelatoriosPage() {
                           <Tooltip 
                             formatter={(value, name) => {
                               if (name === "valor") return [formatMoney(value as number), "Valor"];
+                              if (name === "valorEconomizado") return [formatMoney(value as number), "Economia"];
                               return [value, "Quantidade"];
                             }} 
                           />
@@ -374,6 +425,14 @@ export default function RelatoriosPage() {
                             dataKey="valor" 
                             stroke="#82ca9d" 
                             name="Valor" 
+                          />
+                          <Line 
+                            yAxisId="right" 
+                            type="monotone" 
+                            dataKey="valorEconomizado" 
+                            stroke="#ff8042" 
+                            name="Economia" 
+                            strokeDasharray="5 5"
                           />
                         </LineChart>
                       </ResponsiveContainer>
