@@ -1,18 +1,31 @@
 import {
-  users, fornecedores, giftCards, transacoes, tags, giftCardTags,
+  users, fornecedores, giftCards, transacoes, tags, giftCardTags, perfis,
   type User, type InsertUser,
   type Fornecedor, type InsertFornecedor,
   type GiftCard, type InsertGiftCard,
   type Transacao, type InsertTransacao,
   type Tag, type InsertTag,
-  type GiftCardTag, type InsertGiftCardTag
+  type GiftCardTag, type InsertGiftCardTag,
+  type Perfil, type InsertPerfil
 } from "@shared/schema";
 
 export interface IStorage {
+  // Perfil methods
+  getPerfis(): Promise<Perfil[]>;
+  getPerfil(id: number): Promise<Perfil | undefined>;
+  getPerfilByNome(nome: string): Promise<Perfil | undefined>;
+  createPerfil(perfil: InsertPerfil): Promise<Perfil>;
+  updatePerfil(id: number, perfil: Partial<InsertPerfil>): Promise<Perfil | undefined>;
+  deletePerfil(id: number): Promise<boolean>;
+
   // User methods
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined>;
+  deleteUser(id: number): Promise<boolean>;
+  updateUserLastLogin(id: number): Promise<User | undefined>;
+  updateUserPasswordResetToken(id: number, token: string): Promise<User | undefined>;
 
   // Fornecedor methods (substitui Collection)
   getFornecedores(userId: number): Promise<Fornecedor[]>;
@@ -50,6 +63,7 @@ export interface IStorage {
 }
 
 export class MemStorage implements IStorage {
+  private perfis: Map<number, Perfil>;
   private users: Map<number, User>;
   private fornecedores: Map<number, Fornecedor>;
   private giftCards: Map<number, GiftCard>;
@@ -57,6 +71,7 @@ export class MemStorage implements IStorage {
   private tags: Map<number, Tag>;
   private giftCardTags: Map<number, GiftCardTag>;
   
+  private perfilId: number;
   private userId: number;
   private fornecedorId: number;
   private giftCardId: number;

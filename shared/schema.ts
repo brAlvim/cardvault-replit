@@ -1,6 +1,16 @@
-import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, date } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, date, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+
+// Perfil de usuário (role)
+export const perfis = pgTable("perfis", {
+  id: serial("id").primaryKey(),
+  nome: text("nome").notNull().unique(), // admin, gerente, usuario, convidado
+  descricao: text("descricao"),
+  permissoes: jsonb("permissoes").notNull().$type<string[]>(), // Lista de permissões: "fornecedor.criar", "transacao.visualizar", etc.
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+});
 
 // User schema
 export const users = pgTable("users", {
@@ -9,7 +19,13 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   email: text("email").notNull(),
   avatarUrl: text("avatar_url"),
+  perfilId: integer("perfil_id").notNull().default(3), // Padrão: usuario normal (3)
+  status: text("status").notNull().default("ativo"), // ativo, inativo, bloqueado
+  ultimoLogin: timestamp("ultimo_login"),
+  tokenReset: text("token_reset"),
+  dataExpiracaoToken: timestamp("data_expiracao_token"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
 });
 
 // Fornecedor schema (replaces collections)
@@ -85,9 +101,19 @@ export const giftCardTags = pgTable("gift_card_tags", {
 });
 
 // Insert Schemas
+export const insertPerfilSchema = createInsertSchema(perfis).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
+  ultimoLogin: true,
+  tokenReset: true,
+  dataExpiracaoToken: true,
 });
 
 export const insertFornecedorSchema = createInsertSchema(fornecedores).omit({
@@ -139,6 +165,9 @@ export const insertGiftCardTagSchema = createInsertSchema(giftCardTags).omit({
 });
 
 // Types
+export type Perfil = typeof perfis.$inferSelect;
+export type InsertPerfil = z.infer<typeof insertPerfilSchema>;
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 
