@@ -588,48 +588,28 @@ export default function TransacoesPage() {
                 
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                    {/* Seção de dados do responsável e ordens - Topo do formulário */}
+                    {/* Seção de ordens - Topo do formulário */}
                     <div className="p-4 border rounded-lg bg-gray-50 space-y-4 mb-2">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="ordemInterna"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="font-medium">Ordem Interna Amazon</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  placeholder="Ordem Interna Amazon" 
-                                  {...field} 
-                                  value={field.value || ''}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <FormField
-                          control={form.control}
-                          name="ordemCompra"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="font-medium">Ordem de Compra Fornecedor</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  placeholder="Ordem de Compra Fornecedor" 
-                                  {...field} 
-                                  value={field.value || ''}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
+                      <FormField
+                        control={form.control}
+                        name="ordemCompra"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="font-medium">Ordem de Compra Fornecedor</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Ordem de Compra Fornecedor" 
+                                {...field} 
+                                value={field.value || ''}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                       
-                      {/* O campo de responsável foi removido da interface, 
-                      mas continuará sendo enviado através do onSubmit */}
+                      {/* O campo de responsável e ordem interna Amazon foram removidos da interface, 
+                      mas continuarão sendo enviados através do onSubmit */}
                     </div>
                     
                     {/* Seleção de Fornecedor */}
