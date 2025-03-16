@@ -232,7 +232,7 @@ export default function GiftCardDetailsPage() {
                 <div className="flex flex-col">
                   <span className="text-sm text-muted-foreground">Valor Pendente</span>
                   <span className="font-medium text-lg text-blue-600">
-                    R$ {giftCard.valorPendente !== undefined ? giftCard.valorPendente.toFixed(2) : giftCard.valorInicial.toFixed(2)}
+                    R$ {(giftCard.valorPendente !== null ? giftCard.valorPendente || 0 : giftCard.valorInicial).toFixed(2)}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     Calculado automaticamente com base nas transações
