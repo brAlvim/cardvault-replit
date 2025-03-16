@@ -339,15 +339,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   router.post("/transacoes", async (req: Request, res: Response) => {
+    console.log("Recebendo requisição para criar transação:", req.body);
     try {
+      // Verificar se os campos obrigatórios estão presentes
+      if (!req.body.valor || !req.body.descricao || !req.body.giftCardId) {
+        console.error("Campos obrigatórios ausentes:", { 
+          temValor: !!req.body.valor, 
+          temDescricao: !!req.body.descricao, 
+          temGiftCardId: !!req.body.giftCardId 
+        });
+        return res.status(400).json({ 
+          message: "Campos obrigatórios ausentes", 
+          detalhes: "Os campos valor, descricao e giftCardId são obrigatórios" 
+        });
+      }
+
+      // Garantir que status tenha um valor padrão se não estiver definido
+      if (!req.body.status) {
+        req.body.status = "concluida";
+      }
+
+      // Garantir que giftCardIds tenha um valor padrão se não estiver definido
+      if (!req.body.giftCardIds && req.body.giftCardId) {
+        req.body.giftCardIds = String(req.body.giftCardId);
+      }
+
+      console.log("Dados normalizados:", req.body);
+      
       const transacaoData = insertTransacaoSchema.parse(req.body);
+      console.log("Dados validados pelo schema:", transacaoData);
+      
       const transacao = await storage.createTransacao(transacaoData);
+      console.log("Transação criada com sucesso:", transacao);
+      
       res.status(201).json(transacao);
     } catch (error) {
+      console.error("Erro ao criar transação:", error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: fromZodError(error).message });
+        console.error("Erro de validação ZodError:", error.errors);
+        return res.status(400).json({ 
+          message: fromZodError(error).message,
+          detalhes: error.errors
+        });
       }
-      res.status(500).json({ message: "Internal server error" });
+      res.status(500).json({ message: "Internal server error", erro: String(error) });
     }
   });
   

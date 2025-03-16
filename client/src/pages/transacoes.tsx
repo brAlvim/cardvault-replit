@@ -375,13 +375,31 @@ export default function TransacoesPage() {
         }
       }
       
+      // Garantir campos obrigatórios
+      const dadosParaEnviar = {
+        ...data,
+        status: data.status || "concluida",
+        dataTransacao: data.dataTransacao || new Date(),
+        // Valores nulos para campos opcionais
+        comprovante: data.comprovante || null,
+        motivoCancelamento: data.motivoCancelamento || null,
+        valorRefund: data.valorRefund || null,
+        motivoRefund: data.motivoRefund || null,
+        ordemInterna: data.ordemInterna || null,
+        ordemCompra: data.ordemCompra || null,
+        nomeUsuario: data.nomeUsuario || "Usuário"
+      };
+      
+      console.log("Dados finais para envio:", dadosParaEnviar);
+      
       return fetch('/api/transacoes', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(dadosParaEnviar),
       }).then(res => {
+        console.log("Resposta da API:", res.status);
         if (!res.ok) {
           return res.json().then(errorData => {
             console.error("Erro na resposta:", errorData);
@@ -389,21 +407,33 @@ export default function TransacoesPage() {
           });
         }
         return res.json();
+      }).catch(err => {
+        console.error("Erro na chamada da API:", err);
+        throw err;
       });
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("Transação criada com sucesso:", data);
       // Invalidar as consultas relevantes
       if (isRouteMatch && giftCardId > 0) {
         queryClient.invalidateQueries({ queryKey: ['/api/transacoes', giftCardId] });
         queryClient.invalidateQueries({ queryKey: ['/api/gift-cards', giftCardId] });
       } else {
         queryClient.invalidateQueries({ queryKey: ['/api/transacoes/all'] });
+        // Também invalidar todas as transações
+        queryClient.invalidateQueries({ queryKey: ['/api/transacoes'] });
+        // E atualizar os gift cards para refletir os novos saldos
+        queryClient.invalidateQueries({ queryKey: ['/api/gift-cards'] });
       }
       
       toast({
         title: "Transação criada",
         description: "A transação foi criada com sucesso.",
       });
+      
+      // Limpar o formulário
+      form.reset();
+      setSelectedGiftCards([]);
       setIsTransacaoDialogOpen(false);
     },
     onError: (error) => {

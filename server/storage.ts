@@ -469,8 +469,16 @@ export class MemStorage implements IStorage {
   }
 
   async createTransacao(transacao: InsertTransacao): Promise<Transacao> {
+    console.log("Criando transação:", transacao);
     const id = this.transacaoId++;
+    
+    // Define valores padrão para campos obrigatórios
+    if (!transacao.status) transacao.status = "concluida";
+    if (!transacao.dataTransacao) transacao.dataTransacao = new Date();
+    
+    // Cria a transação com os dados recebidos
     const newTransacao = { ...transacao, id };
+    console.log("Nova transação processada:", newTransacao);
     
     // Verifica se temos giftCardIds (múltiplos gift cards)
     let giftCardIdsArray: number[] = [];
@@ -481,28 +489,41 @@ export class MemStorage implements IStorage {
         .split(',')
         .map(id => parseInt(id))
         .filter(id => !isNaN(id));
+      console.log("Gift cards processados:", giftCardIdsArray);
     } else {
       // Compatibilidade com formato antigo
       giftCardIdsArray = [newTransacao.giftCardId];
       newTransacao.giftCardIds = String(newTransacao.giftCardId);
+      console.log("Usando gift card principal:", newTransacao.giftCardId);
     }
     
     // Salva a transação
     this.transacoes.set(id, newTransacao);
+    console.log("Transação salva com ID:", id);
     
     // Atualiza o saldo de todos os gift cards envolvidos se a transação for concluída
-    if (transacao.status === "Concluída" && giftCardIdsArray.length > 0) {
+    // Nota: A verificação estava com "Concluída" com acento, mas no código está como "concluida"
+    if ((transacao.status === "concluida" || transacao.status === "Concluída") && giftCardIdsArray.length > 0) {
+      console.log("Atualizando saldos dos gift cards para transação concluída");
+      
       // Distribui o valor proporcionalmente entre os gift cards
       const valorPorGiftCard = transacao.valor / giftCardIdsArray.length;
+      console.log("Valor por gift card:", valorPorGiftCard);
       
       for (const giftCardId of giftCardIdsArray) {
         const giftCard = this.giftCards.get(giftCardId);
         if (giftCard) {
           const novoSaldo = Math.max(0, giftCard.saldoAtual - valorPorGiftCard);
-          const status = novoSaldo <= 0 ? "Zerado" : "Ativo";
+          // Aqui também estamos normalizando o formato do status
+          const status = novoSaldo <= 0 ? "zerado" : "ativo";
+          console.log(`Gift card ${giftCardId}: saldo antigo = ${giftCard.saldoAtual}, novo = ${novoSaldo}`);
           this.updateGiftCard(giftCard.id, { saldoAtual: novoSaldo, status });
+        } else {
+          console.error(`Gift card ${giftCardId} não encontrado!`);
         }
       }
+    } else {
+      console.log(`Não atualizando saldos. Status = ${transacao.status}, GiftCards = ${giftCardIdsArray.length}`);
     }
     
     return newTransacao;
