@@ -133,7 +133,10 @@ export default function UserProfilesPage() {
       if (!response.ok) {
         throw new Error('Erro ao buscar perfis');
       }
-      return await response.json();
+      const data = await response.json();
+      console.log('Perfis recebidos:', data);
+      // Garantir que data é um array
+      return Array.isArray(data) ? data : [];
     }
   });
 
@@ -282,8 +285,12 @@ export default function UserProfilesPage() {
   });
 
   const deleteUserMutation = useMutation({
-    mutationFn: (id: number) => {
-      return apiRequest<boolean>('DELETE', `/api/users/${id}`);
+    mutationFn: async (id: number) => {
+      const response = await apiRequest('DELETE', `/api/users/${id}`);
+      if (!response.ok) {
+        throw new Error('Erro ao excluir usuário');
+      }
+      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
