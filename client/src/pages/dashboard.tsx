@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { GiftCard, Fornecedor, Transacao } from '@shared/schema';
@@ -14,10 +14,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import FornecedorSummaryTable from '@/components/fornecedor-summary-table';
+import ConfettiCelebration, { confettiAnimations } from '@/components/confetti-celebration';
+import { useMilestoneDetector } from '@/hooks/use-milestone-detector';
 
 export default function Dashboard() {
   const [selectedFornecedor, setSelectedFornecedor] = useState<string | null>(null);
   const [, navigate] = useLocation();
+  const [showTestMilestone, setShowTestMilestone] = useState(false);
   
   // Get gift cards
   const { data: giftCards, isLoading: isLoadingGiftCards } = useQuery<GiftCard[]>({
@@ -74,9 +77,59 @@ export default function Dashboard() {
     if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString();
   };
+  
+  // Configurar o detector de marcos
+  const { 
+    activeMilestone, 
+    clearActiveMilestone, 
+    resetCompletedMilestones 
+  } = useMilestoneDetector({
+    giftCards: giftCards || [],
+  });
 
   return (
     <div>
+      {/* Componente de celebração de marcos */}
+      {activeMilestone && (
+        <ConfettiCelebration 
+          active={true}
+          message={activeMilestone.title}
+          options={confettiAnimations[activeMilestone.animationType]}
+          duration={6000}
+          onComplete={clearActiveMilestone}
+        />
+      )}
+      
+      {/* Para testes - botão de ativar confete */}
+      {showTestMilestone && (
+        <ConfettiCelebration 
+          active={true}
+          message="Celebração de Teste!"
+          options={confettiAnimations.fireWorks}
+          duration={6000}
+          onComplete={() => setShowTestMilestone(false)}
+        />
+      )}
+      
+      {/* Botões de teste escondidos no canto inferior direito da tela */}
+      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+        <Button 
+          size="sm" 
+          variant="outline"
+          className="opacity-50 hover:opacity-100"
+          onClick={() => setShowTestMilestone(true)}
+        >
+          Testar Confete
+        </Button>
+        <Button 
+          size="sm" 
+          variant="outline"
+          className="opacity-50 hover:opacity-100"
+          onClick={resetCompletedMilestones}
+        >
+          Reiniciar Marcos
+        </Button>
+      </div>
       {/* Page Header */}
       <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between">
         <h1 className="text-2xl font-bold text-slate-800">Dashboard</h1>
