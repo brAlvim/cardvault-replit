@@ -540,9 +540,9 @@ export default function TransacoesPage() {
       data.giftCardId = selectedGiftCards[0].id;
     }
     
-    // Garantir que a data de transação está definida
-    if (!data.dataTransacao) {
-      data.dataTransacao = new Date();
+    // Remover o campo dataTransacao para permitir que o servidor defina o valor padrão
+    if (data.dataTransacao) {
+      delete data.dataTransacao;
     }
     
     // Log detalhado dos dados antes de enviar
@@ -726,7 +726,7 @@ export default function TransacoesPage() {
                               return;
                             }
                             
-                            // Cria dados fixos para teste
+                            // Cria dados fixos para teste - sem o campo dataTransacao para deixar o servidor definir
                             const testData = {
                               valor: 10,
                               descricao: "Teste de transação",
@@ -734,7 +734,7 @@ export default function TransacoesPage() {
                               giftCardId: testGiftCard.id,
                               giftCardIds: String(testGiftCard.id),
                               userId: 1,
-                              dataTransacao: new Date(),
+                              // Removemos dataTransacao completamente
                               comprovante: null,
                               motivoCancelamento: null,
                               ordemInterna: null,

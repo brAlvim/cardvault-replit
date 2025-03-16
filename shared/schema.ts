@@ -101,9 +101,18 @@ export const insertGiftCardSchema = createInsertSchema(giftCards).omit({
   updatedAt: true,
 });
 
-export const insertTransacaoSchema = createInsertSchema(transacoes).omit({
-  id: true,
-});
+// Ajuste no schema para permitir que a dataTransacao seja definida como string ou Date
+export const insertTransacaoSchema = createInsertSchema(transacoes)
+  .omit({
+    id: true,
+  })
+  .extend({
+    // Permite que a dataTransacao venha como string e seja convertida para Date
+    dataTransacao: z.union([
+      z.date(),
+      z.string().transform((str) => new Date(str))
+    ]).optional().default(() => new Date())
+  });
 
 export const insertTagSchema = createInsertSchema(tags).omit({
   id: true
