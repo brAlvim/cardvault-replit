@@ -168,8 +168,8 @@ export default function TransacoesPage() {
   
   // Query para buscar todas as transações (para a página principal)
   const { data: allTransacoes, isLoading: isLoadingAllTransacoes } = useQuery<Transacao[]>({
-    queryKey: ['/api/transacoes/all'],
-    queryFn: () => fetch(`/api/transacoes/1`).then(res => res.json()), // Temporário: apenas busca transações do gift card 1
+    queryKey: ['/api/transacoes'],
+    queryFn: () => fetch('/api/transacoes').then(res => res.json()),
     enabled: !isRouteMatch || giftCardId === 0,
   });
   
