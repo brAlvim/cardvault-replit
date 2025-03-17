@@ -406,13 +406,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Fornecedor routes (antigo Collection)
-  router.get("/fornecedores", async (req: Request, res: Response) => {
+  router.get("/fornecedores", requireAuth, async (req: Request, res: Response) => {
     try {
-      // Usar o ID do usuário autenticado quando disponível
-      let userId = req.user?.id || 1;
+      // Usar o ID do usuário autenticado por padrão
+      const user = req.user as any;
+      let userId = user.id;
       
-      // Se userId for explicitamente fornecido na query string, usar esse
-      if (req.query.userId) {
+      // Permitir que administradores vejam os fornecedores de outros usuários
+      if (req.query.userId && user.perfilId === 1) { // perfilId 1 é admin
         userId = parseInt(req.query.userId as string);
         if (isNaN(userId)) {
           return res.status(400).json({ message: "Invalid user ID format" });
@@ -420,18 +421,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Filtrar por empresa se especificado ou usar a empresa do usuário autenticado
-      const empresaId = req.user?.empresaId || 
+      const empresaId = user.empresaId || 
         (req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined);
+      
+      console.log(`Buscando fornecedores para userId=${userId}, empresaId=${empresaId}`);
       
       // Buscar fornecedores do usuário especificado
       const fornecedores = await storage.getFornecedores(userId, empresaId);
+      
+      console.log(`Fornecedores encontrados para userId=${userId}:`, fornecedores.length);
+      
       res.json(fornecedores);
     } catch (error) {
+      console.error("Erro ao buscar fornecedores:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
 
-  router.post("/fornecedores", async (req: Request, res: Response) => {
+  router.post("/fornecedores", requireAuth, async (req: Request, res: Response) => {
     try {
       // Garantir que empresaId seja incluído se vier como query parameter mas não no body
       if (!req.body.empresaId && req.query.empresaId) {
@@ -457,7 +464,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  router.get("/fornecedores/:id", async (req: Request, res: Response) => {
+  router.get("/fornecedores/:id", requireAuth, async (req: Request, res: Response) => {
     try {
       const fornecedorId = parseInt(req.params.id);
       const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
@@ -473,7 +480,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  router.put("/fornecedores/:id", async (req: Request, res: Response) => {
+  router.put("/fornecedores/:id", requireAuth, async (req: Request, res: Response) => {
     try {
       const fornecedorId = parseInt(req.params.id);
       const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
@@ -503,7 +510,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  router.delete("/fornecedores/:id", async (req: Request, res: Response) => {
+  router.delete("/fornecedores/:id", requireAuth, async (req: Request, res: Response) => {
     try {
       const fornecedorId = parseInt(req.params.id);
       const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
@@ -529,17 +536,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Supplier routes (fornecedores de gift cards)
-  router.get("/suppliers", async (req: Request, res: Response) => {
+  router.get("/suppliers", requireAuth, async (req: Request, res: Response) => {
     try {
-      // Obter o usuário logado do token
-      const userId = req.user?.id || 1;
+      // Usar o ID do usuário autenticado por padrão
+      const user = req.user as any;
+      let userId = user.id;
       
-      // Filtrar por empresa se especificado
-      const empresaId = req.user?.empresaId || (req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined);
+      // Permitir que administradores vejam os suppliers de outros usuários
+      if (req.query.userId && user.perfilId === 1) { // perfilId 1 é admin
+        userId = parseInt(req.query.userId as string);
+        if (isNaN(userId)) {
+          return res.status(400).json({ message: "Invalid user ID format" });
+        }
+      }
       
+      // Filtrar por empresa se especificado ou usar a empresa do usuário autenticado
+      const empresaId = user.empresaId || 
+        (req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined);
+      
+      console.log(`Buscando suppliers para userId=${userId}, empresaId=${empresaId}`);
+      
+      // Buscar suppliers do usuário especificado
       const suppliers = await storage.getSuppliers(userId, empresaId);
+      
+      console.log(`Suppliers encontrados para userId=${userId}:`, suppliers.length);
+      
       res.json(suppliers);
     } catch (error) {
+      console.error("Erro ao buscar suppliers:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
