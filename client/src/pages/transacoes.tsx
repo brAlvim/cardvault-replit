@@ -1106,7 +1106,6 @@ export default function TransacoesPage() {
                             <SelectContent>
                               <SelectItem value="concluida">Concluída</SelectItem>
                               <SelectItem value="pendente">Pendente</SelectItem>
-                              <SelectItem value="refund">Reembolso</SelectItem>
                               <SelectItem value="cancelada">Cancelada</SelectItem>
                             </SelectContent>
                           </Select>
