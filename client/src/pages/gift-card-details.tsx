@@ -275,6 +275,25 @@ export default function GiftCardDetailsPage() {
                     )}
                   </div>
                 </div>
+                
+                {/* GC Number e GC Pass */}
+                {(giftCard.gcNumber || giftCard.gcPass) && (
+                  <div className="flex flex-col space-y-2 mt-2 p-2 bg-primary-50 rounded-md border border-primary-100">
+                    {giftCard.gcNumber && (
+                      <div className="flex flex-col">
+                        <span className="text-sm text-muted-foreground">GC Number</span>
+                        <span className="font-medium">{giftCard.gcNumber}</span>
+                      </div>
+                    )}
+                    
+                    {giftCard.gcPass && (
+                      <div className="flex flex-col">
+                        <span className="text-sm text-muted-foreground">GC Pass</span>
+                        <span className="font-medium">{giftCard.gcPass}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
             
