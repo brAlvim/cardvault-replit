@@ -206,17 +206,24 @@ export const insertTransacaoSchema = createInsertSchema(transacoes)
     dataTransacao: true, // Removemos completamente do schema original
   })
   .extend({
-    // Definição explícita melhorada para o campo dataTransacao
+    // Definição mais flexível para aceitar string ou objeto Date
     dataTransacao: z
-      .string()
+      .union([
+        z.string(),
+        z.date(),
+        z.instanceof(Date)
+      ])
       .nullable()
       .transform((val) => {
         // Se for null ou undefined, retorna a data atual
         if (!val) return new Date();
         
+        // Se já for um objeto Date, retorna diretamente
+        if (val instanceof Date) return val;
+        
         try {
-          // Tenta converter para Date
-          const date = new Date(val);
+          // Tenta converter para Date se for string
+          const date = new Date(val as string);
           // Verifica se é uma data válida
           if (isNaN(date.getTime())) {
             console.log("Data inválida, usando data atual:", val);

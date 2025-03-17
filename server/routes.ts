@@ -856,13 +856,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log("Dados normalizados:", req.body);
       
-      const transacaoData = insertTransacaoSchema.parse(req.body);
-      console.log("Dados validados pelo schema:", transacaoData);
+      try {
+        // Primeiro, verificamos o tipo do dataTransacao recebido
+        console.log("Tipo de dataTransacao recebido:", typeof req.body.dataTransacao);
+        if (req.body.dataTransacao instanceof Date) {
+          console.log("É uma instância de Date");
+        } else if (typeof req.body.dataTransacao === 'string') {
+          console.log("É uma string:", req.body.dataTransacao);
+        } else {
+          console.log("É outro tipo:", req.body.dataTransacao);
+        }
+        
+        const transacaoData = insertTransacaoSchema.parse(req.body);
+        console.log("Dados validados pelo schema:", transacaoData);
+        
+        const transacao = await storage.createTransacao(transacaoData);
+        console.log("Transação criada com sucesso:", transacao);
+        return res.status(201).json(transacao);
+      } catch (e) {
+        console.error("Erro específico no processamento da transação:", e);
+        throw e; // Re-lança o erro para ser capturado pelo catch externo
+      }
       
-      const transacao = await storage.createTransacao(transacaoData);
-      console.log("Transação criada com sucesso:", transacao);
-      
-      res.status(201).json(transacao);
+      // Linha removida para evitar duplicação
     } catch (error) {
       console.error("Erro ao criar transação:", error);
       if (error instanceof z.ZodError) {
