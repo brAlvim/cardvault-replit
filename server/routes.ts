@@ -862,26 +862,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const totalSaldo = validCards.reduce((sum, card) => sum + card.saldoAtual, 0);
               console.log(`Saldo total disponível: ${totalSaldo}`);
               
+              // Verifica se temos a distribuição manual de valores
+              let valoresPorCard: {[cardId: number]: number} = {};
+              
+              // Se temos valores específicos por cartão (cardValores)
+              if (req.body.cardValores) {
+                try {
+                  valoresPorCard = JSON.parse(req.body.cardValores);
+                  console.log("Valores específicos por cartão:", valoresPorCard);
+                } catch (e) {
+                  console.error("Erro ao fazer parse de cardValores:", e);
+                }
+              }
+              
               // Se o valor da transação for maior que o saldo total, usamos o máximo disponível
               const valorTransacao = Math.min(transacao.valor, totalSaldo);
               let valorRestante = valorTransacao;
               
-              // Distribui o valor proporcionalmente entre os cards
+              // Processa cada cartão com seus valores específicos ou distribuição automática
               for (let i = 0; i < validCards.length; i++) {
                 const card = validCards[i];
-                
-                // Para o último cartão, usamos o que sobrar para evitar problemas de arredondamento
                 const isLastCard = i === validCards.length - 1;
                 let valorDebitar;
                 
-                if (isLastCard) {
+                // Se temos um valor específico para este cartão
+                if (valoresPorCard && Object.keys(valoresPorCard).length > 0 && valoresPorCard[card.id] !== undefined) {
+                  valorDebitar = Math.min(valoresPorCard[card.id], card.saldoAtual);
+                } else if (isLastCard) {
+                  // Para o último cartão (sem valor específico), usamos o que sobrar
                   valorDebitar = Math.min(valorRestante, card.saldoAtual);
                 } else {
-                  // Cálculo proporcional para cada cartão
-                  valorDebitar = Math.min(
-                    valorRestante, 
-                    card.saldoAtual
-                  );
+                  // Distribuição proporcional para os demais cartões
+                  valorDebitar = Math.min(valorRestante, card.saldoAtual);
                 }
                 
                 const novoSaldo = card.saldoAtual - valorDebitar;

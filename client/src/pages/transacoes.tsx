@@ -842,40 +842,6 @@ export default function TransacoesPage() {
                       mas continuarão sendo enviados através do onSubmit */}
                     </div>
                     
-                    {/* Seleção de Fornecedor */}
-                    <div className="p-4 border rounded-lg bg-blue-50 mb-4">
-                      <FormItem className="mb-0">
-                        <FormLabel className="font-medium">Fornecedor</FormLabel>
-                        <Select 
-                          value={selectedFornecedorId ? String(selectedFornecedorId) : '0'} 
-                          onValueChange={(value) => {
-                            const id = parseInt(value);
-                            setSelectedFornecedorId(id === 0 ? null : id);
-                            // Limpa os gift cards selecionados quando troca o fornecedor
-                            if ((id === 0 && selectedFornecedorId !== null) || (id !== 0 && id !== selectedFornecedorId)) {
-                              setSelectedGiftCards([]);
-                              form.setValue('giftCardIds', '');
-                            }
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione um fornecedor" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="0">Todos os fornecedores</SelectItem>
-                            {allFornecedores.map((fornecedor) => (
-                              <SelectItem key={fornecedor.id} value={String(fornecedor.id)}>
-                                {fornecedor.nome}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          Selecione o fornecedor para filtrar os gift cards disponíveis
-                        </FormDescription>
-                      </FormItem>
-                    </div>
-                    
                     {/* Novo componente para seleção de gift cards */}
                     <div className="p-4 border rounded-lg bg-blue-50 mb-4">
                       <h3 className="text-sm font-semibold mb-3 text-blue-800">Selecione Gift Card para Transação</h3>
@@ -958,6 +924,14 @@ export default function TransacoesPage() {
                                         const valor = parseFloat(e.target.value) || 0;
                                         const maxValor = Math.min(valor, card.saldoAtual);
                                         
+                                        if (valor > card.saldoAtual) {
+                                          toast({
+                                            title: "Valor excede o saldo",
+                                            description: `O valor não pode exceder o saldo disponível de ${formatMoney(card.saldoAtual)}`,
+                                            variant: "destructive"
+                                          });
+                                        }
+                                        
                                         // Atualiza valores do cartão
                                         const novosValores = {...cardValores};
                                         novosValores[card.id] = maxValor;
@@ -966,6 +940,9 @@ export default function TransacoesPage() {
                                         // Atualiza o valor total do formulário
                                         const valorTotal = Object.values(novosValores).reduce((sum, val) => sum + val, 0);
                                         form.setValue('valor', valorTotal);
+                                        
+                                        // Atualiza o campo cardValores do formulário (string JSON)
+                                        form.setValue('cardValores', JSON.stringify(novosValores));
                                       }}
                                     />
                                     <div className="absolute inset-y-0 left-0 flex items-center pl-2 pointer-events-none">
@@ -1008,6 +985,21 @@ export default function TransacoesPage() {
                                 type="hidden" 
                                 value={field.value || 0}
                                 onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="cardValores"
+                        render={({ field }) => (
+                          <FormItem className="hidden">
+                            <FormControl>
+                              <Input 
+                                {...field} 
+                                type="hidden"
                               />
                             </FormControl>
                           </FormItem>
