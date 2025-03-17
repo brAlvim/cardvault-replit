@@ -83,12 +83,22 @@ export default function Dashboard() {
 
   // Get transactions for the dashboard
   const { data: recentTransacoes, isLoading: isLoadingTransacoes } = useQuery<Transacao[]>({
-    queryKey: ['/api/transacoes/recentes', { limit: 5 }],
+    queryKey: ['/api/transacoes/recentes', { limit: 10 }],
     queryFn: () => {
-      // This is a placeholder since we don't have an endpoint for recent transactions yet
+      // Buscar todas as transações e ordená-las por data mais recente
       const token = localStorage.getItem('token');
       const headers: HeadersInit = token ? { 'Authorization': `Bearer ${token}` } : {};
-      return fetch('/api/transacoes', { headers }).then(res => res.json());
+      return fetch('/api/transacoes', { headers })
+        .then(res => {
+          if (!res.ok) throw new Error('Falha ao carregar transações');
+          return res.json();
+        })
+        .then(data => {
+          // Ordenar por data mais recente e limitar a 10 transações
+          return data.sort((a: Transacao, b: Transacao) => 
+            new Date(b.dataTransacao).getTime() - new Date(a.dataTransacao).getTime()
+          ).slice(0, 10);
+        });
     },
   });
 
@@ -372,64 +382,151 @@ export default function Dashboard() {
             </Card>
 
             {/* Atividades Recentes */}
-            <Card className="col-span-12 md:col-span-6">
+            <Card className="col-span-12">
               <CardHeader>
                 <CardTitle className="text-lg">Atividades Recentes</CardTitle>
+                <CardDescription>
+                  Últimas 10 transações e atividades no sistema
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {isLoadingTransacoes || isLoadingGiftCards ? (
-                  <div className="h-[200px] flex items-center justify-center">
-                    <p className="text-muted-foreground">Carregando...</p>
+                  <div className="h-[400px] flex items-center justify-center">
+                    <p className="text-muted-foreground">Carregando atividades recentes...</p>
                   </div>
-                ) : (giftCards && giftCards.length > 0) || (recentTransacoes && recentTransacoes.length > 0) ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Data</TableHead>
-                        <TableHead>Descrição</TableHead>
-                        <TableHead>Valor</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {/* Mostrar gift cards cadastrados recentemente */}
-                      {giftCards && giftCards.slice(0, 2).map((giftCard) => {
-                        const fornecedor = fornecedores?.find(f => f.id === giftCard.fornecedorId);
-                        return (
-                          <TableRow key={`giftcard-${giftCard.id}`}>
-                            <TableCell>{formatDate(giftCard.createdAt)}</TableCell>
-                            <TableCell>
-                              <div className="flex flex-col">
-                                <span className="font-medium">Novo Gift Card</span>
-                                <span className="text-xs text-muted-foreground">
-                                  {fornecedor?.nome || 'Desconhecido'} - {giftCard.codigo}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell>R$ {giftCard.valorInicial.toFixed(2)}</TableCell>
-                          </TableRow>
-                        );
-                      })}
-                      
-                      {/* Mostrar transações recentes */}
-                      {recentTransacoes && recentTransacoes.slice(0, 5).map((transacao) => (
-                        <TableRow key={`transaction-${transacao.id}`}>
-                          <TableCell>{formatDate(transacao.dataTransacao)}</TableCell>
-                          <TableCell>
-                            <div className="flex flex-col">
-                              <span className="font-medium">{transacao.descricao}</span>
-                              <span className="text-xs text-muted-foreground">
-                                Gift Card ID: {transacao.giftCardId}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>R$ {transacao.valor.toFixed(2)}</TableCell>
+                ) : (recentTransacoes && recentTransacoes.length > 0) ? (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[100px]">Data</TableHead>
+                          <TableHead>Descrição</TableHead>
+                          <TableHead>Tipo</TableHead>
+                          <TableHead>Gift Card</TableHead>
+                          <TableHead className="text-right">Valor</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {/* Mostrar transações recentes */}
+                        {recentTransacoes && recentTransacoes.map((transacao) => {
+                          // Encontrar detalhes do giftCard
+                          const giftCard = giftCards?.find(gc => gc.id === transacao.giftCardId);
+                          const fornecedor = giftCard ? 
+                            fornecedores?.find(f => f.id === giftCard.fornecedorId) : null;
+                            
+                          // Determinar tipo de transação para mostrar badge apropriado
+                          let statusColor = "bg-gray-100 text-gray-800";
+                          let statusText = "Transação";
+                          
+                          if (transacao.status === 'refund') {
+                            statusColor = "bg-green-100 text-green-800";
+                            statusText = "Reembolso";
+                          } else if (transacao.status === 'concluida') {
+                            statusColor = "bg-blue-100 text-blue-800";
+                            statusText = "Utilização";
+                          } else if (transacao.status === 'cancelada') {
+                            statusColor = "bg-red-100 text-red-800";
+                            statusText = "Cancelada";
+                          }
+                          
+                          return (
+                            <TableRow key={`transaction-${transacao.id}`}>
+                              <TableCell className="whitespace-nowrap">{formatDate(transacao.dataTransacao)}</TableCell>
+                              <TableCell>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{transacao.descricao}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {transacao.nomeUsuario || "Usuário Sistema"}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className={`px-2 py-1 rounded-full text-xs inline-block ${statusColor}`}>
+                                  {statusText}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">
+                                    {giftCard ? (
+                                      <span className="text-blue-700">
+                                        {giftCard.gcNumber || giftCard.codigo}
+                                      </span>
+                                    ) : (
+                                      `#${transacao.giftCardId}`
+                                    )}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {fornecedor?.nome || ""}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell className={`text-right font-medium ${transacao.status === 'refund' ? 'text-green-600' : ''}`}>
+                                {transacao.status === 'refund' ? '+ ' : ''}
+                                R$ {transacao.valor.toFixed(2)}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        
+                        {/* Mostrar gift cards cadastrados recentemente */}
+                        {giftCards && giftCards.slice(0, 2).map((giftCard) => {
+                          const fornecedor = fornecedores?.find(f => f.id === giftCard.fornecedorId);
+                          // Verificar se o gift card não é antigo demais (só mostrar se for recente)
+                          const createdDate = new Date(giftCard.createdAt);
+                          const isRecent = (new Date().getTime() - createdDate.getTime()) < (7 * 24 * 60 * 60 * 1000); // 7 dias
+                          
+                          if (!isRecent) return null;
+                          
+                          return (
+                            <TableRow key={`giftcard-${giftCard.id}`}>
+                              <TableCell className="whitespace-nowrap">{formatDate(giftCard.createdAt)}</TableCell>
+                              <TableCell>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">Novo Gift Card</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {giftCard.comprador || "Sistema"}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="px-2 py-1 rounded-full text-xs inline-block bg-purple-100 text-purple-800">
+                                  Cadastro
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-col">
+                                  <span className="font-medium text-blue-700">
+                                    {giftCard.gcNumber || giftCard.codigo}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {fornecedor?.nome || 'Desconhecido'}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right font-medium">
+                                R$ {giftCard.valorInicial.toFixed(2)}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        
+                      </TableBody>
+                    </Table>
+                  </div>
                 ) : (
-                  <div className="h-[200px] flex items-center justify-center">
-                    <p className="text-muted-foreground">Nenhuma atividade recente</p>
+                  <div className="h-[300px] flex items-center justify-center">
+                    <div className="text-center">
+                      <p className="text-muted-foreground mb-4">Nenhuma atividade recente</p>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => navigate("/gift-cards/new")}
+                      >
+                        <CreditCard className="mr-2 h-4 w-4" />
+                        Adicionar Gift Card
+                      </Button>
+                    </div>
                   </div>
                 )}
               </CardContent>
