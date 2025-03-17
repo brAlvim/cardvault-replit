@@ -631,11 +631,17 @@ class MemStorage implements IStorage {
   async createGiftCard(giftCard: InsertGiftCard): Promise<GiftCard> {
     const id = this.giftCardId++;
     const timestamp = new Date();
+    
+    // Garantir tratamento adequado dos valores específicos para economia e pagamento
+    const valorInicial = giftCard.valorInicial;
+    const valorPago = giftCard.valorPago !== undefined ? giftCard.valorPago : valorInicial;
+    const percentualDesconto = giftCard.percentualDesconto !== undefined ? giftCard.percentualDesconto : 0;
+    
     const newGiftCard: GiftCard = {
       id,
       codigo: giftCard.codigo,
-      valorInicial: giftCard.valorInicial,
-      saldoAtual: giftCard.saldoAtual || giftCard.valorInicial,
+      valorInicial: valorInicial,
+      saldoAtual: giftCard.saldoAtual || valorInicial,
       dataValidade: giftCard.dataValidade || null,
       fornecedorId: giftCard.fornecedorId,
       userId: giftCard.userId,
@@ -655,7 +661,15 @@ class MemStorage implements IStorage {
       ordemUsado: null,
       createdAt: timestamp,
       updatedAt: null,
-      valorPendente: giftCard.valorInicial
+      valorPendente: giftCard.valorPendente !== undefined ? giftCard.valorPendente : valorInicial,
+      valorPago: valorPago,
+      percentualDesconto: percentualDesconto,
+      comprador: giftCard.comprador || null,
+      login: giftCard.login || null,
+      dataCompra: giftCard.dataCompra || timestamp,
+      gcNumber: giftCard.gcNumber || null,
+      gcPass: giftCard.gcPass || null,
+      supplierId: giftCard.supplierId || null
     };
     this.giftCards.set(id, newGiftCard);
     return newGiftCard;
@@ -682,6 +696,10 @@ class MemStorage implements IStorage {
       imagemUrl: giftCardData.imagemUrl !== undefined ? giftCardData.imagemUrl : giftCard.imagemUrl,
       ordemCompra: giftCardData.ordemCompra !== undefined ? giftCardData.ordemCompra : giftCard.ordemCompra,
       ordemInterna: giftCardData.ordemInterna !== undefined ? giftCardData.ordemInterna : giftCard.ordemInterna,
+      valorPago: giftCardData.valorPago !== undefined ? giftCardData.valorPago : giftCard.valorPago,
+      valorPendente: giftCardData.valorPendente !== undefined ? giftCardData.valorPendente : giftCard.valorPendente,
+      percentualDesconto: giftCardData.percentualDesconto !== undefined ? giftCardData.percentualDesconto : giftCard.percentualDesconto,
+      supplierId: giftCardData.supplierId !== undefined ? giftCardData.supplierId : giftCard.supplierId,
       updatedAt: timestamp
     };
     this.giftCards.set(id, updatedGiftCard);
