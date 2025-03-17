@@ -10,7 +10,9 @@ import {
   insertTransacaoSchema,
   insertGiftCardTagSchema,
   insertSupplierSchema,
-  Transacao // Adiciona a importação do tipo
+  Transacao,
+  Fornecedor,
+  Supplier
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
