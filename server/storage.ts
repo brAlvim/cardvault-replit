@@ -1621,14 +1621,92 @@ class DatabaseStorage implements IStorage {
       nomeUsuario: transacao.nomeUsuario || null,
       empresaId: transacao.empresaId || 1
     }).returning();
+    
+    // Atualizar o saldo do gift card se a transação for concluída
+    if (newTransacao.status.toLowerCase() === "concluida") {
+      console.log(`Atualizando saldo do gift card ${newTransacao.giftCardId} após transação concluída`);
+      // Buscar o gift card atual
+      const [giftCard] = await db.select()
+        .from(giftCards)
+        .where(eq(giftCards.id, newTransacao.giftCardId));
+      
+      if (giftCard) {
+        console.log(`Gift card encontrado: ${giftCard.codigo}, saldo atual: ${giftCard.saldoAtual}`);
+        // Calcular o novo saldo e atualizar
+        const novoSaldo = Math.max(0, giftCard.saldoAtual - newTransacao.valor);
+        console.log(`Novo saldo calculado: ${novoSaldo}`);
+        
+        // Atualizar no banco de dados
+        await db.update(giftCards)
+          .set({ 
+            saldoAtual: novoSaldo,
+            status: novoSaldo > 0 ? "ativo" : "zerado",
+            dataUltimoUso: newTransacao.dataTransacao
+          })
+          .where(eq(giftCards.id, newTransacao.giftCardId));
+        
+        console.log(`Saldo atualizado com sucesso para: ${novoSaldo}`);
+      }
+    }
+    
     return newTransacao;
   }
 
   async updateTransacao(id: number, transacaoData: Partial<InsertTransacao>): Promise<Transacao | undefined> {
+    // Buscar a transação original para comparar o status
+    const [transacaoOriginal] = await db.select()
+      .from(transacoes)
+      .where(eq(transacoes.id, id));
+    
+    if (!transacaoOriginal) {
+      return undefined;
+    }
+    
     const [updatedTransacao] = await db.update(transacoes)
       .set(transacaoData)
       .where(eq(transacoes.id, id))
       .returning();
+    
+    // Se o status mudou, atualizar o saldo do gift card conforme necessário
+    if (transacaoData.status && transacaoData.status !== transacaoOriginal.status) {
+      // Buscar o gift card
+      const [giftCard] = await db.select()
+        .from(giftCards)
+        .where(eq(giftCards.id, transacaoOriginal.giftCardId));
+      
+      if (giftCard) {
+        console.log(`Atualizando saldo do gift card ${giftCard.id} devido a mudança de status da transação`);
+        console.log(`Status original: ${transacaoOriginal.status}, Novo status: ${transacaoData.status}`);
+        
+        let novoSaldo = giftCard.saldoAtual;
+        
+        // Se a transação mudou para "concluida", subtrair o valor do saldo
+        if (transacaoData.status.toLowerCase() === "concluida" && 
+            transacaoOriginal.status.toLowerCase() !== "concluida") {
+          novoSaldo = Math.max(0, giftCard.saldoAtual - transacaoOriginal.valor);
+          console.log(`Transação concluída: diminuindo saldo para ${novoSaldo}`);
+        }
+        
+        // Se a transação era "concluida" e agora é "cancelada", devolver o valor ao saldo
+        if (transacaoData.status.toLowerCase() === "cancelada" && 
+            transacaoOriginal.status.toLowerCase() === "concluida") {
+          novoSaldo = giftCard.saldoAtual + transacaoOriginal.valor;
+          console.log(`Transação cancelada: aumentando saldo para ${novoSaldo}`);
+        }
+        
+        // Atualizar o gift card
+        await db.update(giftCards)
+          .set({ 
+            saldoAtual: novoSaldo,
+            status: novoSaldo > 0 ? "ativo" : "zerado",
+            dataUltimoUso: transacaoData.status.toLowerCase() === "concluida" ? new Date() : giftCard.dataUltimoUso
+          })
+          .where(eq(giftCards.id, giftCard.id));
+        
+        console.log(`Saldo atualizado com sucesso para: ${novoSaldo}`);
+      }
+    }
+    
     return updatedTransacao;
   }
 
