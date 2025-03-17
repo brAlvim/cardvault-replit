@@ -1,15 +1,30 @@
 import { Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 import { storage } from "./storage";
 import { GiftCard } from "@shared/schema";
+
+// Estendendo a interface Request para incluir o usuário
+declare global {
+  namespace Express {
+    interface Request {
+      user?: {
+        id: number;
+        username: string;
+        empresaId: number;
+        perfilId: number;
+      };
+    }
+  }
+}
 
 // Chave secreta para JWT - em produção, isso deve estar no .env
 const JWT_SECRET = "cardvault-secret-key-2024";
 
 // Schema para validação do login
 const loginSchema = z.object({
-  email: z.string().email(),
+  username: z.string(),
   password: z.string(),
 });
 
@@ -27,10 +42,10 @@ export async function login(req: Request, res: Response) {
   try {
     // Validar dados de entrada
     const validatedData = loginSchema.parse(req.body);
-    const { email, password } = validatedData;
+    const { username, password } = validatedData;
 
-    // Buscar usuário pelo email
-    const user = await storage.getUserByEmail(email);
+    // Buscar usuário pelo nome de usuário
+    const user = await storage.getUserByUsername(username);
     if (!user) {
       return res.status(401).json({ message: "Credenciais inválidas" });
     }
@@ -40,8 +55,25 @@ export async function login(req: Request, res: Response) {
       return res.status(403).json({ message: "Usuário inativo. Entre em contato com o administrador." });
     }
 
-    // Verificar a senha (em produção, deve-se usar bcrypt ou similar)
-    if (user.password !== password) {
+    // Verificar a senha usando bcrypt
+    // Em um ambiente de produção, todas as senhas devem ser armazenadas com hash
+    let isPasswordValid = false;
+    
+    // Para compatibilidade com senhas em texto plano durante o desenvolvimento
+    if (user.password.startsWith('$2b$') || user.password.startsWith('$2a$')) {
+      // A senha está usando hash bcrypt
+      try {
+        isPasswordValid = await bcrypt.compare(password, user.password);
+      } catch (error) {
+        console.error("Erro ao comparar senhas com bcrypt:", error);
+        isPasswordValid = false;
+      }
+    } else {
+      // Temporário: comparação direta para senhas sem hash
+      isPasswordValid = user.password === password;
+    }
+    
+    if (!isPasswordValid) {
       return res.status(401).json({ message: "Credenciais inválidas" });
     }
 
@@ -107,7 +139,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
     const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload;
 
     // Adicionar dados do usuário ao objeto req
-    (req as any).user = {
+    req.user = {
       id: decoded.userId,
       username: decoded.username,
       empresaId: decoded.empresaId,
@@ -124,7 +156,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
 export function requirePermission(permission: string) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const user = (req as any).user;
+      const user = req.user;
       if (!user) {
         return res.status(401).json({ message: "Usuário não autenticado" });
       }

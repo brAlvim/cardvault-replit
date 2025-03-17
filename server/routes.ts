@@ -21,6 +21,95 @@ const JWT_SECRET = "cardvault-secret-key-2024";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const router = express.Router();
+
+  // Rotas de autenticação
+  router.post("/auth/login", login);
+  
+  router.post("/auth/logout", (req: Request, res: Response) => {
+    // No back-end não precisamos fazer nada para o logout
+    // O cliente é responsável por remover o token JWT
+    res.status(200).json({ message: "Logout realizado com sucesso" });
+  });
+  
+  router.get("/auth/me", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user.id;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      // Buscar dados adicionais para enriquecer a resposta
+      const perfil = await storage.getPerfil(user.perfilId);
+      const empresa = await storage.getEmpresa(user.empresaId);
+      
+      // Retornar dados do usuário sem informações sensíveis
+      res.json({
+        id: user.id,
+        username: user.username,
+        nome: user.nome,
+        email: user.email,
+        empresaId: user.empresaId,
+        empresaNome: empresa?.nome,
+        perfilId: user.perfilId,
+        perfilNome: perfil?.nome,
+      });
+    } catch (error) {
+      console.error("Erro ao obter dados do usuário:", error);
+      res.status(500).json({ message: "Erro ao obter dados do usuário" });
+    }
+  });
+  
+  // Rota de emergência para desenvolvimento - REMOVER EM PRODUÇÃO
+  router.get("/auth/dev-token", async (req: Request, res: Response) => {
+    try {
+      // Buscar usuário demo para desenvolvimento
+      const user = await storage.getUserByUsername("demo");
+      
+      if (!user) {
+        return res.status(404).json({ message: "Usuário demo não encontrado" });
+      }
+      
+      // Buscar o perfil e empresa
+      const perfil = await storage.getPerfil(user.perfilId);
+      const empresa = await storage.getEmpresa(user.empresaId);
+      
+      if (!perfil || !empresa) {
+        return res.status(500).json({ message: "Dados de usuário incompletos" });
+      }
+      
+      // Gerar token
+      const token = jwt.sign(
+        {
+          userId: user.id,
+          username: user.username,
+          empresaId: user.empresaId,
+          perfilId: user.perfilId,
+        },
+        JWT_SECRET,
+        { expiresIn: "7d" } // Token de desenvolvimento com validade estendida
+      );
+      
+      // Responder com o token e dados básicos do usuário
+      res.json({
+        token,
+        user: {
+          id: user.id,
+          username: user.username,
+          nome: user.nome,
+          email: user.email,
+          empresaId: user.empresaId,
+          empresaNome: empresa.nome,
+          perfilId: user.perfilId,
+          perfilNome: perfil.nome,
+        },
+      });
+    } catch (error) {
+      console.error("Erro ao gerar token de desenvolvimento:", error);
+      res.status(500).json({ message: "Erro ao gerar token de desenvolvimento" });
+    }
+  });
   
   // User routes
   router.post("/users", async (req: Request, res: Response) => {
