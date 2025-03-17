@@ -430,10 +430,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const empresaId = user.empresaId || 
         (req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined);
       
-      console.log(`Buscando fornecedores para userId=${userId}, empresaId=${empresaId}`);
+      console.log(`Buscando fornecedores para usuário ${userId}, empresa ${empresaId}`);
       
-      // Buscar fornecedores do usuário especificado
-      const fornecedores = await storage.getFornecedores(userId, empresaId);
+      // Carregar todos os fornecedores da empresa para usuários com perfil diferente de admin
+      let fornecedores: Fornecedor[];
+      if (user.perfilId !== 1) {
+        // Para usuários normais (não admin), mostrar todos os fornecedores da empresa
+        // mais os fornecedores que o próprio usuário criou
+        fornecedores = await storage.getFornecedoresByEmpresa(empresaId);
+      } else {
+        // Para admins, usar a busca por userId se especificado
+        fornecedores = await storage.getFornecedores(userId, empresaId);
+      }
       
       console.log(`Fornecedores encontrados para userId=${userId}:`, fornecedores.length);
       if (fornecedores.length > 0) {
@@ -568,10 +576,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const empresaId = user.empresaId || 
         (req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined);
       
-      console.log(`Buscando suppliers para userId=${userId}, empresaId=${empresaId}`);
+      console.log(`Buscando suppliers para usuário ${userId}, empresa ${empresaId}`);
       
-      // Buscar suppliers do usuário especificado
-      const suppliers = await storage.getSuppliers(userId, empresaId);
+      // Carregar todos os suppliers da empresa para usuários com perfil diferente de admin
+      let suppliers: Supplier[];
+      if (user.perfilId !== 1) {
+        // Para usuários normais (não admin), mostrar todos os suppliers da empresa
+        suppliers = await storage.getSuppliersByEmpresa(empresaId);
+      } else {
+        // Para admins, usar a busca por userId se especificado
+        suppliers = await storage.getSuppliers(userId, empresaId);
+      }
       
       console.log(`Suppliers encontrados para userId=${userId}:`, suppliers.length);
       
