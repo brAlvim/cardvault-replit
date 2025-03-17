@@ -609,14 +609,9 @@ export default function TransacoesPage() {
       }
     }
     
-    // Adiciona os valores usados de cada gift card
-    // Precisamos enviar esses valores no formato "cardId:valor,cardId:valor"
-    const cardValoresFormatado = Object.entries(cardValores)
-      .map(([cardId, valor]) => `${cardId}:${valor}`)
-      .join(',');
-    
-    // Adiciona ao objeto data
-    data.cardValores = cardValoresFormatado;
+    // Adiciona os valores usados de cada gift card como JSON string
+    // Isso é mais fácil de processar no servidor do que o formato "cardId:valor"
+    data.cardValores = JSON.stringify(cardValores);
     
     // Adiciona o ID do usuário logado e o nome
     data.userId = user?.id || 1;
