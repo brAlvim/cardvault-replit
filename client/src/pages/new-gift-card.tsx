@@ -377,35 +377,11 @@ export default function NewGiftCardPage() {
               </Popover>
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="observacoes">Observações</Label>
-              <Textarea 
-                id="observacoes" 
-                placeholder="Informações adicionais sobre o gift card"
-                value={observacoes}
-                onChange={(e) => setObservacoes(e.target.value)}
-                rows={4}
-              />
-            </div>
-            
             {/* Seção de dados detalhados do gift card */}
             <div className="border-t pt-6 mt-6">
               <h3 className="font-semibold text-lg mb-4">Informações Detalhadas da Compra</h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div className="space-y-2">
-                  <Label htmlFor="comprador">Comprador</Label>
-                  <Input 
-                    id="comprador" 
-                    value={userData?.username || ''}
-                    disabled
-                    className="bg-muted"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Preenchido automaticamente com o usuário logado
-                  </p>
-                </div>
-                
                 <div className="space-y-2">
                   <Label htmlFor="login">Login</Label>
                   <Input 
@@ -415,9 +391,7 @@ export default function NewGiftCardPage() {
                     onChange={(e) => setLogin(e.target.value)}
                   />
                 </div>
-              </div>
-              
-              <div className="space-y-2 mb-4">
+
                 <div className="space-y-2">
                   <Label htmlFor="dataCompra">Data da Compra</Label>
                   <Popover>
@@ -444,6 +418,8 @@ export default function NewGiftCardPage() {
                   </p>
                 </div>
               </div>
+              
+
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div className="space-y-2">
@@ -547,6 +523,30 @@ export default function NewGiftCardPage() {
                     type="password"
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2 mt-4">
+                <Label htmlFor="comprador">Comprador</Label>
+                <Input 
+                  id="comprador" 
+                  value={userData?.username || ''}
+                  disabled
+                  className="bg-muted"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Preenchido automaticamente com o usuário logado
+                </p>
+              </div>
+
+              <div className="space-y-2 mt-4">
+                <Label htmlFor="observacoes">Observações</Label>
+                <Textarea 
+                  id="observacoes" 
+                  placeholder="Informações adicionais sobre o gift card"
+                  value={observacoes}
+                  onChange={(e) => setObservacoes(e.target.value)}
+                  rows={4}
+                />
               </div>
             </div>
             
