@@ -54,7 +54,6 @@ const supplierFormSchema = z.object({
   descricao: z.string().optional().nullable(),
   website: z.string().url("Digite uma URL válida").optional().nullable(),
   logo: z.string().url("Digite uma URL válida").optional().nullable(),
-  desconto: z.coerce.number().min(0).max(100).optional().nullable(),
   status: z.string().default("ativo"),
   userId: z.number().optional(),
   empresaId: z.number().optional(),
@@ -93,7 +92,6 @@ export default function SuppliersPage() {
       descricao: "",
       website: "",
       logo: "",
-      desconto: 0,
       status: "ativo",
     },
   });
@@ -246,7 +244,6 @@ export default function SuppliersPage() {
       descricao: supplier.descricao,
       website: supplier.website,
       logo: supplier.logo,
-      desconto: supplier.desconto,
       status: supplier.status,
     });
     setOpenModal(true);
@@ -362,27 +359,7 @@ export default function SuppliersPage() {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="desconto"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Desconto (%)</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          value={field.value === null ? "" : field.value}
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="0.01"
-                          placeholder="Desconto aplicado (exemplo: 10.5)"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+
                 <FormField
                   control={form.control}
                   name="status"
@@ -444,7 +421,6 @@ export default function SuppliersPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nome</TableHead>
-                    <TableHead>Desconto</TableHead>
                     <TableHead>Website</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
@@ -464,9 +440,6 @@ export default function SuppliersPage() {
                           )}
                           {supplier.nome}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        {supplier.desconto !== null ? `${supplier.desconto}%` : "-"}
                       </TableCell>
                       <TableCell>
                         {supplier.website ? (
