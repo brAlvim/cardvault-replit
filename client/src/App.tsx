@@ -1,4 +1,4 @@
-import { Switch, Route, Redirect } from "wouter";
+import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -54,12 +54,22 @@ function Router() {
 }
 
 function App() {
+  // Pegamos a localização atual para verificar se estamos em uma rota de autenticação
+  const [location] = useLocation();
+  const isAuthRoute = location === "/auth" || location === "/login";
+  
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <MainLayout>
+        {isAuthRoute ? (
+          // Se for rota de autenticação, não aplicamos o MainLayout
           <Router />
-        </MainLayout>
+        ) : (
+          // Para todas as outras rotas, aplicamos o MainLayout
+          <MainLayout>
+            <Router />
+          </MainLayout>
+        )}
         <Toaster />
       </AuthProvider>
     </QueryClientProvider>
