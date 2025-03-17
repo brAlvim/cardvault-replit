@@ -1353,7 +1353,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Associar a tag ao gift card com verificação de empresa
-      const giftCardTag = await storage.addTagToGiftCard(giftCardId, tagId, user.empresaId);
+      const giftCardTag = await storage.addTagToGiftCard(giftCardId, tagId, user.empresaId, user.id, user.perfilId);
       
       // Registrar evento para auditoria
       console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${user.id}) da empresa ${user.empresaId} associou a tag "${tag.nome}" (ID: ${tagId}) ao Gift Card ID: ${giftCardId}`);
@@ -1387,7 +1387,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Remover a tag do gift card com verificação de empresa
-      const success = await storage.removeTagFromGiftCard(giftCardId, tagId, user.empresaId);
+      const success = await storage.removeTagFromGiftCard(giftCardId, tagId, user.empresaId, user.id, user.perfilId);
       
       if (!success) {
         return res.status(500).json({ message: "Falha ao remover tag do Gift Card" });

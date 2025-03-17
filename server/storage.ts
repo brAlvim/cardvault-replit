@@ -79,15 +79,15 @@ export interface IStorage {
   deleteSupplier(id: number): Promise<boolean>;
 
   // Gift Card methods (substitui Card)
-  getGiftCards(userId: number, fornecedorId?: number, empresaId?: number): Promise<GiftCard[]>;
+  getGiftCards(userId: number, fornecedorId?: number, empresaId?: number, perfilId?: number): Promise<GiftCard[]>;
   getGiftCardsByEmpresa(empresaId: number): Promise<GiftCard[]>;
   getGiftCard(id: number, empresaId?: number): Promise<GiftCard | undefined>;
   createGiftCard(giftCard: InsertGiftCard): Promise<GiftCard>;
   updateGiftCard(id: number, giftCard: Partial<InsertGiftCard>): Promise<GiftCard | undefined>;
   deleteGiftCard(id: number): Promise<boolean>;
-  getGiftCardsVencimento(userId: number, dias: number): Promise<GiftCard[]>;
-  getGiftCardsByTag(tagId: number): Promise<GiftCard[]>;
-  searchGiftCards(userId: number, searchTerm: string): Promise<GiftCard[]>;
+  getGiftCardsVencimento(userId: number, dias: number, perfilId?: number): Promise<GiftCard[]>;
+  getGiftCardsByTag(tagId: number, empresaId?: number, userId?: number, perfilId?: number): Promise<GiftCard[]>;
+  searchGiftCards(userId: number, searchTerm: string, perfilId?: number): Promise<GiftCard[]>;
 
   // Transação methods (novo)
   getTransacoes(giftCardId: number, empresaId?: number): Promise<Transacao[]>;
@@ -96,7 +96,6 @@ export interface IStorage {
   createTransacao(transacao: InsertTransacao): Promise<Transacao>;
   updateTransacao(id: number, transacao: Partial<InsertTransacao>): Promise<Transacao | undefined>;
   deleteTransacao(id: number): Promise<boolean>;
-  searchGiftCards(userId: number, searchTerm: string): Promise<GiftCard[]>;
 
   // Tag methods
   getTags(empresaId?: number): Promise<Tag[]>;
@@ -105,9 +104,9 @@ export interface IStorage {
   createTag(tag: InsertTag): Promise<Tag>;
   
   // Gift Card Tag methods
-  addTagToGiftCard(giftCardId: number, tagId: number): Promise<GiftCardTag>;
-  removeTagFromGiftCard(giftCardId: number, tagId: number): Promise<boolean>;
-  getGiftCardTags(giftCardId: number, empresaId?: number): Promise<Tag[]>;
+  addTagToGiftCard(giftCardId: number, tagId: number, empresaId?: number, userId?: number, perfilId?: number): Promise<GiftCardTag>;
+  removeTagFromGiftCard(giftCardId: number, tagId: number, empresaId?: number, userId?: number, perfilId?: number): Promise<boolean>;
+  getGiftCardTags(giftCardId: number, empresaId?: number, userId?: number, perfilId?: number): Promise<Tag[]>;
 }
 
 // Implementação da interface IStorage utilizando memória (sem banco de dados)
