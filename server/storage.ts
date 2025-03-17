@@ -1039,6 +1039,18 @@ class MemStorage implements IStorage {
   
   // Gift Card Tags (relacionamento entre gift cards e tags)
   async getGiftCardTags(giftCardId: number, empresaId?: number): Promise<Tag[]> {
+    // Log para auditoria de segurança
+    console.log(`[SEGURANÇA] Buscando tags para gift card ${giftCardId}, empresaId: ${empresaId || 'não especificado'}`);
+    
+    // Verificar primeiro se o gift card existe e é da empresa correta (se empresaId for fornecido)
+    if (empresaId) {
+      const giftCard = await this.getGiftCard(giftCardId);
+      if (!giftCard || giftCard.empresaId !== empresaId) {
+        console.log(`[SEGURANÇA] Gift card ${giftCardId} não pertence à empresa ${empresaId} ou não existe`);
+        return []; // Retorna array vazio se o gift card não pertencer à empresa
+      }
+    }
+    
     // Encontra os relacionamentos para este gift card
     const giftCardTagRelations = Array.from(this.giftCardTags.values()).filter(
       rel => rel.giftCardId === giftCardId
@@ -1057,10 +1069,31 @@ class MemStorage implements IStorage {
       tags = tags.filter(tag => tag.empresaId === empresaId);
     }
     
+    console.log(`[SEGURANÇA] Retornando ${tags.length} tags para gift card ${giftCardId}`);
+    
     return tags;
   }
   
-  async addTagToGiftCard(giftCardId: number, tagId: number): Promise<GiftCardTag> {
+  async addTagToGiftCard(giftCardId: number, tagId: number, empresaId?: number): Promise<GiftCardTag> {
+    // Log para auditoria de segurança
+    console.log(`[SEGURANÇA] Adicionando tag ${tagId} ao gift card ${giftCardId}, empresaId: ${empresaId || 'não especificado'}`);
+    
+    // Verificar se o gift card e a tag pertencem à mesma empresa, se empresaId fornecido
+    if (empresaId) {
+      const giftCard = await this.getGiftCard(giftCardId);
+      const tag = await this.getTag(tagId);
+      
+      if (!giftCard || giftCard.empresaId !== empresaId) {
+        console.log(`[SEGURANÇA] Gift card ${giftCardId} não pertence à empresa ${empresaId}`);
+        throw new Error(`Gift card não pertence à empresa ${empresaId}`);
+      }
+      
+      if (!tag || tag.empresaId !== empresaId) {
+        console.log(`[SEGURANÇA] Tag ${tagId} não pertence à empresa ${empresaId}`);
+        throw new Error(`Tag não pertence à empresa ${empresaId}`);
+      }
+    }
+    
     // Verificar se o relacionamento já existe
     const existingRelation = Array.from(this.giftCardTags.values()).find(
       rel => rel.giftCardId === giftCardId && rel.tagId === tagId
@@ -1080,20 +1113,43 @@ class MemStorage implements IStorage {
     };
     
     this.giftCardTags.set(id, newGiftCardTag);
+    console.log(`[SEGURANÇA] Tag ${tagId} adicionada com sucesso ao gift card ${giftCardId}`);
     return newGiftCardTag;
   }
   
-  async removeTagFromGiftCard(giftCardId: number, tagId: number): Promise<boolean> {
+  async removeTagFromGiftCard(giftCardId: number, tagId: number, empresaId?: number): Promise<boolean> {
+    // Log para auditoria de segurança
+    console.log(`[SEGURANÇA] Removendo tag ${tagId} do gift card ${giftCardId}, empresaId: ${empresaId || 'não especificado'}`);
+    
+    // Verificar se o gift card e a tag pertencem à mesma empresa, se empresaId fornecido
+    if (empresaId) {
+      const giftCard = await this.getGiftCard(giftCardId);
+      const tag = await this.getTag(tagId);
+      
+      if (!giftCard || giftCard.empresaId !== empresaId) {
+        console.log(`[SEGURANÇA] Gift card ${giftCardId} não pertence à empresa ${empresaId}`);
+        throw new Error(`Gift card não pertence à empresa ${empresaId}`);
+      }
+      
+      if (!tag || tag.empresaId !== empresaId) {
+        console.log(`[SEGURANÇA] Tag ${tagId} não pertence à empresa ${empresaId}`);
+        throw new Error(`Tag não pertence à empresa ${empresaId}`);
+      }
+    }
+
     // Encontrar o relacionamento
     const relation = Array.from(this.giftCardTags.values()).find(
       rel => rel.giftCardId === giftCardId && rel.tagId === tagId
     );
     
     if (!relation) {
+      console.log(`[SEGURANÇA] Relação entre gift card ${giftCardId} e tag ${tagId} não encontrada`);
       return false;
     }
     
-    return this.giftCardTags.delete(relation.id);
+    const result = this.giftCardTags.delete(relation.id);
+    console.log(`[SEGURANÇA] Tag ${tagId} removida ${result ? 'com sucesso' : 'sem sucesso'} do gift card ${giftCardId}`);
+    return result;
   }
 
   // Inicialização dos dados demo

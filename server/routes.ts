@@ -1256,16 +1256,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Obter o usuário autenticado
       const user = (req as any).user;
+      const userId = user.id;
+      const userEmpresaId = user.empresaId;
       
-      // Buscar todos os gift cards com a tag
-      const giftCards = await storage.getGiftCardsByTag(tagId);
+      // Log para auditoria de segurança
+      console.log(`[SEGURANÇA] Usuário ${userId} da empresa ${userEmpresaId} acessando gift cards com tagId ${tagId}`);
       
-      // Filtrar por usuário e empresa se necessário
-      let filteredGiftCards = giftCards.filter(card => {
-        const matchesEmpresa = empresaId ? card.empresaId === empresaId : true;
-        const matchesUser = user.perfilId === 1 ? true : card.userId === user.id; // Admin vê todos, outros só os seus
-        return matchesEmpresa && matchesUser;
-      });
+      // Aplicar filtros de segurança diretamente na camada de storage
+      // O método atualizado já inclui isolamento de dados por userId e empresaId
+      const giftCards = await storage.getGiftCardsByTag(
+        tagId,
+        empresaId || userEmpresaId, // Usar o empresaId da query ou do usuário logado
+        user.perfilId === 1 ? undefined : userId // Se for admin, não filtrar por userId
+      );
+      
+      // Lista já filtrada pelo storage, não precisamos filtrar novamente
+      let filteredGiftCards = giftCards;
       
       // Verificar se o usuário é do perfil convidado
       const isGuest = await isGuestProfile(user.perfilId);
@@ -1342,11 +1348,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Tag não encontrada" });
       }
       
-      // Associar a tag ao gift card
-      const giftCardTag = await storage.addTagToGiftCard(giftCardId, tagId);
+      // Associar a tag ao gift card com verificação de empresa
+      const giftCardTag = await storage.addTagToGiftCard(giftCardId, tagId, user.empresaId);
       
       // Registrar evento para auditoria
-      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${user.id}) associou a tag "${tag.nome}" (ID: ${tagId}) ao Gift Card ID: ${giftCardId}`);
+      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${user.id}) da empresa ${user.empresaId} associou a tag "${tag.nome}" (ID: ${tagId}) ao Gift Card ID: ${giftCardId}`);
       
       res.status(201).json(giftCardTag);
     } catch (error) {
@@ -1376,15 +1382,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Relação entre Gift Card e Tag não encontrada" });
       }
       
-      // Remover a tag do gift card
-      const success = await storage.removeTagFromGiftCard(giftCardId, tagId);
+      // Remover a tag do gift card com verificação de empresa
+      const success = await storage.removeTagFromGiftCard(giftCardId, tagId, user.empresaId);
       
       if (!success) {
         return res.status(500).json({ message: "Falha ao remover tag do Gift Card" });
       }
       
       // Registrar evento para auditoria
-      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${user.id}) removeu a tag ID: ${tagId} do Gift Card ID: ${giftCardId}`);
+      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${user.id}) da empresa ${user.empresaId} removeu a tag ID: ${tagId} do Gift Card ID: ${giftCardId}`);
       
       res.status(204).send();
     } catch (error) {
