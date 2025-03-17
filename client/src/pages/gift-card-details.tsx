@@ -44,13 +44,20 @@ export default function GiftCardDetailsPage() {
     queryFn: getQueryFn({ on401: "throw" })
   });
 
-  // Add default values for missing fields
+  // Add default values for missing fields and handle type safety
   const giftCard = useMemo(() => {
     if (!giftCardData) return null;
+    
+    // Use type assertion to access extended properties safely
+    const typedData = giftCardData as GiftCard & {
+      valorPago?: number | null;
+      valorPendente?: number | null;
+    };
+    
     return {
-      ...giftCardData,
-      valorPago: giftCardData.valorPago ?? null,
-      valorPendente: giftCardData.valorPendente ?? giftCardData.valorInicial,
+      ...typedData,
+      valorPago: typedData.valorPago ?? null,
+      valorPendente: typedData.valorPendente ?? typedData.valorInicial,
     };
   }, [giftCardData]);
 
@@ -139,14 +146,19 @@ export default function GiftCardDetailsPage() {
     }
 
     try {
-      const response = await apiRequest('POST', '/api/transacoes', {
+      // Create proper payload for the transaction
+      const transactionData = {
         giftCardId: giftCard.id,
-        userId: giftCard.userId, // Assuming same user
+        giftCardIds: giftCard.id.toString(), // Required field as per schema
+        userId: giftCard.userId,
         valor: valorTransacao,
         descricao: newTransactionDescription,
         dataTransacao: new Date(),
-        status: "Concluída",
-      });
+        status: "concluida", // Must match the status types defined in the schema
+        empresaId: giftCard.empresaId,
+      };
+
+      const response = await apiRequest('POST', '/api/transacoes', transactionData);
 
       if (!response.ok) {
         throw new Error('Erro ao registrar transação');
