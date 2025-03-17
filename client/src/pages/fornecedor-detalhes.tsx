@@ -76,15 +76,17 @@ export default function FornecedorDetalhesPage({ params }: FornecedorDetalhesPag
     enabled: !!fornecedorId && !!user,
   });
 
-  // Separar gift cards por status
-  const giftCardsAtivos = giftCards.filter(card => card.status === 'ativo');
-  const giftCardsInativos = giftCards.filter(card => card.status !== 'ativo');
-
-  // Ordenar por data de cadastro (mais recente primeiro)
+  // Ordenar todos os gift cards por data de cadastro (mais recente primeiro)
   const sortByCreateDate = (a: GiftCard, b: GiftCard) => {
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   };
-
+  
+  // Ordenar todos os gift cards por data de cadastro
+  const allGiftCardsSorted = [...giftCards].sort(sortByCreateDate);
+  
+  // Mantendo os filtros existentes para compatibilidade com o código existente
+  const giftCardsAtivos = giftCards.filter(card => card.status?.toLowerCase() === 'ativo');
+  const giftCardsInativos = giftCards.filter(card => card.status?.toLowerCase() !== 'ativo');
   const giftCardsAtivosSorted = [...giftCardsAtivos].sort(sortByCreateDate);
   const giftCardsInativosSorted = [...giftCardsInativos].sort(sortByCreateDate);
 
@@ -388,13 +390,13 @@ export default function FornecedorDetalhesPage({ params }: FornecedorDetalhesPag
           </TabsTrigger>
         </TabsList>
         
-        {/* Conteúdo: Gift Cards Ativos */}
+        {/* Conteúdo: Todos os Gift Cards */}
         <TabsContent value="ativos" className="mt-0">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Gift Cards Ativos</CardTitle>
+              <CardTitle className="text-lg">Todos os Gift Cards</CardTitle>
               <CardDescription>
-                Gift cards com saldo disponível para uso
+                Gift cards ordenados por data de cadastro
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -407,10 +409,10 @@ export default function FornecedorDetalhesPage({ params }: FornecedorDetalhesPag
                   <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
                   <p className="text-sm text-muted-foreground">Erro ao carregar gift cards</p>
                 </div>
-              ) : giftCardsAtivosSorted.length === 0 ? (
+              ) : allGiftCardsSorted.length === 0 ? (
                 <div className="text-center py-8 border rounded-lg bg-muted/10">
                   <ShoppingCart className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
-                  <h3 className="text-lg font-medium">Nenhum gift card ativo</h3>
+                  <h3 className="text-lg font-medium">Nenhum gift card cadastrado</h3>
                   <p className="text-sm text-muted-foreground mb-4">
                     Adicione gift cards para este fornecedor
                   </p>
@@ -433,7 +435,7 @@ export default function FornecedorDetalhesPage({ params }: FornecedorDetalhesPag
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {giftCardsAtivosSorted.map((giftCard) => (
+                      {allGiftCardsSorted.map((giftCard) => (
                         <TableRow 
                           key={giftCard.id} 
                           className="cursor-pointer hover:bg-muted/50"
@@ -444,7 +446,7 @@ export default function FornecedorDetalhesPage({ params }: FornecedorDetalhesPag
                           <TableCell className="font-medium">{formatCurrency(giftCard.saldoAtual)}</TableCell>
                           <TableCell>
                             {giftCard.percentualDesconto 
-                              ? `${giftCard.percentualDesconto}%` 
+                              ? <span className="font-medium">{giftCard.percentualDesconto}%</span>
                               : '-'}
                           </TableCell>
                           <TableCell>{formatDate(giftCard.createdAt)}</TableCell>
@@ -464,13 +466,13 @@ export default function FornecedorDetalhesPage({ params }: FornecedorDetalhesPag
           </Card>
         </TabsContent>
         
-        {/* Conteúdo: Gift Cards Inativos */}
+        {/* Conteúdo: Todos os Gift Cards (aba "inativos" mostra o mesmo conteúdo) */}
         <TabsContent value="inativos" className="mt-0">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Gift Cards Inativos</CardTitle>
+              <CardTitle className="text-lg">Todos os Gift Cards</CardTitle>
               <CardDescription>
-                Gift cards expirados ou com saldo zerado
+                Gift cards ordenados por data de cadastro
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -483,13 +485,16 @@ export default function FornecedorDetalhesPage({ params }: FornecedorDetalhesPag
                   <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
                   <p className="text-sm text-muted-foreground">Erro ao carregar gift cards</p>
                 </div>
-              ) : giftCardsInativosSorted.length === 0 ? (
+              ) : allGiftCardsSorted.length === 0 ? (
                 <div className="text-center py-8 border rounded-lg bg-muted/10">
-                  <CheckCircle2 className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
-                  <h3 className="text-lg font-medium">Nenhum gift card inativo</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Todos os gift cards deste fornecedor estão ativos
+                  <ShoppingCart className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
+                  <h3 className="text-lg font-medium">Nenhum gift card cadastrado</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Adicione gift cards para este fornecedor
                   </p>
+                  <Button onClick={() => setLocation('/gift-cards/new')}>
+                    <Plus className="mr-2 h-4 w-4" /> Adicionar Gift Card
+                  </Button>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -506,7 +511,7 @@ export default function FornecedorDetalhesPage({ params }: FornecedorDetalhesPag
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {giftCardsInativosSorted.map((giftCard) => (
+                      {allGiftCardsSorted.map((giftCard) => (
                         <TableRow 
                           key={giftCard.id} 
                           className="cursor-pointer hover:bg-muted/50"
@@ -514,10 +519,10 @@ export default function FornecedorDetalhesPage({ params }: FornecedorDetalhesPag
                         >
                           <TableCell className="font-medium">{giftCard.codigo}</TableCell>
                           <TableCell>{formatCurrency(giftCard.valorInicial)}</TableCell>
-                          <TableCell>{formatCurrency(giftCard.saldoAtual)}</TableCell>
+                          <TableCell className="font-medium">{formatCurrency(giftCard.saldoAtual)}</TableCell>
                           <TableCell>
                             {giftCard.percentualDesconto 
-                              ? `${giftCard.percentualDesconto}%` 
+                              ? <span className="font-medium">{giftCard.percentualDesconto}%</span>
                               : '-'}
                           </TableCell>
                           <TableCell>{formatDate(giftCard.createdAt)}</TableCell>
