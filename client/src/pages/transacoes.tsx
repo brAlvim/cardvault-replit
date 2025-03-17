@@ -1011,9 +1011,19 @@ export default function TransacoesPage() {
                           setSelectedGiftCards(cards);
                           
                           if (cards.length > 0) {
+                            // Usa o primeiro card como giftCardId principal (compatibilidade)
                             const firstCard = cards[0];
                             form.setValue('giftCardId', firstCard.id);
-                            form.setValue('giftCardIds', String(firstCard.id));
+                            
+                            // Converte todos os IDs em uma string separada por vírgulas
+                            const cardIds = cards.map(card => card.id).join(',');
+                            form.setValue('giftCardIds', cardIds);
+                            
+                            // Configura o valor sugerido como o saldo total dos cards
+                            const saldoTotal = cards.reduce((sum, card) => sum + card.saldoAtual, 0);
+                            if (form.getValues('valor') === 0) {
+                              form.setValue('valor', saldoTotal);
+                            }
                           } else {
                             form.setValue('giftCardId', 0);
                             form.setValue('giftCardIds', '');
@@ -1127,7 +1137,7 @@ export default function TransacoesPage() {
                             <PopoverContent className="w-auto p-0" align="start">
                               <Calendar
                                 mode="single"
-                                selected={field.value}
+                                selected={field.value instanceof Date ? field.value : new Date(field.value || '')}
                                 onSelect={field.onChange}
                                 initialFocus
                               />

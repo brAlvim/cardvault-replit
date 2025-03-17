@@ -840,25 +840,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Criando transação com:", transacaoObj);
       const transacao = await storage.createTransacao(transacaoObj);
       
-      // Atualiza o saldo do gift card se a transação for concluída
-      if (transacao.status === 'concluida' && transacao.giftCardId) {
+      // Atualiza o saldo dos gift cards se a transação for concluída
+      if (transacao.status === 'concluida') {
         try {
-          console.log(`Atualizando saldo do gift card ${transacao.giftCardId} após transação concluída`);
-          const giftCard = await storage.getGiftCard(transacao.giftCardId);
-          
-          if (giftCard) {
-            console.log(`Gift card encontrado: ${giftCard.codigo}, saldo atual: ${giftCard.saldoAtual}`);
-            const novoSaldo = giftCard.saldoAtual - transacao.valor;
-            console.log(`Novo saldo calculado: ${novoSaldo}`);
+          // Verifica se temos múltiplos gift cards
+          if (transacao.giftCardIds && transacao.giftCardIds.includes(',')) {
+            console.log(`Processando múltiplos gift cards: ${transacao.giftCardIds}`);
+            const cardIds = transacao.giftCardIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
             
-            await storage.updateGiftCard(giftCard.id, {
-              saldoAtual: novoSaldo
-            });
+            // Primeiro carrega todos os gift cards para calcular a distribuição de valores
+            const cards = await Promise.all(
+              cardIds.map(async (id) => await storage.getGiftCard(id))
+            );
             
-            console.log(`Saldo atualizado com sucesso para: ${novoSaldo}`);
+            // Remove gift cards que não foram encontrados
+            const validCards = cards.filter(card => card !== undefined) as any[];
+            console.log(`Gift cards válidos encontrados: ${validCards.length}`);
+            
+            if (validCards.length > 0) {
+              // Calcula o total de saldo disponível
+              const totalSaldo = validCards.reduce((sum, card) => sum + card.saldoAtual, 0);
+              console.log(`Saldo total disponível: ${totalSaldo}`);
+              
+              // Se o valor da transação for maior que o saldo total, usamos o máximo disponível
+              const valorTransacao = Math.min(transacao.valor, totalSaldo);
+              let valorRestante = valorTransacao;
+              
+              // Distribui o valor proporcionalmente entre os cards
+              for (let i = 0; i < validCards.length; i++) {
+                const card = validCards[i];
+                
+                // Para o último cartão, usamos o que sobrar para evitar problemas de arredondamento
+                const isLastCard = i === validCards.length - 1;
+                let valorDebitar;
+                
+                if (isLastCard) {
+                  valorDebitar = Math.min(valorRestante, card.saldoAtual);
+                } else {
+                  // Cálculo proporcional para cada cartão
+                  valorDebitar = Math.min(
+                    valorRestante, 
+                    card.saldoAtual
+                  );
+                }
+                
+                const novoSaldo = card.saldoAtual - valorDebitar;
+                console.log(`Gift card ${card.codigo}: debitando ${valorDebitar}, novo saldo: ${novoSaldo}`);
+                
+                await storage.updateGiftCard(card.id, {
+                  saldoAtual: novoSaldo
+                });
+                
+                valorRestante -= valorDebitar;
+                
+                // Se não há mais valor para distribuir, saímos do loop
+                if (valorRestante <= 0) break;
+              }
+            }
+          } 
+          // Compatibilidade com transações antigas (gift card único)
+          else if (transacao.giftCardId) {
+            console.log(`Atualizando saldo do gift card ${transacao.giftCardId} após transação concluída`);
+            const giftCard = await storage.getGiftCard(transacao.giftCardId);
+            
+            if (giftCard) {
+              console.log(`Gift card encontrado: ${giftCard.codigo}, saldo atual: ${giftCard.saldoAtual}`);
+              const novoSaldo = giftCard.saldoAtual - transacao.valor;
+              console.log(`Novo saldo calculado: ${novoSaldo}`);
+              
+              await storage.updateGiftCard(giftCard.id, {
+                saldoAtual: novoSaldo
+              });
+              
+              console.log(`Saldo atualizado com sucesso para: ${novoSaldo}`);
+            }
           }
         } catch (error) {
-          console.error(`Erro ao atualizar saldo do gift card: ${error}`);
+          console.error(`Erro ao atualizar saldo dos gift cards: ${error}`);
           // Não interrompe o fluxo, apenas loga o erro
         }
       }
