@@ -25,7 +25,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CreditCard, Key, Lock, Store, User } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { useToast } from "@/hooks/use-toast";
 
 const loginSchema = z.object({
   username: z.string().min(3, { message: "Nome de usuário deve ter pelo menos 3 caracteres" }),
@@ -34,7 +33,7 @@ const loginSchema = z.object({
 
 const registerSchema = z.object({
   username: z.string().min(3, { message: "Nome de usuário deve ter pelo menos 3 caracteres" }),
-  nome: z.string().min(2, { message: "Nome completo deve ter pelo menos 2 caracteres" }),
+  nome: z.string().min(2, { message: "Nome deve ter pelo menos 2 caracteres" }),
   email: z.string().email({ message: "Email inválido" }),
   password: z.string().min(6, { message: "Senha deve ter pelo menos 6 caracteres" }),
   confirmPassword: z.string(),
@@ -50,7 +49,6 @@ export default function AuthPage() {
   const [activeTab, setActiveTab] = useState<string>("login");
   const [, navigate] = useLocation();
   const { user, isAuthenticated, login } = useAuth();
-  const { toast } = useToast();
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -85,12 +83,8 @@ export default function AuthPage() {
   };
 
   const onRegisterSubmit = async (data: RegisterFormValues) => {
-    // Aqui enviaria os dados para a API, mas por enquanto apenas exibe um toast
-    toast({
-      title: "Registro não disponível",
-      description: "Por enquanto, use o usuário demo para acessar o sistema.",
-      variant: "default",
-    });
+    // Implementação futura: registro de novos usuários
+    console.log("Registrar usuário:", data);
   };
 
   return (
