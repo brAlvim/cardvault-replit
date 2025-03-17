@@ -1279,71 +1279,73 @@ export default function TransacoesPage() {
           </div>
         </div>
         
-        {/* Cartão com detalhes do gift card */}
-        {isLoadingGiftCard ? (
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-center py-4">
-                <p className="text-muted-foreground">Carregando detalhes do gift card...</p>
-              </div>
-            </CardContent>
-          </Card>
-        ) : giftCard ? (
-          <Card>
-            <CardContent className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Gift Card</h3>
-                  <p className="text-lg font-semibold mt-1">{giftCard.codigo}</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {fornecedor?.nome}
-                  </p>
+        {/* Cartão com detalhes do gift card - só exibe quando estamos em uma rota específica */}
+        {isRouteMatch && giftCardId > 0 && (
+          isLoadingGiftCard ? (
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-center py-4">
+                  <p className="text-muted-foreground">Carregando detalhes do gift card...</p>
                 </div>
-                
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Valores</h3>
-                  <div className="flex gap-4 mt-1">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Valor Inicial:</p>
-                      <p className="text-base font-medium">{formatMoney(giftCard.valorInicial)}</p>
+              </CardContent>
+            </Card>
+          ) : giftCard ? (
+            <Card>
+              <CardContent className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Gift Card</h3>
+                    <p className="text-lg font-semibold mt-1">{giftCard.codigo}</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {fornecedor?.nome}
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Valores</h3>
+                    <div className="flex gap-4 mt-1">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Valor Inicial:</p>
+                        <p className="text-base font-medium">{formatMoney(giftCard.valorInicial)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Saldo Atual:</p>
+                        <p className={`text-base font-semibold ${giftCard.saldoAtual > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {formatMoney(giftCard.saldoAtual)}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Saldo Atual:</p>
-                      <p className={`text-base font-semibold ${giftCard.saldoAtual > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {formatMoney(giftCard.saldoAtual)}
-                      </p>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Status</h3>
+                    <div className="mt-1 flex items-center">
+                      <Badge 
+                        variant={giftCard.status === 'Ativo' ? 'default' : 'secondary'}
+                        className="uppercase"
+                      >
+                        {giftCard.status}
+                      </Badge>
+                      
+                      {giftCard.dataValidade && (
+                        <p className="text-xs text-muted-foreground ml-2">
+                          Expira em: {formatDate(giftCard.dataValidade)}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
-                
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Status</h3>
-                  <div className="mt-1 flex items-center">
-                    <Badge 
-                      variant={giftCard.status === 'Ativo' ? 'default' : 'secondary'}
-                      className="uppercase"
-                    >
-                      {giftCard.status}
-                    </Badge>
-                    
-                    {giftCard.dataValidade && (
-                      <p className="text-xs text-muted-foreground ml-2">
-                        Expira em: {formatDate(giftCard.dataValidade)}
-                      </p>
-                    )}
-                  </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-center py-4">
+                  <p className="text-muted-foreground">Gift card não encontrado</p>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-center py-4">
-                <p className="text-muted-foreground">Gift card não encontrado</p>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )
         )}
         
         {/* Tabela de transações */}
