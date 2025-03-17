@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
-import { Fornecedor, User } from '@shared/schema';
+import { Fornecedor, Supplier } from '@shared/schema';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
@@ -25,7 +25,7 @@ import {
 import { CalendarIcon, ArrowLeft, CreditCard } from 'lucide-react';
 import { format } from 'date-fns';
 
-export default function GiftCardNewPage() {
+export default function NewGiftCardPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   
@@ -59,9 +59,22 @@ export default function GiftCardNewPage() {
   };
   
   // Dados do usuário logado
-  const { data: userData, isLoading: isLoadingUser } = useQuery<User>({
-    queryKey: ['/api/users/1'], // Na aplicação final, seria o ID do usuário logado
-    queryFn: () => fetch('/api/users/1').then(res => res.json()),
+  const { data: userData, isLoading: isLoadingUser } = useQuery({
+    queryKey: ['/api/auth/me'],
+    queryFn: async () => {
+      try {
+        const response = await fetch('/api/auth/me', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          }
+        });
+        if (!response.ok) return null;
+        return await response.json();
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+        return null;
+      }
+    },
   });
   
   // State para calculos automáticos
@@ -70,7 +83,6 @@ export default function GiftCardNewPage() {
   
   // Efeito para recalcular quando os valores mudarem
   useEffect(() => {
-    console.log('Recalculando com:', valorInicial, valorPago);
     if (valorInicial && valorPago) {
       const total = parseFloat(valorInicial);
       const pago = parseFloat(valorPago);
@@ -83,7 +95,6 @@ export default function GiftCardNewPage() {
         // Calcula o valor economizado
         const economizado = total - pago;
         setValorEconomizado(`R$ ${economizado.toFixed(2)}`);
-        console.log('Valores calculados:', descontoCalculado.toFixed(2), economizado.toFixed(2));
       } else {
         setPercentualDesconto('0');
         setValorEconomizado('R$ 0.00');
@@ -96,17 +107,68 @@ export default function GiftCardNewPage() {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch fornecedores for dropdown 
-  const { data: fornecedores, isLoading: isLoadingFornecedores } = useQuery<Fornecedor[]>({
+  // Fetch fornecedores for dropdown
+  const { data: fornecedores = [], isLoading: isLoadingFornecedores } = useQuery<Fornecedor[]>({
     queryKey: ['/api/fornecedores'],
-    queryFn: () => fetch('/api/fornecedores').then(res => res.json()),
+    queryFn: async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error('Authentication token not found');
+        }
+        
+        const response = await fetch('/api/fornecedores', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        if (!response.ok) {
+          console.error('Failed to fetch fornecedores:', response.statusText);
+          return [];
+        }
+        
+        return await response.json();
+      } catch (error) {
+        console.error('Error fetching fornecedores:', error);
+        return [];
+      }
+    },
   });
   
   // Fetch suppliers (fornecedores de gift cards)
-  const { data: suppliers, isLoading: isLoadingSuppliers } = useQuery({
+  const { data: suppliers = [], isLoading: isLoadingSuppliers } = useQuery<Supplier[]>({
     queryKey: ['/api/suppliers'],
-    queryFn: () => fetch('/api/suppliers').then(res => res.json()),
+    queryFn: async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error('Authentication token not found');
+        }
+        
+        const response = await fetch('/api/suppliers', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        if (!response.ok) {
+          console.error('Failed to fetch suppliers:', response.statusText);
+          return [];
+        }
+        
+        return await response.json();
+      } catch (error) {
+        console.error('Error fetching suppliers:', error);
+        return [];
+      }
+    },
   });
+
+  console.log('Fornecedores:', fornecedores);
+  console.log('Suppliers:', suppliers);
 
   // Validate form
   const isFormValid = (): boolean => {
@@ -150,8 +212,7 @@ export default function GiftCardNewPage() {
     setIsSubmitting(true);
 
     try {
-      // Get user ID (temporary solution - in a real app, this would come from auth context)
-      const userId = 1;
+      const userId = userData?.id;
 
       // Usando apiRequest em vez de fetch direto para incluir o token de autenticação
       const response = await apiRequest('POST', '/api/gift-cards', {
@@ -261,7 +322,7 @@ export default function GiftCardNewPage() {
                     {isLoadingSuppliers ? (
                       <SelectItem value="loading" disabled>Carregando fornecedores de gift card...</SelectItem>
                     ) : suppliers && suppliers.length > 0 ? (
-                      suppliers.map((supplier) => (
+                      suppliers.map((supplier: Supplier) => (
                         <SelectItem key={supplier.id} value={String(supplier.id)}>
                           {supplier.nome}
                         </SelectItem>

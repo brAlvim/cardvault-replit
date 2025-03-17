@@ -1024,7 +1024,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Descriptografar dados para a resposta
-      const decryptedGiftCard = decryptGiftCardData(updatedGiftCard);
+      const decryptedGiftCard = decryptGiftCardData(updatedGiftCard, user.empresaId);
       
       res.json(decryptedGiftCard);
     } catch (error) {
