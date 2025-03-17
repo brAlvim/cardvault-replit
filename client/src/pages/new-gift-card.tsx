@@ -178,14 +178,15 @@ export default function NewGiftCardPage() {
 
   // Validate form
   const isFormValid = (): boolean => {
-    if (!codigo.trim()) {
+    // Código não é mais obrigatório
+    /*if (!codigo.trim()) {
       toast({
         title: "Código obrigatório",
         description: "Por favor, informe o código do gift card.",
         variant: "destructive",
       });
       return false;
-    }
+    }*/
 
     const valor = parseFloat(valorInicial);
     if (isNaN(valor) || valor <= 0) {
@@ -221,6 +222,8 @@ export default function NewGiftCardPage() {
       const userId = userData?.id;
 
       // Usando apiRequest em vez de fetch direto para incluir o token de autenticação
+      // Definindo valorPendente como o mesmo valor do valorInicial para não haver campos duplicados
+      // Removendo ordemUsado pois não é mais necessário na compra do gift card
       const response = await apiRequest('POST', '/api/gift-cards', {
         codigo,
         valorInicial: parseFloat(valorInicial),
@@ -239,10 +242,9 @@ export default function NewGiftCardPage() {
         ordemCompra: ordemCompra.trim() || null,
         percentualDesconto: parseFloat(percentualDesconto),
         valorPago: valorPago ? parseFloat(valorPago) : null,
-        valorPendente: valorPendente ? parseFloat(valorPendente) : null,
+        valorPendente: parseFloat(valorInicial), // Mesmo valor que valorInicial
         gcNumber: gcNumber.trim() || null,
         gcPass: gcPass.trim() || null,
-        ordemUsado: ordemUsado.trim() || null,
       });
 
       if (!response.ok) {
@@ -342,13 +344,12 @@ export default function NewGiftCardPage() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="codigo">Código do Gift Card *</Label>
+              <Label htmlFor="codigo">Código do Gift Card</Label>
               <Input 
                 id="codigo" 
                 placeholder="Código do gift card"
                 value={codigo}
                 onChange={(e) => setCodigo(e.target.value)}
-                required
               />
             </div>
             
@@ -444,7 +445,7 @@ export default function NewGiftCardPage() {
                 </div>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div className="space-y-2">
                   <Label htmlFor="ordemCompra">Ordem de Compra</Label>
                   <Input 
@@ -477,16 +478,6 @@ export default function NewGiftCardPage() {
                       Atualiza automaticamente com base no valor inicial e valor pago
                     </p>
                   )}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="ordemUsado">Ordem Usado</Label>
-                  <Input 
-                    id="ordemUsado" 
-                    placeholder="Ordem de uso"
-                    value={ordemUsado}
-                    onChange={(e) => setOrdemUsado(e.target.value)}
-                  />
                 </div>
               </div>
               
@@ -533,20 +524,7 @@ export default function NewGiftCardPage() {
                 </div>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div className="space-y-2">
-                  <Label htmlFor="valorPendente">Valor Pendente</Label>
-                  <Input 
-                    id="valorPendente" 
-                    placeholder="0.00"
-                    value={valorPendente}
-                    onChange={(e) => setValorPendente(e.target.value)}
-                    type="number"
-                    step="0.01"
-                    min="0"
-                  />
-                </div>
-              </div>
+
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
