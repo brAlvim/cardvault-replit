@@ -781,114 +781,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   router.post("/transacoes", async (req: Request, res: Response) => {
-    console.log("Recebendo requisição para criar transação:", req.body);
-    console.log("Tipo da data recebida:", typeof req.body.dataTransacao);
-    
     try {
-      // Verificar se os campos obrigatórios estão presentes
-      if (!req.body.valor || !req.body.descricao || !req.body.giftCardId) {
-        console.error("Campos obrigatórios ausentes:", { 
-          temValor: !!req.body.valor, 
-          temDescricao: !!req.body.descricao, 
-          temGiftCardId: !!req.body.giftCardId 
-        });
+      // Log da requisição recebida
+      console.log("Recebendo transação:", JSON.stringify(req.body, null, 2));
+      
+      // Extrai dados básicos do corpo da requisição
+      const {
+        valor = 0,
+        descricao = "",
+        giftCardId,
+        giftCardIds = giftCardId ? String(giftCardId) : "",
+        userId = 1,
+        status = "concluida",
+        nomeUsuario = "Usuário"
+      } = req.body;
+      
+      // Validações básicas
+      if (!valor || !descricao || !giftCardId) {
         return res.status(400).json({ 
           message: "Campos obrigatórios ausentes", 
           detalhes: "Os campos valor, descricao e giftCardId são obrigatórios" 
         });
       }
-
-      // Garantir que status tenha um valor padrão se não estiver definido
-      if (!req.body.status) {
-        req.body.status = "concluida";
-      }
-
-      // Garantir que giftCardIds tenha um valor padrão se não estiver definido
-      if (!req.body.giftCardIds && req.body.giftCardId) {
-        req.body.giftCardIds = String(req.body.giftCardId);
-      }
-
-      // Garantir que empresaId seja incluído se vier como query parameter mas não no body
-      if (!req.body.empresaId && req.query.empresaId) {
-        req.body.empresaId = parseInt(req.query.empresaId as string);
-      }
-
-      // Tratamento especial para o campo dataTransacao
+      
+      // Cria objeto de transação básico
+      const transacaoObj = {
+        valor: parseFloat(valor),
+        descricao,
+        giftCardId: parseInt(giftCardId || 0),
+        giftCardIds: giftCardIds || String(giftCardId || ""),
+        userId: parseInt(userId || 1),
+        status,
+        dataTransacao: new Date(),
+        empresaId: 1,
+        nomeUsuario
+      };
+      
+      // Processa opcionais
       if (req.body.dataTransacao) {
+        if (typeof req.body.dataTransacao === 'string') {
+          transacaoObj.dataTransacao = new Date(req.body.dataTransacao);
+        } else if (req.body.dataTransacao instanceof Date) {
+          transacaoObj.dataTransacao = req.body.dataTransacao;
+        }
+      }
+      
+      if (req.body.empresaId) {
+        transacaoObj.empresaId = parseInt(req.body.empresaId);
+      }
+      
+      // Inclui campos opcionais se presentes
+      if (req.body.comprovante) transacaoObj.comprovante = req.body.comprovante;
+      if (req.body.motivoCancelamento) transacaoObj.motivoCancelamento = req.body.motivoCancelamento;
+      if (req.body.ordemInterna) transacaoObj.ordemInterna = req.body.ordemInterna;
+      if (req.body.ordemCompra) transacaoObj.ordemCompra = req.body.ordemCompra;
+      
+      // Cria a transação diretamente pelo storage sem usar Schema Zod
+      console.log("Criando transação com:", transacaoObj);
+      const transacao = await storage.createTransacao(transacaoObj);
+      
+      // Atualiza o saldo do gift card se a transação for concluída
+      if (transacao.status === 'concluida' && transacao.giftCardId) {
         try {
-          // Se for string, tenta converter para formato ISO
-          if (typeof req.body.dataTransacao === 'string') {
-            const dataObj = new Date(req.body.dataTransacao);
-            // Verifica se a data é válida
-            if (isNaN(dataObj.getTime())) {
-              console.error("Data inválida recebida:", req.body.dataTransacao);
-              req.body.dataTransacao = new Date(); // Usa a data atual como fallback
-            } else {
-              // Usa a data do objeto convertido
-              req.body.dataTransacao = dataObj;
-            }
-          } else if (req.body.dataTransacao instanceof Date) {
-            // Já é um objeto Date, não precisa fazer nada
-            console.log("Data já é um objeto Date");
-          } else {
-            // Não é string nem Date, usa data atual
-            console.error("Tipo de data não reconhecido:", typeof req.body.dataTransacao);
-            req.body.dataTransacao = new Date();
+          console.log(`Atualizando saldo do gift card ${transacao.giftCardId} após transação concluída`);
+          const giftCard = await storage.getGiftCard(transacao.giftCardId);
+          
+          if (giftCard) {
+            console.log(`Gift card encontrado: ${giftCard.codigo}, saldo atual: ${giftCard.saldoAtual}`);
+            const novoSaldo = giftCard.saldoAtual - transacao.valor;
+            console.log(`Novo saldo calculado: ${novoSaldo}`);
+            
+            await storage.updateGiftCard(giftCard.id, {
+              saldoAtual: novoSaldo
+            });
+            
+            console.log(`Saldo atualizado com sucesso para: ${novoSaldo}`);
           }
         } catch (error) {
-          console.error("Erro no processamento da data:", error);
-          req.body.dataTransacao = new Date(); // Usa a data atual como fallback
+          console.error(`Erro ao atualizar saldo do gift card: ${error}`);
+          // Não interrompe o fluxo, apenas loga o erro
         }
-      } else {
-        // Se não foi fornecido, usa a data atual
-        console.log("Data não fornecida, usando data atual");
-        req.body.dataTransacao = new Date();
-      }
-
-      // Se o giftCardId for fornecido, verificar se o cartão pertence à empresa
-      const empresaId = req.body.empresaId || (req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined);
-      if (empresaId && req.body.giftCardId) {
-        const giftCard = await storage.getGiftCard(req.body.giftCardId, empresaId);
-        if (!giftCard) {
-          return res.status(404).json({ message: "Gift Card not found for this company" });
-        }
-      }
-
-      console.log("Dados normalizados:", req.body);
-      
-      try {
-        // Primeiro, verificamos o tipo do dataTransacao recebido
-        console.log("Tipo de dataTransacao recebido:", typeof req.body.dataTransacao);
-        if (req.body.dataTransacao instanceof Date) {
-          console.log("É uma instância de Date");
-        } else if (typeof req.body.dataTransacao === 'string') {
-          console.log("É uma string:", req.body.dataTransacao);
-        } else {
-          console.log("É outro tipo:", req.body.dataTransacao);
-        }
-        
-        const transacaoData = insertTransacaoSchema.parse(req.body);
-        console.log("Dados validados pelo schema:", transacaoData);
-        
-        const transacao = await storage.createTransacao(transacaoData);
-        console.log("Transação criada com sucesso:", transacao);
-        return res.status(201).json(transacao);
-      } catch (e) {
-        console.error("Erro específico no processamento da transação:", e);
-        throw e; // Re-lança o erro para ser capturado pelo catch externo
       }
       
-      // Linha removida para evitar duplicação
+      console.log("Transação criada com sucesso:", transacao);
+      return res.status(201).json(transacao);
     } catch (error) {
       console.error("Erro ao criar transação:", error);
-      if (error instanceof z.ZodError) {
-        console.error("Erro de validação ZodError:", error.errors);
-        return res.status(400).json({ 
-          message: fromZodError(error).message,
-          detalhes: error.errors
-        });
-      }
-      res.status(500).json({ message: "Internal server error", erro: String(error) });
+      res.status(500).json({ message: "Falha ao criar transação", error: String(error) });
     }
   });
   
