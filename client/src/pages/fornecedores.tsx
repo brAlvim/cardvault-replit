@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Fornecedor, InsertFornecedor } from "@shared/schema";
+import { Link } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -378,7 +379,14 @@ export default function FornecedoresPage() {
               <TableBody>
                 {fornecedores.map((fornecedor: Fornecedor) => (
                   <TableRow key={fornecedor.id}>
-                    <TableCell className="font-medium">{fornecedor.nome}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link 
+                        to={`/fornecedores/${fornecedor.id}`}
+                        className="text-primary hover:underline cursor-pointer"
+                      >
+                        {fornecedor.nome}
+                      </Link>
+                    </TableCell>
                     <TableCell>
                       {fornecedor.descricao
                         ? fornecedor.descricao.length > 60
