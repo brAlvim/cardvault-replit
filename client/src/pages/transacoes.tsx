@@ -180,6 +180,7 @@ export default function TransacoesPage() {
   const queryClient = useQueryClient();
   
   const [isTransacaoDialogOpen, setIsTransacaoDialogOpen] = useState(false);
+  const [isRefundDialogOpen, setIsRefundDialogOpen] = useState(false);
   const [selectedTransacao, setSelectedTransacao] = useState<Transacao | null>(null);
   const [selectedGiftCards, setSelectedGiftCards] = useState<SelectedGiftCard[]>([]);
   const [selectedFornecedorId, setSelectedFornecedorId] = useState<number | null>(null);
@@ -788,6 +789,16 @@ export default function TransacoesPage() {
             >
               <RefreshCcw className="h-4 w-4 mr-1" />
               Atualizar
+            </Button>
+            
+            <Button 
+              size="sm"
+              variant="outline"
+              className="bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100"
+              onClick={() => setIsRefundDialogOpen(true)}
+            >
+              <RefreshCcw className="h-4 w-4 mr-1" />
+              Processar Reembolso
             </Button>
             
             <Dialog open={isTransacaoDialogOpen} onOpenChange={setIsTransacaoDialogOpen}>
@@ -1583,6 +1594,22 @@ export default function TransacoesPage() {
           )}
         </Card>
       </div>
+
+      {/* Diálogo de Reembolso */}
+      <RefundDialog 
+        isOpen={isRefundDialogOpen}
+        onClose={() => setIsRefundDialogOpen(false)}
+        onRefundComplete={(data) => {
+          // Atualizar as listas após o reembolso ser processado
+          queryClient.invalidateQueries({ queryKey: ['/api/transacoes'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/gift-cards'] });
+          toast({
+            title: "Reembolso processado",
+            description: `Reembolso de ${formatMoney(data.valor)} processado com sucesso.`,
+          });
+        }}
+        user={user}
+      />
     </div>
   );
 }
