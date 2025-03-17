@@ -158,15 +158,9 @@ export default function FornecedoresPage() {
   // Mutation para criar fornecedor
   const createFornecedorMutation = useMutation({
     mutationFn: (newFornecedor: FornecedorFormValues) => {
-      return apiRequest("/api/fornecedores", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          ...newFornecedor,
-          status: "ativo" // Define status como ativo por padrão
-        }),
+      return apiRequest("POST", "/api/fornecedores", {
+        ...newFornecedor,
+        status: "ativo" // Define status como ativo por padrão
       });
     },
     onSuccess: () => {
@@ -190,13 +184,7 @@ export default function FornecedoresPage() {
   // Mutation para atualizar fornecedor
   const updateFornecedorMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<FornecedorFormValues> }) => {
-      return apiRequest(`/api/fornecedores/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(data),
-      });
+      return apiRequest("PUT", `/api/fornecedores/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/fornecedores?userId=${user?.id || 1}`] });
@@ -220,9 +208,7 @@ export default function FornecedoresPage() {
   // Mutation para excluir fornecedor
   const deleteFornecedorMutation = useMutation({
     mutationFn: (id: number) => {
-      return apiRequest(`/api/fornecedores/${id}`, {
-        method: "DELETE",
-      });
+      return apiRequest("DELETE", `/api/fornecedores/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/fornecedores?userId=${user?.id || 1}`] });
@@ -245,13 +231,7 @@ export default function FornecedoresPage() {
   // Mutation para alternar status do fornecedor
   const toggleStatusMutation = useMutation({
     mutationFn: ({ id, novoStatus }: { id: number; novoStatus: string }) => {
-      return apiRequest(`/api/fornecedores/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ status: novoStatus }),
-      });
+      return apiRequest("PUT", `/api/fornecedores/${id}`, { status: novoStatus });
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [`/api/fornecedores?userId=${user?.id || 1}`] });
