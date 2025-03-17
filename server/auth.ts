@@ -21,34 +21,94 @@ declare global {
 }
 
 // Chave secreta para JWT - em produção, isso deve estar no .env
-const JWT_SECRET = "cardvault-secret-key-2024-advanced-security-protocol";
+const JWT_SECRET = process.env.JWT_SECRET || "cardvault-secret-key-2024-advanced-security-protocol";
 
-// Chave para criptografia dos dados sensíveis
-const ENCRYPTION_KEY = crypto.scryptSync("cardvault-encryption-key-2024", "salt", 32);
+// Chaves para criptografia dos dados sensíveis - uma chave por empresa para melhor isolamento
+const ENCRYPTION_KEYS = new Map<number, Buffer>();
 const IV_LENGTH = 16; // Para AES, este é sempre 16
+const ALGORITHM = "aes-256-gcm"; // Algoritmo mais seguro com autenticação
+const TAG_LENGTH = 16; // Authentication tag para AES-GCM
 
-// Função para criptografar dados sensíveis
-export function encrypt(text: string): string {
-  const iv = crypto.randomBytes(IV_LENGTH);
-  const cipher = crypto.createCipheriv("aes-256-cbc", ENCRYPTION_KEY, iv);
-  let encrypted = cipher.update(text, "utf8", "hex");
-  encrypted += cipher.final("hex");
-  return `${iv.toString("hex")}:${encrypted}`;
+// Inicializa uma chave de criptografia única para cada empresa
+function getEncryptionKey(empresaId: number): Buffer {
+  if (!ENCRYPTION_KEYS.has(empresaId)) {
+    // Em produção, isso deve vir de um armazenamento seguro como AWS KMS ou Hashicorp Vault
+    const baseKey = `cardvault-encryption-key-2024-${empresaId}-${process.env.KEY_SALT || 'secure-salt'}`;
+    ENCRYPTION_KEYS.set(
+      empresaId, 
+      crypto.scryptSync(baseKey, crypto.randomBytes(16).toString('hex'), 32)
+    );
+  }
+  return ENCRYPTION_KEYS.get(empresaId)!;
 }
 
-// Função para descriptografar dados sensíveis
-export function decrypt(text: string): string {
+// Função aprimorada para criptografar dados sensíveis
+export function encrypt(text: string, empresaId: number = 1): string {
+  if (!text || text.length === 0) {
+    return "";
+  }
+  
   try {
-    const textParts = text.split(":");
-    const iv = Buffer.from(textParts.shift() || "", "hex");
-    const encryptedText = textParts.join(":");
-    const decipher = crypto.createDecipheriv("aes-256-cbc", ENCRYPTION_KEY, iv);
-    let decrypted = decipher.update(encryptedText, "hex", "utf8");
-    decrypted += decipher.final("utf8");
-    return decrypted;
+    const iv = crypto.randomBytes(IV_LENGTH);
+    const key = getEncryptionKey(empresaId);
+    const cipher = crypto.createCipheriv(ALGORITHM, key, iv, { authTagLength: TAG_LENGTH });
+    
+    let encrypted = cipher.update(text, "utf8", "hex");
+    encrypted += cipher.final("hex");
+    const tag = cipher.getAuthTag().toString('hex');
+    
+    // Formato: iv:tag:encrypted - o tag garante que o dado não foi adulterado
+    return `${iv.toString("hex")}:${tag}:${encrypted}`;
+  } catch (error) {
+    console.error("Erro crítico de criptografia:", error);
+    throw new Error("Falha de segurança ao criptografar dados");
+  }
+}
+
+// Função aprimorada para descriptografar dados sensíveis
+export function decrypt(text: string, empresaId: number = 1): string {
+  if (!text || text.length === 0 || !text.includes(':')) {
+    return text;
+  }
+  
+  try {
+    const parts = text.split(":");
+    // Compatibilidade com o formato antigo
+    if (parts.length === 2) {
+      const iv = Buffer.from(parts[0], "hex");
+      const encrypted = parts[1];
+      const key = getEncryptionKey(empresaId);
+      
+      try {
+        // Tentativa de descriptografar com o algoritmo antigo
+        const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
+        let decrypted = decipher.update(encrypted, "hex", "utf8");
+        decrypted += decipher.final("utf8");
+        return decrypted;
+      } catch (innerError) {
+        console.error("Erro ao descriptografar com formato antigo:", innerError);
+        return "********";
+      }
+    } else if (parts.length === 3) {
+      // Novo formato com tag de autenticação
+      const iv = Buffer.from(parts[0], "hex");
+      const tag = Buffer.from(parts[1], "hex");
+      const encrypted = parts[2];
+      const key = getEncryptionKey(empresaId);
+      
+      const decipher = crypto.createDecipheriv(ALGORITHM, key, iv, { authTagLength: TAG_LENGTH });
+      decipher.setAuthTag(tag);
+      
+      let decrypted = decipher.update(encrypted, "hex", "utf8");
+      decrypted += decipher.final("utf8");
+      return decrypted;
+    } else {
+      throw new Error("Formato de texto criptografado inválido");
+    }
   } catch (error) {
     console.error("Erro ao descriptografar:", error);
-    return text; // Retorna o texto original se houver erro na descriptografia
+    // Por segurança, retornamos um valor mascarado em vez de revelar o erro exato
+    return "********";
   }
 }
 
@@ -243,40 +303,65 @@ export async function isGuestProfile(perfilId: number): Promise<boolean> {
 }
 
 // Função para filtrar informações confidenciais para convidados e aplicar criptografia
-export function filterConfidentialData(giftCard: GiftCard, isGuest: boolean): GiftCard {
+export function filterConfidentialData(giftCard: GiftCard, isGuest: boolean, empresaId: number = 1): GiftCard {
+  // Primeiro, precisamos mascarar todos os valores sensíveis para convidados
   if (isGuest) {
-    // Cria uma cópia do objeto para não modificar o original
-    const filteredCard = { ...giftCard };
+    // Cria uma cópia profunda do objeto para não modificar o original
+    const filteredCard = JSON.parse(JSON.stringify(giftCard));
     
-    // Remove informações confidenciais completamente para convidados
+    // Mascarar todos os dados sensíveis para convidados
     filteredCard.gcNumber = "********"; // Mascara o número do gift card
     filteredCard.gcPass = "********";   // Mascara a senha do gift card
+    filteredCard.valorInicial = 0;      // Oculta valor inicial
+    filteredCard.saldoAtual = 0;        // Oculta saldo atual
+    filteredCard.pin = "****";          // Mascara PIN (se existir)
+    filteredCard.observacoes = null;    // Remove observações que podem conter dados sensíveis
     
     return filteredCard;
   } else {
     // Para usuários autorizados, criptografa os dados sensíveis
     const card = { ...giftCard };
     
-    // Criptografa valores sensíveis se não estiverem vazios
-    if (card.gcNumber && !card.gcNumber.startsWith('***')) {
+    // Criptografa dados sensíveis usando a chave específica da empresa
+    if (card.gcNumber && typeof card.gcNumber === 'string' && !card.gcNumber.startsWith('***')) {
       try {
-        // Verificamos se o número já está criptografado
-        if (!card.gcNumber.includes(':')) {
-          card.gcNumber = encrypt(card.gcNumber);
+        // Verificamos se o número já está criptografado corretamente
+        // O novo formato tem 3 partes separadas por :
+        const parts = card.gcNumber.split(':');
+        const needsReEncryption = parts.length !== 3 || (parts.length > 0 && !parts[0].match(/^[0-9a-f]+$/));
+        
+        if (needsReEncryption) {
+          card.gcNumber = encrypt(card.gcNumber, empresaId);
         }
       } catch (err) {
         console.error("Erro ao criptografar gcNumber:", err);
+        // Em caso de erro, substituímos por valor mascarado por segurança
+        card.gcNumber = "********"; 
       }
     }
     
-    if (card.gcPass && !card.gcPass.startsWith('***')) {
+    if (card.gcPass && typeof card.gcPass === 'string' && !card.gcPass.startsWith('***')) {
       try {
-        // Verificamos se a senha já está criptografada
-        if (!card.gcPass.includes(':')) {
-          card.gcPass = encrypt(card.gcPass);
+        // Verificamos se a senha já está criptografada corretamente
+        const parts = card.gcPass.split(':');
+        const needsReEncryption = parts.length !== 3 || (parts.length > 0 && !parts[0].match(/^[0-9a-f]+$/));
+        
+        if (needsReEncryption) {
+          card.gcPass = encrypt(card.gcPass, empresaId);
         }
       } catch (err) {
         console.error("Erro ao criptografar gcPass:", err);
+        card.gcPass = "********";
+      }
+    }
+    
+    // Se existir campo PIN, também criptografamos
+    if (card.pin && typeof card.pin === 'string' && !card.pin.startsWith('***') && !card.pin.includes(':')) {
+      try {
+        card.pin = encrypt(card.pin, empresaId);
+      } catch (err) {
+        console.error("Erro ao criptografar PIN:", err);
+        card.pin = "****";
       }
     }
     
@@ -285,23 +370,35 @@ export function filterConfidentialData(giftCard: GiftCard, isGuest: boolean): Gi
 }
 
 // Função para descriptografar dados sensíveis de gift cards
-export function decryptGiftCardData(giftCard: GiftCard): GiftCard {
+export function decryptGiftCardData(giftCard: GiftCard, empresaId: number = 1): GiftCard {
   const decryptedCard = { ...giftCard };
   
   // Descriptografa somente se o campo estiver preenchido e criptografado
-  if (decryptedCard.gcNumber && decryptedCard.gcNumber.includes(':')) {
+  if (decryptedCard.gcNumber && typeof decryptedCard.gcNumber === 'string' && decryptedCard.gcNumber.includes(':')) {
     try {
-      decryptedCard.gcNumber = decrypt(decryptedCard.gcNumber);
+      decryptedCard.gcNumber = decrypt(decryptedCard.gcNumber, empresaId);
     } catch (err) {
       console.error("Erro ao descriptografar gcNumber:", err);
+      decryptedCard.gcNumber = "**Erro de Segurança**"; // Indica um erro sem expor detalhes
     }
   }
   
-  if (decryptedCard.gcPass && decryptedCard.gcPass.includes(':')) {
+  if (decryptedCard.gcPass && typeof decryptedCard.gcPass === 'string' && decryptedCard.gcPass.includes(':')) {
     try {
-      decryptedCard.gcPass = decrypt(decryptedCard.gcPass);
+      decryptedCard.gcPass = decrypt(decryptedCard.gcPass, empresaId);
     } catch (err) {
       console.error("Erro ao descriptografar gcPass:", err);
+      decryptedCard.gcPass = "**Erro de Segurança**";
+    }
+  }
+  
+  // Descriptografa PIN se existir
+  if (decryptedCard.pin && typeof decryptedCard.pin === 'string' && decryptedCard.pin.includes(':')) {
+    try {
+      decryptedCard.pin = decrypt(decryptedCard.pin, empresaId);
+    } catch (err) {
+      console.error("Erro ao descriptografar PIN:", err);
+      decryptedCard.pin = "****";
     }
   }
   
@@ -309,10 +406,18 @@ export function decryptGiftCardData(giftCard: GiftCard): GiftCard {
 }
 
 // Função para filtrar array de gift cards com base no perfil
-export function filterGiftCardArray(giftCards: GiftCard[], isGuest: boolean): GiftCard[] {
-  if (!isGuest) return giftCards;
+export function filterGiftCardArray(giftCards: GiftCard[], isGuest: boolean, empresaId: number = 1): GiftCard[] {
+  if (!giftCards || !Array.isArray(giftCards) || giftCards.length === 0) {
+    return [];
+  }
   
-  return giftCards.map(card => filterConfidentialData(card, true));
+  if (!isGuest) {
+    // Para usuários não-convidados, criptografa todos os dados sensíveis
+    return giftCards.map(card => filterConfidentialData(card, false, empresaId));
+  }
+  
+  // Para convidados, mascara completamente os dados sensíveis
+  return giftCards.map(card => filterConfidentialData(card, true, empresaId));
 }
 
 // Verifica se o recurso pertence ao usuário ou se o usuário tem acesso hierárquico
