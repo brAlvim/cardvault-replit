@@ -85,6 +85,7 @@ export interface IStorage {
   createTransacao(transacao: InsertTransacao): Promise<Transacao>;
   updateTransacao(id: number, transacao: Partial<InsertTransacao>): Promise<Transacao | undefined>;
   deleteTransacao(id: number): Promise<boolean>;
+  searchGiftCards(userId: number, searchTerm: string): Promise<GiftCard[]>;
 
   // Tag methods
   getTags(empresaId?: number): Promise<Tag[]>;
@@ -520,6 +521,348 @@ class MemStorage implements IStorage {
     }
     
     return undefined;
+  }
+  
+  async createGiftCard(giftCard: InsertGiftCard): Promise<GiftCard> {
+    const id = this.giftCardId++;
+    const timestamp = new Date();
+    const newGiftCard: GiftCard = {
+      id,
+      codigo: giftCard.codigo,
+      valorInicial: giftCard.valorInicial,
+      saldoAtual: giftCard.saldoAtual || giftCard.valorInicial,
+      dataValidade: giftCard.dataValidade || null,
+      fornecedorId: giftCard.fornecedorId,
+      userId: giftCard.userId,
+      empresaId: giftCard.empresaId,
+      status: giftCard.status || "ativo",
+      pin: giftCard.pin || null,
+      observacoes: giftCard.observacoes || null,
+      categorias: giftCard.categorias || null,
+      imagemUrl: giftCard.imagemUrl || null,
+      dataCadastro: timestamp,
+      ultimaAtualizacao: null,
+      dataUtilizacao: null,
+      dataRecarga: null,
+      valorRecarga: null,
+      ordemCompra: giftCard.ordemCompra || null,
+      ordemInterna: giftCard.ordemInterna || null,
+      ordemUsado: null,
+      createdAt: timestamp,
+      updatedAt: null,
+      valorPendente: giftCard.valorInicial
+    };
+    this.giftCards.set(id, newGiftCard);
+    return newGiftCard;
+  }
+  
+  async updateGiftCard(id: number, giftCardData: Partial<InsertGiftCard>): Promise<GiftCard | undefined> {
+    const giftCard = this.giftCards.get(id);
+    if (!giftCard) return undefined;
+    
+    const timestamp = new Date();
+    const updatedGiftCard: GiftCard = {
+      ...giftCard,
+      codigo: giftCardData.codigo !== undefined ? giftCardData.codigo : giftCard.codigo,
+      valorInicial: giftCardData.valorInicial !== undefined ? giftCardData.valorInicial : giftCard.valorInicial,
+      saldoAtual: giftCardData.saldoAtual !== undefined ? giftCardData.saldoAtual : giftCard.saldoAtual,
+      dataValidade: giftCardData.dataValidade !== undefined ? giftCardData.dataValidade : giftCard.dataValidade,
+      fornecedorId: giftCardData.fornecedorId !== undefined ? giftCardData.fornecedorId : giftCard.fornecedorId,
+      userId: giftCardData.userId !== undefined ? giftCardData.userId : giftCard.userId,
+      empresaId: giftCardData.empresaId !== undefined ? giftCardData.empresaId : giftCard.empresaId,
+      status: giftCardData.status !== undefined ? giftCardData.status : giftCard.status,
+      pin: giftCardData.pin !== undefined ? giftCardData.pin : giftCard.pin,
+      observacoes: giftCardData.observacoes !== undefined ? giftCardData.observacoes : giftCard.observacoes,
+      categorias: giftCardData.categorias !== undefined ? giftCardData.categorias : giftCard.categorias,
+      imagemUrl: giftCardData.imagemUrl !== undefined ? giftCardData.imagemUrl : giftCard.imagemUrl,
+      ordemCompra: giftCardData.ordemCompra !== undefined ? giftCardData.ordemCompra : giftCard.ordemCompra,
+      ordemInterna: giftCardData.ordemInterna !== undefined ? giftCardData.ordemInterna : giftCard.ordemInterna,
+      updatedAt: timestamp
+    };
+    this.giftCards.set(id, updatedGiftCard);
+    return updatedGiftCard;
+  }
+  
+  async deleteGiftCard(id: number): Promise<boolean> {
+    return this.giftCards.delete(id);
+  }
+  
+  async searchGiftCards(userId: number, searchTerm: string): Promise<GiftCard[]> {
+    const lowercaseSearchTerm = searchTerm.toLowerCase();
+    const giftCards = await this.getGiftCards(userId);
+    
+    return giftCards.filter(giftCard => {
+      // Busca no código, observações, etc.
+      return giftCard.codigo.toLowerCase().includes(lowercaseSearchTerm) ||
+             (giftCard.observacoes && giftCard.observacoes.toLowerCase().includes(lowercaseSearchTerm)) ||
+             (giftCard.ordemCompra && giftCard.ordemCompra.toLowerCase().includes(lowercaseSearchTerm)) ||
+             (giftCard.ordemInterna && giftCard.ordemInterna.toLowerCase().includes(lowercaseSearchTerm));
+    });
+  }
+  
+  async getGiftCardsVencimento(userId: number, dias: number): Promise<GiftCard[]> {
+    const dataAtual = new Date();
+    const dataLimite = new Date();
+    dataLimite.setDate(dataLimite.getDate() + dias);
+    
+    const giftCards = await this.getGiftCards(userId);
+    
+    return giftCards.filter(giftCard => {
+      if (!giftCard.dataValidade) return false;
+      
+      const dataValidade = new Date(giftCard.dataValidade);
+      return dataValidade >= dataAtual && dataValidade <= dataLimite;
+    });
+  }
+  
+  async getGiftCardsByTag(tagId: number): Promise<GiftCard[]> {
+    // Encontra todos os GiftCardTag com o tagId fornecido
+    const giftCardTags = Array.from(this.giftCardTags.values()).filter(
+      giftCardTag => giftCardTag.tagId === tagId
+    );
+    
+    // Para cada giftCardId, encontrar o gift card correspondente
+    const giftCardIds = giftCardTags.map(tag => tag.giftCardId);
+    const giftCards = Array.from(this.giftCards.values()).filter(
+      giftCard => giftCardIds.includes(giftCard.id)
+    );
+    
+    return giftCards;
+  }
+  
+  // Transações
+  async getTransacoes(giftCardId: number, empresaId?: number): Promise<Transacao[]> {
+    let transacoes = Array.from(this.transacoes.values()).filter(
+      transacao => transacao.giftCardId === giftCardId
+    );
+    
+    // Se for especificado um empresaId, filtramos por ele
+    if (empresaId) {
+      transacoes = transacoes.filter(transacao => transacao.empresaId === empresaId);
+    }
+    
+    // Ordenar por data mais recente
+    return transacoes.sort((a, b) => 
+      new Date(b.dataTransacao).getTime() - new Date(a.dataTransacao).getTime()
+    );
+  }
+  
+  async getTransacoesByEmpresa(empresaId: number): Promise<Transacao[]> {
+    return Array.from(this.transacoes.values()).filter(
+      transacao => transacao.empresaId === empresaId
+    );
+  }
+  
+  async getTransacao(id: number, empresaId?: number): Promise<Transacao | undefined> {
+    const transacao = this.transacoes.get(id);
+    
+    // Verifica se a transação pertence à empresa especificada
+    if (transacao && empresaId && transacao.empresaId !== empresaId) {
+      return undefined;
+    }
+    
+    return transacao;
+  }
+  
+  async createTransacao(transacao: InsertTransacao): Promise<Transacao> {
+    const id = this.transacaoId++;
+    const timestamp = new Date();
+    const newTransacao: Transacao = {
+      id,
+      giftCardId: transacao.giftCardId,
+      userId: transacao.userId,
+      empresaId: transacao.empresaId,
+      valor: transacao.valor,
+      dataTransacao: transacao.dataTransacao || timestamp,
+      descricao: transacao.descricao,
+      status: transacao.status || "Pendente",
+      comprovante: transacao.comprovante || null,
+      motivoCancelamento: transacao.motivoCancelamento || null,
+      ordemCompra: transacao.ordemCompra || null,
+      ordemInterna: transacao.ordemInterna || null,
+      nomeUsuario: transacao.nomeUsuario || null,
+      refundDe: transacao.refundDe || null,
+      valorRefund: transacao.valorRefund || null,
+      motivoRefund: transacao.motivoRefund || null,
+      createdAt: timestamp,
+      updatedAt: null
+    };
+    this.transacoes.set(id, newTransacao);
+    
+    // Atualizar o saldo do gift card se a transação for concluída
+    if (newTransacao.status === "Concluída") {
+      const giftCard = this.giftCards.get(newTransacao.giftCardId);
+      if (giftCard) {
+        const novoSaldo = Math.max(0, giftCard.saldoAtual - newTransacao.valor);
+        this.updateGiftCard(giftCard.id, { saldoAtual: novoSaldo });
+      }
+    }
+    
+    return newTransacao;
+  }
+  
+  async updateTransacao(id: number, transacaoData: Partial<InsertTransacao>): Promise<Transacao | undefined> {
+    const transacao = this.transacoes.get(id);
+    if (!transacao) return undefined;
+    
+    const oldStatus = transacao.status;
+    const timestamp = new Date();
+    const updatedTransacao: Transacao = {
+      ...transacao,
+      valor: transacaoData.valor !== undefined ? transacaoData.valor : transacao.valor,
+      dataTransacao: transacaoData.dataTransacao !== undefined ? transacaoData.dataTransacao : transacao.dataTransacao,
+      descricao: transacaoData.descricao !== undefined ? transacaoData.descricao : transacao.descricao,
+      status: transacaoData.status !== undefined ? transacaoData.status : transacao.status,
+      comprovante: transacaoData.comprovante !== undefined ? transacaoData.comprovante : transacao.comprovante,
+      motivoCancelamento: transacaoData.motivoCancelamento !== undefined ? transacaoData.motivoCancelamento : transacao.motivoCancelamento,
+      ordemCompra: transacaoData.ordemCompra !== undefined ? transacaoData.ordemCompra : transacao.ordemCompra,
+      ordemInterna: transacaoData.ordemInterna !== undefined ? transacaoData.ordemInterna : transacao.ordemInterna,
+      nomeUsuario: transacaoData.nomeUsuario !== undefined ? transacaoData.nomeUsuario : transacao.nomeUsuario,
+      refundDe: transacaoData.refundDe !== undefined ? transacaoData.refundDe : transacao.refundDe,
+      valorRefund: transacaoData.valorRefund !== undefined ? transacaoData.valorRefund : transacao.valorRefund,
+      motivoRefund: transacaoData.motivoRefund !== undefined ? transacaoData.motivoRefund : transacao.motivoRefund,
+      updatedAt: timestamp
+    };
+    this.transacoes.set(id, updatedTransacao);
+    
+    // Se o status mudou para "Concluída", atualizar o saldo do gift card
+    if (oldStatus !== "Concluída" && updatedTransacao.status === "Concluída") {
+      const giftCard = this.giftCards.get(updatedTransacao.giftCardId);
+      if (giftCard) {
+        const novoSaldo = Math.max(0, giftCard.saldoAtual - updatedTransacao.valor);
+        this.updateGiftCard(giftCard.id, { saldoAtual: novoSaldo });
+      }
+    }
+    // Se o status mudou de "Concluída" para outro estado, restaurar o saldo
+    else if (oldStatus === "Concluída" && updatedTransacao.status !== "Concluída") {
+      const giftCard = this.giftCards.get(updatedTransacao.giftCardId);
+      if (giftCard) {
+        const novoSaldo = giftCard.saldoAtual + updatedTransacao.valor;
+        this.updateGiftCard(giftCard.id, { saldoAtual: novoSaldo });
+      }
+    }
+    
+    return updatedTransacao;
+  }
+  
+  async deleteTransacao(id: number): Promise<boolean> {
+    const transacao = this.transacoes.get(id);
+    if (!transacao) return false;
+    
+    // Se for uma transação concluída, restaurar o saldo do gift card
+    if (transacao.status === "Concluída") {
+      const giftCard = this.giftCards.get(transacao.giftCardId);
+      if (giftCard) {
+        const novoSaldo = giftCard.saldoAtual + transacao.valor;
+        this.updateGiftCard(giftCard.id, { saldoAtual: novoSaldo });
+      }
+    }
+    
+    return this.transacoes.delete(id);
+  }
+
+  // Tags
+  async getTags(empresaId?: number): Promise<Tag[]> {
+    let tags = Array.from(this.tags.values());
+    
+    // Se empresaId for fornecido, filtrar por empresa
+    if (empresaId) {
+      tags = tags.filter(tag => tag.empresaId === empresaId);
+    }
+    
+    return tags;
+  }
+  
+  async getTag(id: number, empresaId?: number): Promise<Tag | undefined> {
+    const tag = this.tags.get(id);
+    
+    // Verifica se a tag pertence à empresa especificada
+    if (tag && empresaId && tag.empresaId !== empresaId) {
+      return undefined;
+    }
+    
+    return tag;
+  }
+  
+  async getTagsByEmpresa(empresaId: number): Promise<Tag[]> {
+    return Array.from(this.tags.values()).filter(
+      tag => tag.empresaId === empresaId
+    );
+  }
+  
+  async createTag(tag: InsertTag): Promise<Tag> {
+    const id = this.tagId++;
+    const timestamp = new Date();
+    const newTag: Tag = {
+      id,
+      nome: tag.nome,
+      cor: tag.cor || "#cccccc",
+      empresaId: tag.empresaId,
+      descricao: tag.descricao || null,
+      createdAt: timestamp,
+      updatedAt: null
+    };
+    this.tags.set(id, newTag);
+    return newTag;
+  }
+  
+  // Gift Card Tags (relacionamento entre gift cards e tags)
+  async getGiftCardTags(giftCardId: number, empresaId?: number): Promise<Tag[]> {
+    // Encontra os relacionamentos para este gift card
+    const giftCardTagRelations = Array.from(this.giftCardTags.values()).filter(
+      rel => rel.giftCardId === giftCardId
+    );
+    
+    // Extrai os IDs das tags
+    const tagIds = giftCardTagRelations.map(rel => rel.tagId);
+    
+    // Busca as tags pelo ID
+    let tags = Array.from(this.tags.values()).filter(
+      tag => tagIds.includes(tag.id)
+    );
+    
+    // Se empresaId for fornecido, filtrar as tags por empresa
+    if (empresaId) {
+      tags = tags.filter(tag => tag.empresaId === empresaId);
+    }
+    
+    return tags;
+  }
+  
+  async addTagToGiftCard(giftCardId: number, tagId: number): Promise<GiftCardTag> {
+    // Verificar se o relacionamento já existe
+    const existingRelation = Array.from(this.giftCardTags.values()).find(
+      rel => rel.giftCardId === giftCardId && rel.tagId === tagId
+    );
+    
+    if (existingRelation) {
+      return existingRelation;
+    }
+    
+    const id = this.giftCardTagId++;
+    const timestamp = new Date();
+    const newGiftCardTag: GiftCardTag = {
+      id,
+      giftCardId,
+      tagId,
+      createdAt: timestamp
+    };
+    
+    this.giftCardTags.set(id, newGiftCardTag);
+    return newGiftCardTag;
+  }
+  
+  async removeTagFromGiftCard(giftCardId: number, tagId: number): Promise<boolean> {
+    // Encontrar o relacionamento
+    const relation = Array.from(this.giftCardTags.values()).find(
+      rel => rel.giftCardId === giftCardId && rel.tagId === tagId
+    );
+    
+    if (!relation) {
+      return false;
+    }
+    
+    return this.giftCardTags.delete(relation.id);
   }
 
   // Inicialização dos dados demo
