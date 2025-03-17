@@ -434,25 +434,21 @@ export default function TransacoesPage() {
       
       console.log("Dados finais para envio:", dadosParaEnviar);
       
-      return fetch('/api/transacoes', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(dadosParaEnviar),
-      }).then(res => {
-        console.log("Resposta da API:", res.status);
-        if (!res.ok) {
-          return res.json().then(errorData => {
-            console.error("Erro na resposta:", errorData);
-            throw new Error(errorData.message || 'Falha ao criar transação');
-          });
-        }
-        return res.json();
-      }).catch(err => {
-        console.error("Erro na chamada da API:", err);
-        throw err;
-      });
+      // Usar apiRequest para garantir que o token JWT seja enviado
+      return apiRequest('POST', '/api/transacoes', dadosParaEnviar)
+        .then(res => {
+          console.log("Resposta da API:", res.status);
+          if (!res.ok) {
+            return res.json().then(errorData => {
+              console.error("Erro na resposta:", errorData);
+              throw new Error(errorData.message || 'Falha ao criar transação');
+            });
+          }
+          return res.json();
+        }).catch(err => {
+          console.error("Erro na chamada da API:", err);
+          throw err;
+        });
     },
     onSuccess: (data) => {
       console.log("Transação criada com sucesso:", data);
@@ -490,16 +486,11 @@ export default function TransacoesPage() {
   // Mutation para atualizar transação
   const updateTransacao = useMutation({
     mutationFn: ({ id, data }: { id: number, data: Partial<TransacaoFormValues> }) => {
-      return fetch(`/api/transacoes/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      }).then(res => {
-        if (!res.ok) throw new Error('Falha ao atualizar transação');
-        return res.json();
-      });
+      return apiRequest('PUT', `/api/transacoes/${id}`, data)
+        .then(res => {
+          if (!res.ok) throw new Error('Falha ao atualizar transação');
+          return res.json();
+        });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/transacoes', giftCardId] });
@@ -524,12 +515,11 @@ export default function TransacoesPage() {
   // Mutation para excluir transação
   const deleteTransacao = useMutation({
     mutationFn: (id: number) => {
-      return fetch(`/api/transacoes/${id}`, {
-        method: 'DELETE',
-      }).then(res => {
-        if (!res.ok) throw new Error('Falha ao excluir transação');
-        return res;
-      });
+      return apiRequest('DELETE', `/api/transacoes/${id}`)
+        .then(res => {
+          if (!res.ok) throw new Error('Falha ao excluir transação');
+          return res;
+        });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/transacoes', giftCardId] });
@@ -787,14 +777,8 @@ export default function TransacoesPage() {
                             
                             console.log("Iniciando teste com dados fixos:", testData);
                             
-                            // Faz a chamada direta para API sem usar a mutation
-                            fetch('/api/transacoes', {
-                              method: 'POST',
-                              headers: {
-                                'Content-Type': 'application/json',
-                              },
-                              body: JSON.stringify(testData),
-                            })
+                            // Faz a chamada usando apiRequest para garantir autenticação
+                            apiRequest('POST', '/api/transacoes', testData)
                             .then(response => {
                               console.log("Status da resposta:", response.status);
                               return response.json().catch(() => {
