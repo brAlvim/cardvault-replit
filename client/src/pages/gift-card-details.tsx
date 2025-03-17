@@ -41,7 +41,20 @@ export default function GiftCardDetailsPage() {
   // Fetch gift card details
   const { data: giftCardData, isLoading: isLoadingGiftCard } = useQuery<GiftCard>({
     queryKey: [`/api/gift-cards/${id}`],
-    queryFn: getQueryFn({ on401: "throw" })
+    queryFn: async () => {
+      console.log("Buscando detalhes do gift card:", id);
+      const res = await fetch(`/api/gift-cards/${id}`);
+      if (!res.ok) {
+        console.error(`Erro ao buscar gift card ${id}:`, res.status, res.statusText);
+        throw new Error('Falha ao carregar gift card');
+      }
+      const data = await res.json();
+      console.log(`Gift card ${id} carregado:`, data);
+      return data;
+    },
+    staleTime: 0, // Não mantenha cache
+    refetchOnMount: true, // Refaz a query quando o componente é montado
+    refetchOnWindowFocus: true, // Refaz a query quando a janela recebe foco
   });
 
   // Add default values for missing fields and handle type safety
@@ -100,8 +113,21 @@ export default function GiftCardDetailsPage() {
   // Fetch transações
   const { data: transacoes, isLoading: isLoadingTransacoes } = useQuery<Transacao[]>({
     queryKey: [`/api/transacoes/${id}`],
-    queryFn: getQueryFn({ on401: "returnNull" }),
+    queryFn: async () => {
+      console.log("Buscando transações para o gift card:", id);
+      const res = await fetch(`/api/transacoes/${id}`);
+      if (!res.ok) {
+        console.error(`Erro ao buscar transações do gift card ${id}:`, res.status, res.statusText);
+        return [];
+      }
+      const data = await res.json();
+      console.log(`Transações do gift card ${id} carregadas:`, data.length);
+      return data;
+    },
     enabled: !!id,
+    staleTime: 0, // Não mantenha cache
+    refetchOnMount: true, // Refaz a query quando o componente é montado
+    refetchOnWindowFocus: true, // Refaz a query quando a janela recebe foco
   });
   
   // Fetch user data para verificação de permissões

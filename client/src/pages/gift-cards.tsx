@@ -32,6 +32,7 @@ export default function GiftCardsPage() {
   const { data: giftCards, isLoading: isLoadingGiftCards } = useQuery<GiftCard[]>({
     queryKey: ['/api/gift-cards', { searchTerm, fornecedorId: selectedFornecedor }],
     queryFn: () => {
+      console.log("Buscando gift cards com filtros:", { searchTerm, fornecedorId: selectedFornecedor });
       let url = '/api/gift-cards';
       const params = [];
       
@@ -51,13 +52,21 @@ export default function GiftCardsPage() {
       const token = localStorage.getItem('token');
       const headers: HeadersInit = token ? { 'Authorization': `Bearer ${token}` } : {};
       
+      console.log("Fazendo requisição para:", url);
       return fetch(url, { headers }).then(res => {
         if (!res.ok) {
+          console.error("Erro ao carregar gift cards:", res.status, res.statusText);
           throw new Error('Falha ao carregar gift cards');
         }
         return res.json();
+      }).then(data => {
+        console.log("Gift cards carregados:", data.length);
+        return data;
       });
     },
+    staleTime: 0, // Não mantenha cache
+    refetchOnMount: true, // Refaz a query quando o componente é montado
+    refetchOnWindowFocus: true, // Refaz a query quando a janela recebe foco
   });
 
   // Fetch fornecedores for filter

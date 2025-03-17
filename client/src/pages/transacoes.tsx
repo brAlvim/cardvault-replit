@@ -197,7 +197,7 @@ export default function TransacoesPage() {
   
   // Query para buscar transações - usa diferentes endpoints dependendo se estamos em uma rota específica de gift card
   const { data: transacoes, isLoading: isLoadingTransacoes, refetch: refetchTransacoes } = useQuery<Transacao[]>({
-    queryKey: isRouteMatch ? ['/api/transacoes', giftCardId] : ['/api/transacoes'],
+    queryKey: isRouteMatch ? [`/api/transacoes/${giftCardId}`] : ['/api/transacoes'],
     queryFn: () => {
       // Obter o token de autenticação do localStorage
       const token = localStorage.getItem('token');
@@ -205,12 +205,17 @@ export default function TransacoesPage() {
       
       // Se estamos em uma rota específica de gift card, busca apenas as transações daquele card
       if (isRouteMatch && giftCardId > 0) {
+        console.log("Buscando transações para o gift card:", giftCardId);
         return fetch(`/api/transacoes/${giftCardId}`, { headers }).then(res => res.json());
       } 
       // Caso contrário, busca todas as transações
+      console.log("Buscando todas as transações");
       return fetch('/api/transacoes', { headers }).then(res => res.json());
     },
-    enabled: isRouteMatch ? giftCardId > 0 : true, // Só ativa se tivermos um ID válido em rota específica
+    enabled: true, // Sempre ativa a query, mesmo sem ID
+    staleTime: 0, // Não mantenha cache dos dados
+    refetchOnMount: true, // Sempre refaz a query quando o componente é montado
+    refetchOnWindowFocus: true, // Refaz a query quando a janela recebe foco
   });
   
   // Query para buscar todos os gift cards disponíveis (para seleção múltipla)
