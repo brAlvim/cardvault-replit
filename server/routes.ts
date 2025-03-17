@@ -12,11 +12,25 @@ import {
   insertSupplierSchema,
   Transacao,
   Fornecedor,
-  Supplier
+  Supplier,
+  GiftCard
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
-import { login, requireAuth, requirePermission, isGuestProfile, filterConfidentialData, filterGiftCardArray } from "./auth";
+import { 
+  login, 
+  requireAuth, 
+  requirePermission, 
+  isGuestProfile, 
+  filterConfidentialData, 
+  filterGiftCardArray, 
+  encrypt, 
+  decrypt, 
+  decryptGiftCardData, 
+  requireResourceOwnership,
+  canUserAccessResource,
+  canUserManageOtherUser
+} from "./auth";
 import jwt from "jsonwebtoken";
 
 // Chave secreta para JWT - em produção, isso deve estar no .env
@@ -821,49 +835,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Gift Card routes (antigo Card)
-  router.get("/gift-cards", requireAuth, async (req: Request, res: Response) => {
+  router.get("/gift-cards", requireAuth, requirePermission("giftcard.visualizar"), async (req: Request, res: Response) => {
     try {
       // Usar o ID do usuário autenticado por padrão
-      const user = (req as any).user;
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
+      
       let userId = user.id;
       
-      // Permitir que administradores vejam os gift cards de outros usuários
-      if (req.query.userId && user.perfilId === 1) { // perfilId 1 é admin
-        userId = parseInt(req.query.userId as string);
-        if (isNaN(userId)) {
-          return res.status(400).json({ message: "Invalid user ID format" });
+      // Permitir que administradores/gerentes vejam os gift cards de outros usuários
+      if (req.query.userId && (user.perfilId === 1 || user.perfilId === 2)) {
+        const requestedUserId = parseInt(req.query.userId as string);
+        
+        if (isNaN(requestedUserId)) {
+          return res.status(400).json({ message: "Formato de ID de usuário inválido" });
         }
+        
+        // Se for gerente, verifica se o usuário solicitado pertence à mesma empresa
+        if (user.perfilId === 2) {
+          const requestedUser = await storage.getUser(requestedUserId);
+          if (!requestedUser || requestedUser.empresaId !== user.empresaId) {
+            return res.status(403).json({ 
+              message: "Você não tem permissão para acessar os gift cards deste usuário" 
+            });
+          }
+        }
+        
+        userId = requestedUserId;
       }
       
       const fornecedorId = req.query.fornecedorId ? parseInt(req.query.fornecedorId as string) : undefined;
-      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      // Sempre usa a empresa do usuário autenticado para garantir isolamento de dados
+      const empresaId = user.empresaId;
       const search = req.query.search as string | undefined;
       
       // Verificar se o usuário é do perfil convidado
       const isGuest = await isGuestProfile(user.perfilId);
       
       if (search) {
-        // TODO: Atualizar o método searchGiftCards para suportar empresaId quando necessário
-        const giftCards = await storage.searchGiftCards(userId, search);
+        // Buscar por gift cards que correspondem ao termo de pesquisa
+        let giftCards = await storage.searchGiftCards(userId, search);
         
-        // Filtrar por empresa se necessário
-        let filteredGiftCards = empresaId 
-          ? giftCards.filter(card => card.empresaId === empresaId)
-          : giftCards;
+        // Verificar acesso a cada gift card
+        const accessibleGiftCards = await Promise.all(
+          giftCards.map(async (card) => {
+            const hasAccess = await canUserAccessResource(
+              user.id,
+              card.userId,
+              user.empresaId,
+              user.perfilId
+            );
+            return hasAccess ? card : null;
+          })
+        );
         
-        // Filtrar dados confidenciais se for perfil convidado
+        // Filtrar os gift cards aos quais o usuário não tem acesso
+        let filteredGiftCards = accessibleGiftCards
+          .filter((card): card is GiftCard => card !== null);
+        
+        // Aplicar criptografia ou mascaramento conforme o perfil
         if (isGuest) {
           filteredGiftCards = filterGiftCardArray(filteredGiftCards, true);
+        } else {
+          filteredGiftCards = filteredGiftCards.map(card => decryptGiftCardData(card));
         }
-          
+        
         return res.json(filteredGiftCards);
       }
       
+      // Buscar gift cards por fornecedor ou todos
       let giftCards = await storage.getGiftCards(userId, fornecedorId, empresaId);
       
-      // Filtrar dados confidenciais se for perfil convidado
+      // Filtrar dados confidenciais conforme o perfil
       if (isGuest) {
         giftCards = filterGiftCardArray(giftCards, true);
+      } else {
+        giftCards = giftCards.map(card => decryptGiftCardData(card));
       }
       
       res.json(giftCards);
@@ -873,129 +922,170 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  router.post("/gift-cards", requireAuth, async (req: Request, res: Response) => {
+  router.post("/gift-cards", requireAuth, requirePermission("giftcard.criar"), async (req: Request, res: Response) => {
     try {
       // Obter o usuário autenticado
-      const user = (req as any).user;
-      
-      // Garantir que empresaId seja incluído se vier como query parameter mas não no body
-      if (!req.body.empresaId && req.query.empresaId) {
-        req.body.empresaId = parseInt(req.query.empresaId as string);
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
       }
+      
+      // Garantir que a empresaId seja sempre a do usuário autenticado para evitar vazamento de dados
+      req.body.empresaId = user.empresaId;
       
       // Garantir que userId seja o do usuário autenticado
       req.body.userId = user.id;
       
+      // Validar os dados com o schema
       const giftCardData = insertGiftCardSchema.parse(req.body);
+      
+      // Criptografar dados sensíveis antes de salvar
+      if (giftCardData.gcNumber) {
+        giftCardData.gcNumber = encrypt(giftCardData.gcNumber);
+      }
+      
+      if (giftCardData.gcPass) {
+        giftCardData.gcPass = encrypt(giftCardData.gcPass);
+      }
+      
+      // Criar o gift card com dados criptografados
       const giftCard = await storage.createGiftCard(giftCardData);
-      res.status(201).json(giftCard);
+      
+      // Descriptografar para a resposta
+      const decryptedGiftCard = decryptGiftCardData(giftCard);
+      
+      res.status(201).json(decryptedGiftCard);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: fromZodError(error).message });
       }
-      res.status(500).json({ message: "Internal server error" });
+      console.error("Erro ao criar gift card:", error);
+      res.status(500).json({ message: "Erro interno do servidor" });
     }
   });
 
-  router.get("/gift-cards/:id", requireAuth, async (req: Request, res: Response) => {
+  router.get("/gift-cards/:id", requireAuth, requirePermission("giftcard.visualizar"), requireResourceOwnership("giftCard"), async (req: Request, res: Response) => {
     try {
       const giftCardId = parseInt(req.params.id);
-      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
-      let giftCard = await storage.getGiftCard(giftCardId, empresaId);
-      
-      if (!giftCard) {
-        return res.status(404).json({ message: "Gift Card not found" });
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
       }
       
-      // Verificar se o usuário tem permissão para ver o gift card
-      const user = (req as any).user;
+      // Buscar gift card (middleware requireResourceOwnership já verifica permissão)
+      const giftCard = await storage.getGiftCard(giftCardId);
       
-      // Verificar se o gift card pertence ao usuário ou se é admin
-      if (giftCard.userId !== user.id && user.perfilId !== 1) {
-        return res.status(403).json({ message: "Você não tem permissão para acessar este Gift Card" });
+      if (!giftCard) {
+        return res.status(404).json({ message: "Gift Card não encontrado" });
       }
       
       // Verificar se o usuário é do perfil convidado
       const isGuest = await isGuestProfile(user.perfilId);
       
-      // Filtrar dados confidenciais se for perfil convidado
+      // Processar o gift card conforme o perfil do usuário
+      let processedGiftCard;
       if (isGuest) {
-        giftCard = filterConfidentialData(giftCard, true);
+        // Para convidados, mascarar informações sensíveis
+        processedGiftCard = filterConfidentialData(giftCard, true);
+      } else {
+        // Para usuários autorizados, descriptografar dados sensíveis
+        processedGiftCard = decryptGiftCardData(giftCard);
       }
       
-      res.json(giftCard);
+      res.json(processedGiftCard);
     } catch (error) {
       console.error("Erro ao buscar gift card:", error);
-      res.status(500).json({ message: "Internal server error" });
+      res.status(500).json({ message: "Erro interno do servidor" });
     }
   });
 
-  router.put("/gift-cards/:id", requireAuth, async (req: Request, res: Response) => {
+  router.put("/gift-cards/:id", requireAuth, requirePermission("giftcard.editar"), requireResourceOwnership("giftCard"), async (req: Request, res: Response) => {
     try {
       const giftCardId = parseInt(req.params.id);
-      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
       
-      // Buscar o gift card para verificações
-      const giftCard = await storage.getGiftCard(giftCardId, empresaId);
+      // Buscar o gift card para verificações (middleware requireResourceOwnership já verificou permissão)
+      const giftCard = await storage.getGiftCard(giftCardId);
       
       if (!giftCard) {
-        return res.status(404).json({ message: "Gift Card not found" });
+        return res.status(404).json({ message: "Gift Card não encontrado" });
       }
       
-      // Verificar se o usuário tem permissão para atualizar o gift card
-      const user = (req as any).user;
-      
-      // Verificar se o gift card pertence ao usuário ou se é admin
-      if (giftCard.userId !== user.id && user.perfilId !== 1) {
-        return res.status(403).json({ message: "Você não tem permissão para modificar este Gift Card" });
-      }
-      
+      // Realizar validação dos dados com Zod
       const giftCardData = insertGiftCardSchema.partial().parse(req.body);
       
+      // Criptografar dados sensíveis se forem modificados
+      if (giftCardData.gcNumber) {
+        giftCardData.gcNumber = encrypt(giftCardData.gcNumber);
+      }
+      
+      if (giftCardData.gcPass) {
+        giftCardData.gcPass = encrypt(giftCardData.gcPass);
+      }
+      
+      // Garantir que empresaId e userId não sejam alterados
+      if (giftCardData.empresaId) {
+        delete giftCardData.empresaId;
+      }
+      
+      if (giftCardData.userId) {
+        delete giftCardData.userId;
+      }
+      
+      // Atualizar o gift card com dados criptografados
       const updatedGiftCard = await storage.updateGiftCard(giftCardId, giftCardData);
       
       if (!updatedGiftCard) {
-        return res.status(404).json({ message: "Gift Card not found" });
+        return res.status(404).json({ message: "Gift Card não encontrado" });
       }
       
-      res.json(updatedGiftCard);
+      // Descriptografar dados para a resposta
+      const decryptedGiftCard = decryptGiftCardData(updatedGiftCard);
+      
+      res.json(decryptedGiftCard);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: fromZodError(error).message });
       }
-      res.status(500).json({ message: "Internal server error" });
+      console.error("Erro ao atualizar gift card:", error);
+      res.status(500).json({ message: "Erro interno do servidor" });
     }
   });
 
-  router.delete("/gift-cards/:id", requireAuth, async (req: Request, res: Response) => {
+  router.delete("/gift-cards/:id", requireAuth, requirePermission("giftcard.excluir"), requireResourceOwnership("giftCard"), async (req: Request, res: Response) => {
     try {
       const giftCardId = parseInt(req.params.id);
-      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
-      
-      // Buscar o gift card para verificações
-      const giftCard = await storage.getGiftCard(giftCardId, empresaId);
-      
-      if (!giftCard) {
-        return res.status(404).json({ message: "Gift Card not found" });
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
       }
       
-      // Verificar se o usuário tem permissão para excluir o gift card
-      const user = (req as any).user;
-      
-      // Verificar se o gift card pertence ao usuário ou se é admin
-      if (giftCard.userId !== user.id && user.perfilId !== 1) {
-        return res.status(403).json({ message: "Você não tem permissão para excluir este Gift Card" });
+      // Verificar transações associadas antes de excluir
+      const transacoes = await storage.getTransacoes(giftCardId);
+      if (transacoes.length > 0) {
+        return res.status(409).json({ 
+          message: "Este Gift Card não pode ser excluído pois possui transações associadas",
+          transacoesCount: transacoes.length
+        });
       }
       
+      // Registrar evento de exclusão para auditoria
+      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${user.id}) excluiu o Gift Card ID: ${giftCardId}`);
+      
+      // Excluir o gift card
       const success = await storage.deleteGiftCard(giftCardId);
       
       if (!success) {
-        return res.status(404).json({ message: "Gift Card not found" });
+        return res.status(404).json({ message: "Gift Card não encontrado" });
       }
       
       res.status(204).send();
     } catch (error) {
-      res.status(500).json({ message: "Internal server error" });
+      console.error("Erro ao excluir gift card:", error);
+      res.status(500).json({ message: "Erro interno do servidor" });
     }
   });
 
