@@ -855,7 +855,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (search) {
         // Buscar por gift cards que correspondem ao termo de pesquisa
-        let giftCards = await storage.searchGiftCards(userId, search);
+        // Passamos o perfilId para aplicar as restrições baseadas em perfil
+        let giftCards = await storage.searchGiftCards(userId, search, user.perfilId);
         
         // Verificar acesso a cada gift card
         const accessibleGiftCards = await Promise.all(
@@ -1110,7 +1111,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const empresaId = user.empresaId;
       
       // Buscar gift cards com vencimento próximo
-      let giftCards = await storage.getGiftCardsVencimento(userId, dias);
+      // Passamos o perfilId para aplicar as restrições baseadas em perfil
+      let giftCards = await storage.getGiftCardsVencimento(userId, dias, user.perfilId);
       
       // Garantir isolamento de dados por empresa
       giftCards = giftCards.filter(giftCard => giftCard.empresaId === empresaId);
@@ -1268,7 +1270,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const giftCards = await storage.getGiftCardsByTag(
         tagId,
         empresaId || userEmpresaId, // Usar o empresaId da query ou do usuário logado
-        user.perfilId === 1 ? undefined : userId // Se for admin, não filtrar por userId
+        user.perfilId === 1 ? undefined : userId, // Se for admin, não filtrar por userId
+        user.perfilId // Passamos o perfil do usuário para aplicar restrições baseadas em perfil
       );
       
       // Lista já filtrada pelo storage, não precisamos filtrar novamente

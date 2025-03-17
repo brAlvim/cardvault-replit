@@ -774,9 +774,9 @@ class MemStorage implements IStorage {
     });
   }
   
-  async getGiftCardsByTag(tagId: number, empresaId?: number, userId?: number): Promise<GiftCard[]> {
+  async getGiftCardsByTag(tagId: number, empresaId?: number, userId?: number, perfilId?: number): Promise<GiftCard[]> {
     // Registrar para fins de auditoria
-    console.log(`[SEGURANÇA] Buscando gift cards com tag ${tagId}, empresaId: ${empresaId || 'não especificado'}, userId: ${userId || 'não especificado'}`);
+    console.log(`[SEGURANÇA] Buscando gift cards com tag ${tagId}, empresaId: ${empresaId || 'não especificado'}, userId: ${userId || 'não especificado'}, perfilId: ${perfilId || 'não especificado'}`);
     
     // Encontra todos os GiftCardTag com o tagId fornecido
     const giftCardTags = Array.from(this.giftCardTags.values()).filter(
@@ -796,8 +796,14 @@ class MemStorage implements IStorage {
       giftCards = giftCards.filter(giftCard => giftCard.empresaId === empresaId);
     }
     
-    // Se um userId for fornecido, filtrar adicionalmente por ele
-    if (userId) {
+    // Aplicar filtros baseados no perfil do usuário
+    // Se não for admin (perfilId 1) ou gerente (perfilId 2), restringir apenas aos gift cards do próprio usuário
+    if (userId && perfilId && perfilId !== 1 && perfilId !== 2) {
+      giftCards = giftCards.filter(giftCard => giftCard.userId === userId);
+    } 
+    // Se for gerente (perfilId 2), já filtramos por empresa
+    // Para usuários comuns e convidados, sempre filtrar por userId
+    else if (userId && !perfilId) {
       giftCards = giftCards.filter(giftCard => giftCard.userId === userId);
     }
     
