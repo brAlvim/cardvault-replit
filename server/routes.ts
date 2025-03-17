@@ -412,6 +412,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = req.user as any;
       let userId = user.id;
       
+      console.log("Usuário autenticado:", JSON.stringify(user));
+      
       // Permitir que administradores vejam os fornecedores de outros usuários
       if (req.query.userId && user.perfilId === 1) { // perfilId 1 é admin
         userId = parseInt(req.query.userId as string);
@@ -419,6 +421,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "Invalid user ID format" });
         }
       }
+      
+      // Verificar se o userId está sendo obtido corretamente da query
+      console.log("Query params:", req.query);
+      console.log("userId da query:", req.query.userId);
       
       // Filtrar por empresa se especificado ou usar a empresa do usuário autenticado
       const empresaId = user.empresaId || 
@@ -430,6 +436,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const fornecedores = await storage.getFornecedores(userId, empresaId);
       
       console.log(`Fornecedores encontrados para userId=${userId}:`, fornecedores.length);
+      if (fornecedores.length > 0) {
+        console.log("Amostra de fornecedores:", fornecedores.slice(0, 3).map(f => ({ 
+          id: f.id, 
+          nome: f.nome, 
+          userId: f.userId, 
+          empresaId: f.empresaId 
+        })));
+      }
       
       res.json(fornecedores);
     } catch (error) {

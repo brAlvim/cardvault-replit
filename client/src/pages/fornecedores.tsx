@@ -91,7 +91,8 @@ export default function FornecedoresPage() {
     isLoading: isLoadingFornecedores,
     error: fornecedoresError,
   } = useQuery<Fornecedor[]>({
-    queryKey: [`/api/fornecedores?userId=${user?.id}`],
+    queryKey: [`/api/fornecedores`],
+    // Não passamos o userId na queryKey porque o endpoint já usa o userId do usuário autenticado
     enabled: !!user,
   });
 
@@ -161,7 +162,7 @@ export default function FornecedoresPage() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/fornecedores?userId=${user?.id}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/fornecedores`] });
       toast({
         title: "Fornecedor criado com sucesso",
         description: "O novo fornecedor foi adicionado ao sistema.",
