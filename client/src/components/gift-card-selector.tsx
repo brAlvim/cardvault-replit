@@ -11,6 +11,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
 import {
   Select,
   SelectContent,
@@ -65,6 +66,7 @@ function formatMoney(value: number | null | undefined): string {
 export default function GiftCardSelector({ onGiftCardSelected, initialSelectedCard }: GiftCardSelectorProps) {
   const [selectedFornecedorId, setSelectedFornecedorId] = useState<number | null>(null);
   const [selectedGiftCards, setSelectedGiftCards] = useState<SelectedGiftCard[]>([]);
+  const { toast } = useToast(); // Para mensagens de feedback ao usuário
 
   // Carregar fornecedores
   const { data: fornecedores = [] } = useQuery<Fornecedor[]>({
@@ -77,6 +79,9 @@ export default function GiftCardSelector({ onGiftCardSelected, initialSelectedCa
     queryKey: ['/api/gift-cards'],
     queryFn: () => fetch('/api/gift-cards').then(res => res.json()),
   });
+  
+  // Limite de gift cards que podem ser selecionados
+  const MAX_GIFT_CARDS = 5;
 
   // Quando um fornecedor é selecionado, filtrar os gift cards
   useEffect(() => {
@@ -146,15 +151,33 @@ export default function GiftCardSelector({ onGiftCardSelected, initialSelectedCa
       {/* Gift cards selecionados */}
       {selectedGiftCards.length > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-md p-3 space-y-3">
-          <h3 className="text-sm font-medium flex items-center justify-between">
-            <span className="flex items-center gap-1">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1">
               <CreditCard size={16} />
-              Gift Card Selecionado
-            </span>
-            <Badge variant="outline" className="bg-blue-100 text-blue-800">
-              {selectedGiftCards.length} de 1
-            </Badge>
-          </h3>
+              <span className="text-sm font-medium">Gift Cards Selecionados</span>
+              <Badge variant="outline" className="bg-blue-100 text-blue-800">
+                {selectedGiftCards.length} de {MAX_GIFT_CARDS}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium">
+                Total: {formatMoney(selectedGiftCards.reduce((sum, card) => sum + card.saldoAtual, 0))}
+              </span>
+              <Button 
+                type="button"
+                variant="ghost" 
+                size="sm"
+                className="h-6 text-red-500 text-xs flex items-center gap-1"
+                onClick={() => {
+                  setSelectedGiftCards([]);
+                  onGiftCardSelected([]);
+                }}
+              >
+                <X className="h-3 w-3" />
+                Limpar
+              </Button>
+            </div>
+          </div>
           
           {selectedGiftCards.map((card) => {
             // Buscar o gift card completo para obter gcNumber e gcPass
@@ -172,9 +195,12 @@ export default function GiftCardSelector({ onGiftCardSelected, initialSelectedCa
                     variant="ghost" 
                     size="icon"
                     className="h-6 w-6 text-red-500"
-                    onClick={() => {
-                      setSelectedGiftCards([]);
-                      onGiftCardSelected([]);
+                    onClick={(e) => {
+                      e.stopPropagation(); // Impede que o clique propague
+                      // Remove apenas este card
+                      const updatedCards = selectedGiftCards.filter(gc => gc.id !== card.id);
+                      setSelectedGiftCards(updatedCards);
+                      onGiftCardSelected(updatedCards);
                     }}
                   >
                     <X className="h-4 w-4" />
@@ -250,11 +276,22 @@ export default function GiftCardSelector({ onGiftCardSelected, initialSelectedCa
                     }`}
                     onClick={() => {
                       if (isSelected) {
-                        // Remove da seleção
-                        setSelectedGiftCards([]);
-                        onGiftCardSelected([]);
+                        // Remove apenas este card da seleção
+                        const updatedCards = selectedGiftCards.filter(sc => sc.id !== card.id);
+                        setSelectedGiftCards(updatedCards);
+                        onGiftCardSelected(updatedCards);
                       } else {
-                        // Adiciona à seleção (apenas um card por vez)
+                        // Verifica se já atingiu o limite de cards selecionados
+                        if (selectedGiftCards.length >= MAX_GIFT_CARDS) {
+                          toast({
+                            title: "Limite de seleção",
+                            description: `Você pode selecionar no máximo ${MAX_GIFT_CARDS} gift cards por vez.`,
+                            variant: "destructive"
+                          });
+                          return;
+                        }
+
+                        // Adiciona à seleção (junto com os já selecionados)
                         const fornecedor = fornecedores.find(f => f.id === card.fornecedorId);
                         const newCard: SelectedGiftCard = {
                           id: card.id,
@@ -263,8 +300,9 @@ export default function GiftCardSelector({ onGiftCardSelected, initialSelectedCa
                           fornecedorNome: fornecedor?.nome
                         };
                         
-                        setSelectedGiftCards([newCard]);
-                        onGiftCardSelected([newCard]);
+                        const updatedCards = [...selectedGiftCards, newCard];
+                        setSelectedGiftCards(updatedCards);
+                        onGiftCardSelected(updatedCards);
                       }
                     }}
                   >
