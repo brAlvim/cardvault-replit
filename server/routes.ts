@@ -1314,7 +1314,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const empresaId = user.empresaId;
       
       // Buscar as tags associadas ao gift card
-      const tags = await storage.getGiftCardTags(giftCardId, empresaId);
+      const tags = await storage.getGiftCardTags(giftCardId, empresaId, user.id, user.perfilId);
       
       // Registrar evento para auditoria
       console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${user.id}) consultou as tags do Gift Card ID: ${giftCardId}`);
@@ -1380,7 +1380,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verificar se a relação entre gift card e tag existe antes de remover
-      const tags = await storage.getGiftCardTags(giftCardId);
+      const tags = await storage.getGiftCardTags(giftCardId, user.empresaId, user.id, user.perfilId);
       const tagExists = tags.some(tag => tag.id === tagId);
       if (!tagExists) {
         return res.status(404).json({ message: "Relação entre Gift Card e Tag não encontrada" });
