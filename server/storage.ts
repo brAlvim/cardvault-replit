@@ -868,20 +868,54 @@ class MemStorage implements IStorage {
     };
     this.transacoes.set(id, updatedTransacao);
     
-    // Se o status mudou para "Concluída", atualizar o saldo do gift card
-    if (oldStatus !== "Concluída" && updatedTransacao.status === "Concluída") {
+    // Se o status mudou para "concluida", atualizar o saldo do gift card
+    if (oldStatus !== "concluida" && updatedTransacao.status === "concluida") {
+      // Atualizar o gift card principal
       const giftCard = this.giftCards.get(updatedTransacao.giftCardId);
       if (giftCard) {
         const novoSaldo = Math.max(0, giftCard.saldoAtual - updatedTransacao.valor);
         this.updateGiftCard(giftCard.id, { saldoAtual: novoSaldo });
       }
+      
+      // Verificar se temos mais gift cards na lista giftCardIds
+      if (updatedTransacao.giftCardIds && updatedTransacao.giftCardIds !== String(updatedTransacao.giftCardId)) {
+        const idsArray = updatedTransacao.giftCardIds.split(',').map(id => parseInt(id.trim()));
+        
+        // Atualizar cada gift card adicional na lista
+        for (const gcId of idsArray) {
+          if (gcId !== updatedTransacao.giftCardId) { // Evitar atualizar o mesmo cartão duas vezes
+            const additionalGiftCard = this.giftCards.get(gcId);
+            if (additionalGiftCard) {
+              const novoSaldo = Math.max(0, additionalGiftCard.saldoAtual - updatedTransacao.valor);
+              this.updateGiftCard(additionalGiftCard.id, { saldoAtual: novoSaldo });
+            }
+          }
+        }
+      }
     }
-    // Se o status mudou de "Concluída" para outro estado, restaurar o saldo
-    else if (oldStatus === "Concluída" && updatedTransacao.status !== "Concluída") {
+    // Se o status mudou de "concluida" para outro estado, restaurar o saldo
+    else if (oldStatus === "concluida" && updatedTransacao.status !== "concluida") {
+      // Restaurar o saldo do gift card principal
       const giftCard = this.giftCards.get(updatedTransacao.giftCardId);
       if (giftCard) {
         const novoSaldo = giftCard.saldoAtual + updatedTransacao.valor;
         this.updateGiftCard(giftCard.id, { saldoAtual: novoSaldo });
+      }
+      
+      // Verificar se temos mais gift cards na lista giftCardIds
+      if (updatedTransacao.giftCardIds && updatedTransacao.giftCardIds !== String(updatedTransacao.giftCardId)) {
+        const idsArray = updatedTransacao.giftCardIds.split(',').map(id => parseInt(id.trim()));
+        
+        // Restaurar o saldo de cada gift card adicional na lista
+        for (const gcId of idsArray) {
+          if (gcId !== updatedTransacao.giftCardId) { // Evitar atualizar o mesmo cartão duas vezes
+            const additionalGiftCard = this.giftCards.get(gcId);
+            if (additionalGiftCard) {
+              const novoSaldo = additionalGiftCard.saldoAtual + updatedTransacao.valor;
+              this.updateGiftCard(additionalGiftCard.id, { saldoAtual: novoSaldo });
+            }
+          }
+        }
       }
     }
     
@@ -893,11 +927,28 @@ class MemStorage implements IStorage {
     if (!transacao) return false;
     
     // Se for uma transação concluída, restaurar o saldo do gift card
-    if (transacao.status === "Concluída") {
+    if (transacao.status === "concluida") {
+      // Restaurar o saldo do gift card principal
       const giftCard = this.giftCards.get(transacao.giftCardId);
       if (giftCard) {
         const novoSaldo = giftCard.saldoAtual + transacao.valor;
         this.updateGiftCard(giftCard.id, { saldoAtual: novoSaldo });
+      }
+      
+      // Verificar se temos mais gift cards na lista giftCardIds
+      if (transacao.giftCardIds && transacao.giftCardIds !== String(transacao.giftCardId)) {
+        const idsArray = transacao.giftCardIds.split(',').map(id => parseInt(id.trim()));
+        
+        // Restaurar o saldo de cada gift card adicional na lista
+        for (const gcId of idsArray) {
+          if (gcId !== transacao.giftCardId) { // Evitar atualizar o mesmo cartão duas vezes
+            const additionalGiftCard = this.giftCards.get(gcId);
+            if (additionalGiftCard) {
+              const novoSaldo = additionalGiftCard.saldoAtual + transacao.valor;
+              this.updateGiftCard(additionalGiftCard.id, { saldoAtual: novoSaldo });
+            }
+          }
+        }
       }
     }
     
