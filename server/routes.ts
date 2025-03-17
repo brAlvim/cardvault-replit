@@ -1108,6 +1108,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rota simplificada de teste para transação
+  router.post("/transacoes-teste", async (req: Request, res: Response) => {
+    try {
+      console.log("TESTE - Recebendo dados:", JSON.stringify(req.body, null, 2));
+      
+      // Dados obrigatórios mínimos
+      const dadosTransacao = {
+        valor: req.body.valor || 10,
+        descricao: req.body.descricao || "Transação de teste",
+        giftCardId: req.body.giftCardId || 1, 
+        giftCardIds: req.body.giftCardIds || "1",
+        userId: req.body.userId || 1,
+        status: "concluida",
+        nomeUsuario: "Teste Automático",
+        dataTransacao: new Date(),
+        empresaId: 1
+      };
+      
+      console.log("TESTE - Dados processados:", dadosTransacao);
+      
+      // Criar transação simplificada diretamente sem validação Zod
+      const transacao = await storage.createTransacao(dadosTransacao);
+      
+      console.log("TESTE - Transação criada com sucesso:", transacao);
+      
+      // Retornar sucesso
+      return res.status(201).json({
+        success: true,
+        message: "Transação de teste criada com sucesso",
+        data: transacao
+      });
+    } catch (error) {
+      console.error("TESTE - Erro ao criar transação:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Falha ao criar transação de teste",
+        error: String(error)
+      });
+    }
+  });
+  
   // Rota para collections (usado pelo sidebar)
   // Esta rota retorna apenas os fornecedores ativos
   router.get("/collections", async (req: Request, res: Response) => {

@@ -789,77 +789,151 @@ export default function TransacoesPage() {
                         <p className="text-xs text-muted-foreground mb-2">
                           Clique abaixo para criar uma transação de teste diretamente
                         </p>
-                        <Button 
-                          type="button" 
-                          variant="outline"
-                          className="w-full bg-amber-100 hover:bg-amber-200"
-                          onClick={() => {
-                            // Seleciona o primeiro gift card
-                            const testGiftCard = allGiftCards[0];
-                            if (!testGiftCard) {
-                              toast({
-                                title: "Erro",
-                                description: "Nenhum gift card disponível para teste",
-                                variant: "destructive",
-                              });
-                              return;
-                            }
-                            
-                            // Cria dados fixos para teste - incluindo o campo dataTransacao em formato ISO string
-                            const testData = {
-                              valor: 10,
-                              descricao: "Teste de transação",
-                              status: "concluida",
-                              giftCardId: testGiftCard.id,
-                              giftCardIds: String(testGiftCard.id),
-                              userId: 1,
-                              dataTransacao: new Date().toISOString(), // Garantimos a data em formato ISO
-                              comprovante: null,
-                              motivoCancelamento: null,
-                              ordemInterna: null,
-                              ordemCompra: null,
-                              nomeUsuario: "Usuário de Teste",
-                            };
-                            
-                            console.log("Iniciando teste com dados fixos:", testData);
-                            
-                            // Faz a chamada usando apiRequest para garantir autenticação
-                            apiRequest('POST', '/api/transacoes', testData)
-                            .then(response => {
-                              console.log("Status da resposta:", response.status);
-                              return response.json().catch(() => {
-                                if (response.ok) {
-                                  return { success: true, message: "Sucesso, mas sem resposta JSON" };
-                                }
-                                throw new Error(`Erro ${response.status}`);
-                              });
-                            })
-                            .then(data => {
-                              console.log("Resposta:", data);
-                              toast({
-                                title: "Sucesso",
-                                description: "Transação de teste criada com sucesso!",
-                              });
+                        <div className="flex flex-col space-y-2">
+                          <Button 
+                            type="button" 
+                            variant="outline"
+                            className="w-full bg-amber-100 hover:bg-amber-200"
+                            onClick={() => {
+                              // Seleciona o primeiro gift card
+                              const testGiftCard = allGiftCards[0];
+                              if (!testGiftCard) {
+                                toast({
+                                  title: "Erro",
+                                  description: "Nenhum gift card disponível para teste",
+                                  variant: "destructive",
+                                });
+                                return;
+                              }
                               
-                              // Atualiza os dados
-                              queryClient.invalidateQueries({ queryKey: ['/api/transacoes'] });
-                              queryClient.invalidateQueries({ queryKey: ['/api/gift-cards'] });
+                              // USANDO A NOVA ROTA DE TESTE
+                              const testData = {
+                                valor: 10,
+                                descricao: "Teste com rota simplificada",
+                                giftCardId: testGiftCard.id,
+                                giftCardIds: String(testGiftCard.id),
+                                userId: 1
+                              };
                               
-                              // Fecha o diálogo
-                              setIsTransacaoDialogOpen(false);
-                            })
-                            .catch(error => {
-                              console.error("Erro na requisição:", error);
-                              toast({
-                                title: "Erro",
-                                description: `Falha ao criar: ${error.message}`,
-                                variant: "destructive",
+                              console.log("Iniciando teste com nova rota:", testData);
+                              
+                              // Faz a chamada usando apiRequest para garantir autenticação
+                              apiRequest('POST', '/api/transacoes-teste', testData)
+                              .then(response => {
+                                console.log("Status da resposta:", response.status);
+                                return response.json().catch(() => {
+                                  if (response.ok) {
+                                    return { success: true, message: "Sucesso, mas sem resposta JSON" };
+                                  }
+                                  throw new Error(`Erro ${response.status}`);
+                                });
+                              })
+                              .then(data => {
+                                console.log("Resposta:", data);
+                                toast({
+                                  title: "Sucesso",
+                                  description: "Transação de teste criada com sucesso!",
+                                });
+                                
+                                // Atualiza os dados
+                                queryClient.invalidateQueries({ queryKey: ['/api/transacoes'] });
+                                queryClient.invalidateQueries({ queryKey: ['/api/gift-cards'] });
+                                
+                                // Fecha o diálogo
+                                setIsTransacaoDialogOpen(false);
+                              })
+                              .catch(error => {
+                                console.error("Erro na requisição:", error);
+                                toast({
+                                  title: "Erro",
+                                  description: `Falha ao criar: ${error.message}`,
+                                  variant: "destructive",
+                                });
                               });
-                            });
-                          }}
-                        >
-                          Criar Transação de Teste
-                        </Button>
+                            }}
+                          >
+                            Criar com Rota Simplificada
+                          </Button>
+                          
+                          <Button 
+                            type="button" 
+                            variant="outline"
+                            className="w-full bg-blue-100 hover:bg-blue-200"
+                            onClick={() => {
+                              // Seleciona o primeiro gift card
+                              const testGiftCard = allGiftCards[0];
+                              if (!testGiftCard) {
+                                toast({
+                                  title: "Erro",
+                                  description: "Nenhum gift card disponível para teste",
+                                  variant: "destructive",
+                                });
+                                return;
+                              }
+                              
+                              // Usado para testar a rota normal
+                              const testData = {
+                                valor: 10,
+                                descricao: "Teste de transação padrão",
+                                status: "concluida",
+                                giftCardId: testGiftCard.id,
+                                giftCardIds: String(testGiftCard.id),
+                                userId: 1,
+                                dataTransacao: new Date().toISOString(), 
+                                comprovante: null,
+                                motivoCancelamento: null,
+                                ordemInterna: null,
+                                ordemCompra: null,
+                                nomeUsuario: "Usuário de Teste",
+                              };
+                              
+                              console.log("Iniciando teste com rota normal:", testData);
+                              
+                              // Usa fetch diretamente para eliminar qualquer middleware
+                              fetch('/api/transacoes', {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                  'Authorization': `Bearer ${localStorage.getItem('token')}`
+                                },
+                                body: JSON.stringify(testData)
+                              })
+                              .then(response => {
+                                console.log("Status da resposta (fetch):", response.status);
+                                return response.json().catch(() => {
+                                  if (response.ok) {
+                                    return { success: true, message: "Sucesso, mas sem resposta JSON" };
+                                  }
+                                  throw new Error(`Erro ${response.status}`);
+                                });
+                              })
+                              .then(data => {
+                                console.log("Resposta (fetch):", data);
+                                toast({
+                                  title: "Sucesso",
+                                  description: "Transação de teste criada com sucesso!",
+                                });
+                                
+                                // Atualiza os dados
+                                queryClient.invalidateQueries({ queryKey: ['/api/transacoes'] });
+                                queryClient.invalidateQueries({ queryKey: ['/api/gift-cards'] });
+                                
+                                // Fecha o diálogo
+                                setIsTransacaoDialogOpen(false);
+                              })
+                              .catch(error => {
+                                console.error("Erro na requisição (fetch):", error);
+                                toast({
+                                  title: "Erro",
+                                  description: `Falha ao criar: ${error.message}`,
+                                  variant: "destructive",
+                                });
+                              });
+                            }}
+                          >
+                            Criar com Fetch Direto
+                          </Button>
+                        </div>
                       </div>
                     )}
                   
