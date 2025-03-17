@@ -86,11 +86,10 @@ export default function Dashboard() {
     queryKey: ['/api/transacoes/recentes', { limit: 5 }],
     queryFn: () => {
       // This is a placeholder since we don't have an endpoint for recent transactions yet
-      // In a real implementation, we'd have a proper endpoint for this
-      const giftCardId = giftCards && giftCards.length > 0 ? giftCards[0].id : 0;
-      return fetch(`/api/transacoes/${giftCardId}`).then(res => res.json());
+      const token = localStorage.getItem('token');
+      const headers: HeadersInit = token ? { 'Authorization': `Bearer ${token}` } : {};
+      return fetch('/api/transacoes', { headers }).then(res => res.json());
     },
-    enabled: !!giftCards && giftCards.length > 0,
   });
 
   // Get upcoming expirations
@@ -372,17 +371,17 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            {/* Transações Recentes */}
+            {/* Atividades Recentes */}
             <Card className="col-span-12 md:col-span-6">
               <CardHeader>
-                <CardTitle className="text-lg">Transações Recentes</CardTitle>
+                <CardTitle className="text-lg">Atividades Recentes</CardTitle>
               </CardHeader>
               <CardContent>
-                {isLoadingTransacoes ? (
+                {isLoadingTransacoes || isLoadingGiftCards ? (
                   <div className="h-[200px] flex items-center justify-center">
                     <p className="text-muted-foreground">Carregando...</p>
                   </div>
-                ) : recentTransacoes && recentTransacoes.length > 0 ? (
+                ) : (giftCards && giftCards.length > 0) || (recentTransacoes && recentTransacoes.length > 0) ? (
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -392,8 +391,28 @@ export default function Dashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {recentTransacoes.slice(0, 4).map((transacao) => (
-                        <TableRow key={transacao.id}>
+                      {/* Mostrar gift cards cadastrados recentemente */}
+                      {giftCards && giftCards.slice(0, 4).map((giftCard) => {
+                        const fornecedor = fornecedores?.find(f => f.id === giftCard.fornecedorId);
+                        return (
+                          <TableRow key={`giftcard-${giftCard.id}`} className="bg-blue-50">
+                            <TableCell>{formatDate(giftCard.dataCadastro)}</TableCell>
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span className="font-medium">Novo Gift Card</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {fornecedor?.nome || 'Desconhecido'} - {giftCard.codigo}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>R$ {giftCard.valorInicial.toFixed(2)}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      
+                      {/* Mostrar transações recentes */}
+                      {recentTransacoes && recentTransacoes.slice(0, 2).map((transacao) => (
+                        <TableRow key={`transaction-${transacao.id}`}>
                           <TableCell>{formatDate(transacao.dataTransacao)}</TableCell>
                           <TableCell>{transacao.descricao}</TableCell>
                           <TableCell>R$ {transacao.valor.toFixed(2)}</TableCell>
@@ -403,7 +422,7 @@ export default function Dashboard() {
                   </Table>
                 ) : (
                   <div className="h-[200px] flex items-center justify-center">
-                    <p className="text-muted-foreground">Nenhuma transação recente</p>
+                    <p className="text-muted-foreground">Nenhuma atividade recente</p>
                   </div>
                 )}
               </CardContent>
