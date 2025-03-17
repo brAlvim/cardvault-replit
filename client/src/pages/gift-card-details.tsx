@@ -203,6 +203,20 @@ export default function GiftCardDetailsPage() {
                   <span className="text-sm text-muted-foreground">Valor Inicial</span>
                   <span className="font-medium">R$ {(giftCard.valorInicial || 0).toFixed(2)}</span>
                 </div>
+                
+                <div className="flex flex-col">
+                  <span className="text-sm text-muted-foreground">Valor Pago</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">
+                      {giftCard.valorPago !== null ? `R$ ${(giftCard.valorPago || 0).toFixed(2)}` : 'N/A'}
+                    </span>
+                    {giftCard.valorPago !== null && giftCard.percentualDesconto && giftCard.percentualDesconto > 0 && (
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                        {giftCard.percentualDesconto.toFixed(2)}% de desconto
+                      </Badge>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
             
@@ -212,6 +226,16 @@ export default function GiftCardDetailsPage() {
                   <span className="text-sm text-muted-foreground">Saldo Atual</span>
                   <span className="font-medium text-lg text-primary">
                     R$ {(giftCard.saldoAtual || 0).toFixed(2)}
+                  </span>
+                </div>
+                
+                <div className="flex flex-col">
+                  <span className="text-sm text-muted-foreground">Valor Economizado</span>
+                  <span className="font-medium text-green-600">
+                    {giftCard.valorPago !== null && giftCard.valorInicial > giftCard.valorPago 
+                      ? `R$ ${(giftCard.valorInicial - giftCard.valorPago).toFixed(2)}`
+                      : 'N/A'
+                    }
                   </span>
                 </div>
                 

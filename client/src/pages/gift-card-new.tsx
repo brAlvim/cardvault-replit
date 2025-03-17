@@ -224,6 +224,29 @@ export default function GiftCardNewPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2 mb-4">
+              <Label htmlFor="fornecedor">Fornecedor *</Label>
+              <Select value={fornecedorId} onValueChange={setFornecedorId} required>
+                <SelectTrigger className="border-2 border-primary/20">
+                  <SelectValue placeholder="Selecione um fornecedor" />
+                </SelectTrigger>
+                <SelectContent>
+                  {isLoadingFornecedores ? (
+                    <SelectItem value="loading" disabled>Carregando fornecedores...</SelectItem>
+                  ) : fornecedores && fornecedores.length > 0 ? (
+                    // Lista apenas fornecedores ativos (já filtrados no useMemo)
+                    fornecedores.map((fornecedor: Fornecedor) => (
+                      <SelectItem key={fornecedor.id} value={String(fornecedor.id)}>
+                        {fornecedor.nome}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="no_fornecedores" disabled>Nenhum fornecedor ativo disponível</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="codigo">Código *</Label>
@@ -249,29 +272,6 @@ export default function GiftCardNewPage() {
                   min="0"
                 />
               </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="fornecedor">Fornecedor *</Label>
-              <Select value={fornecedorId} onValueChange={setFornecedorId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um fornecedor" />
-                </SelectTrigger>
-                <SelectContent>
-                  {isLoadingFornecedores ? (
-                    <SelectItem value="loading" disabled>Carregando fornecedores...</SelectItem>
-                  ) : fornecedores && fornecedores.length > 0 ? (
-                    // Lista apenas fornecedores ativos (já filtrados no useMemo)
-                    fornecedores.map((fornecedor: Fornecedor) => (
-                      <SelectItem key={fornecedor.id} value={String(fornecedor.id)}>
-                        {fornecedor.nome}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="no_fornecedores" disabled>Nenhum fornecedor ativo disponível</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
             </div>
             
             <div className="space-y-2">
