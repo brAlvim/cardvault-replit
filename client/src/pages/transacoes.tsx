@@ -999,172 +999,57 @@ export default function TransacoesPage() {
                       </FormItem>
                     </div>
                     
-                    {/* Seleção de Gift Cards - NOVA VERSÃO */}
-                    <div className="p-4 border rounded-lg bg-blue-50 space-y-4">
-                      <div className="flex justify-between items-center">
-                        <h3 className="text-sm font-semibold text-blue-800">Gift Cards para esta transação</h3>
-                        <Badge variant="outline" className="bg-blue-100 text-blue-800">
-                          {selectedGiftCards.length} selecionado(s)
-                        </Badge>
-                      </div>
+                    {/* Novo componente para seleção de gift cards */}
+                    <div className="p-4 border rounded-lg bg-blue-50 mb-4">
+                      <h3 className="text-sm font-semibold mb-3 text-blue-800">Selecione Gift Card para Transação</h3>
                       
-                      {selectedGiftCards.length > 0 ? (
-                        <div className="space-y-3">
-                          {selectedGiftCards.map((gCard) => {
-                            // Buscar o gift card completo para obter gcNumber e gcPass
-                            const fullCard = allGiftCards.find(gc => gc.id === gCard.id);
-                            
-                            return (
-                              <div key={gCard.id} className="p-3 border rounded bg-white space-y-2">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <CreditCard className="h-4 w-4 text-blue-800" />
-                                    <p className="text-sm font-medium">{gCard.codigo}</p>
-                                  </div>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon"
-                                    className="h-6 w-6 text-red-500"
-                                    onClick={() => {
-                                      setSelectedGiftCards(selectedGiftCards.filter(g => g.id !== gCard.id));
-                                      
-                                      // Atualiza o campo giftCardIds no formulário
-                                      const newIds = selectedGiftCards
-                                        .filter(g => g.id !== gCard.id)
-                                        .map(g => g.id)
-                                        .join(',');
-                                      
-                                      form.setValue('giftCardIds', newIds);
-                                      
-                                      // Se for o último card, zera também o giftCardId principal
-                                      if (newIds === '') {
-                                        form.setValue('giftCardId', 0);
-                                      }
-                                    }}
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                                
-                                {/* Informações básicas */}
-                                <div className="grid grid-cols-2 gap-1 text-xs">
-                                  <div>
-                                    <span className="text-muted-foreground">Fornecedor:</span>
-                                    <span className="ml-1 font-medium">{gCard.fornecedorNome}</span>
-                                  </div>
-                                  <div>
-                                    <span className="text-muted-foreground">Saldo:</span>
-                                    <span className="ml-1 font-medium text-green-600">{formatMoney(gCard.saldoAtual)}</span>
-                                  </div>
-                                </div>
-                                
-                                {/* Informações de acesso (gcNumber e gcPass) */}
-                                {fullCard && (
-                                  <div className="mt-2 pt-2 border-t space-y-2">
-                                    <p className="text-xs font-medium text-blue-800">Informações para compra:</p>
-                                    <div className="grid grid-cols-2 gap-2">
-                                      {fullCard.gcNumber && (
-                                        <div className="space-y-1">
-                                          <p className="text-xs text-muted-foreground">Número do cartão:</p>
-                                          <div className="bg-slate-50 rounded p-1 font-mono text-xs overflow-x-auto">
-                                            {fullCard.gcNumber}
-                                          </div>
-                                        </div>
-                                      )}
-                                      
-                                      {fullCard.gcPass && (
-                                        <div className="space-y-1">
-                                          <p className="text-xs text-muted-foreground">Senha:</p>
-                                          <div className="bg-slate-50 rounded p-1 font-mono text-xs overflow-x-auto">
-                                            {fullCard.gcPass}
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="py-4 text-center text-sm text-muted-foreground">
-                          Nenhum gift card selecionado. Selecione ao menos um abaixo.
-                        </div>
-                      )}
+                      {/* Componente de seleção de gift cards */}
+                      <GiftCardSelector 
+                        initialSelectedCard={giftCardId > 0 ? giftCardId : undefined}
+                        onGiftCardSelected={(cards) => {
+                          // Atualiza os campos do formulário
+                          setSelectedGiftCards(cards);
+                          
+                          if (cards.length > 0) {
+                            const firstCard = cards[0];
+                            form.setValue('giftCardId', firstCard.id);
+                            form.setValue('giftCardIds', String(firstCard.id));
+                          } else {
+                            form.setValue('giftCardId', 0);
+                            form.setValue('giftCardIds', '');
+                          }
+                        }}
+                      />
                       
-                      <div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="w-full"
-                          disabled={selectedGiftCards.length >= 10}
-                          onClick={() => {
-                            // Obtém todos os gift cards que ainda não foram selecionados
-                            // e filtra por fornecedor se um fornecedor foi selecionado
-                            const availableGiftCards = allGiftCards
-                              .filter(g => !selectedGiftCards.some(sg => sg.id === g.id))
-                              .filter(g => selectedFornecedorId ? g.fornecedorId === selectedFornecedorId : true);
-                            
-                            if (availableGiftCards.length === 0) {
-                              toast({
-                                title: "Atenção",
-                                description: "Todos os gift cards já foram selecionados.",
-                                variant: "destructive",
-                              });
-                              return;
-                            }
-                            
-                            // Se ainda não tem nenhum selecionado, adiciona o atual
-                            if (selectedGiftCards.length === 0 && giftCardId > 0) {
-                              const currentGC = allGiftCards.find(g => g.id === giftCardId);
-                              if (currentGC) {
-                                const fornecedor = allFornecedores.find(f => f.id === currentGC.fornecedorId);
-                                // Extrair os últimos 4 dígitos para exibição
-                                const ultimosDigitos = currentGC.codigo.slice(-4);
-                                const newGC: SelectedGiftCard = {
-                                  id: currentGC.id,
-                                  codigo: `${currentGC.codigo} (${ultimosDigitos})`,
-                                  saldoAtual: currentGC.saldoAtual,
-                                  fornecedorNome: fornecedor?.nome || 'Desconhecido'
-                                };
-                                
-                                setSelectedGiftCards([newGC]);
-                                form.setValue('giftCardIds', String(newGC.id));
-                                return;
-                              }
-                            }
-                            
-                            // Abre um diálogo de seleção (será implementado em seguida)
-                            // Por enquanto, apenas adiciona o primeiro gift card disponível
-                            const firstAvailable = availableGiftCards[0];
-                            if (firstAvailable) {
-                              const fornecedor = allFornecedores.find(f => f.id === firstAvailable.fornecedorId);
-                              // Extrair os últimos 4 dígitos para exibição
-                              const ultimosDigitos = firstAvailable.codigo.slice(-4);
-                              const newGC: SelectedGiftCard = {
-                                id: firstAvailable.id,
-                                codigo: `${firstAvailable.codigo} (${ultimosDigitos})`,
-                                saldoAtual: firstAvailable.saldoAtual,
-                                fornecedorNome: fornecedor?.nome || 'Desconhecido'
-                              };
-                              
-                              const newSelected = [...selectedGiftCards, newGC];
-                              setSelectedGiftCards(newSelected);
-                              
-                              // Atualiza o campo giftCardIds no formulário
-                              const newIds = newSelected.map(g => g.id).join(',');
-                              form.setValue('giftCardIds', newIds);
-                            }
-                          }}
-                        >
-                          <Plus className="h-4 w-4 mr-1" />
-                          {selectedGiftCards.length === 0 
-                            ? "Adicionar Gift Card" 
-                            : "Adicionar outro Gift Card"}
-                        </Button>
-                      </div>
+                      {/* Campos ocultos para manter compatibilidade */}
+                      <FormField
+                        control={form.control}
+                        name="giftCardIds"
+                        render={({ field }) => (
+                          <FormItem className="hidden">
+                            <FormControl>
+                              <Input {...field} type="hidden" />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="giftCardId"
+                        render={({ field }) => (
+                          <FormItem className="hidden">
+                            <FormControl>
+                              <Input 
+                                {...field} 
+                                type="hidden" 
+                                value={field.value || 0}
+                                onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
                     </div>
                     
                     {/* Detalhes da transação */}
