@@ -10,6 +10,8 @@ import {
   GiftCardTag, InsertGiftCardTag,
 } from "@shared/schema";
 import { z } from "zod";
+import { db } from "./db";
+import { eq, and, like, or, desc, sql, gt, lt, lte } from "drizzle-orm";
 
 // Esquema de empresa (omitido durante a estrutura inicial)
 export const insertEmpresaSchema = z.object({
@@ -1165,4 +1167,661 @@ class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Implementação da interface IStorage utilizando banco de dados PostgreSQL
+class DatabaseStorage implements IStorage {
+  // Empresa methods
+  async getEmpresas(): Promise<Empresa[]> {
+    return await db.select().from(empresas);
+  }
+
+  async getEmpresa(id: number): Promise<Empresa | undefined> {
+    const [empresa] = await db.select().from(empresas).where(eq(empresas.id, id));
+    return empresa;
+  }
+
+  async getEmpresaByNome(nome: string): Promise<Empresa | undefined> {
+    const [empresa] = await db.select().from(empresas).where(eq(empresas.nome, nome));
+    return empresa;
+  }
+
+  async createEmpresa(empresa: InsertEmpresa): Promise<Empresa> {
+    const [newEmpresa] = await db.insert(empresas).values({
+      nome: empresa.nome,
+      cnpj: empresa.cnpj,
+      email: empresa.email,
+      telefone: empresa.telefone,
+      plano: empresa.plano,
+      status: empresa.status,
+      dataExpiracao: empresa.dataExpiracao,
+      logoUrl: empresa.logoUrl || null,
+      corPrimaria: empresa.corPrimaria || null,
+      endereco: empresa.endereco || null,
+      cidade: empresa.cidade || null,
+      estado: empresa.estado || null,
+      cep: empresa.cep || null,
+      limiteUsuarios: empresa.limiteUsuarios || 5
+    }).returning();
+    return newEmpresa;
+  }
+
+  async updateEmpresa(id: number, empresaData: Partial<InsertEmpresa>): Promise<Empresa | undefined> {
+    const [updatedEmpresa] = await db.update(empresas)
+      .set({
+        ...empresaData,
+        updatedAt: new Date()
+      })
+      .where(eq(empresas.id, id))
+      .returning();
+    return updatedEmpresa;
+  }
+
+  async deleteEmpresa(id: number): Promise<boolean> {
+    const result = await db.delete(empresas).where(eq(empresas.id, id));
+    return result.rowCount > 0;
+  }
+  
+  // Perfil methods
+  async getPerfis(): Promise<Perfil[]> {
+    return await db.select().from(perfis);
+  }
+
+  async getPerfil(id: number): Promise<Perfil | undefined> {
+    const [perfil] = await db.select().from(perfis).where(eq(perfis.id, id));
+    return perfil;
+  }
+
+  async getPerfilByNome(nome: string): Promise<Perfil | undefined> {
+    const [perfil] = await db.select().from(perfis).where(eq(perfis.nome, nome));
+    return perfil;
+  }
+
+  async createPerfil(perfil: InsertPerfil): Promise<Perfil> {
+    const [newPerfil] = await db.insert(perfis).values(perfil).returning();
+    return newPerfil;
+  }
+
+  async updatePerfil(id: number, perfilData: Partial<InsertPerfil>): Promise<Perfil | undefined> {
+    const [updatedPerfil] = await db.update(perfis)
+      .set({
+        ...perfilData,
+        updatedAt: new Date()
+      })
+      .where(eq(perfis.id, id))
+      .returning();
+    return updatedPerfil;
+  }
+
+  async deletePerfil(id: number): Promise<boolean> {
+    const result = await db.delete(perfis).where(eq(perfis.id, id));
+    return result.rowCount > 0;
+  }
+  
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async getUsersByEmpresa(empresaId: number): Promise<User[]> {
+    return await db.select().from(users).where(eq(users.empresaId, empresaId));
+  }
+
+  async createUser(user: InsertUser): Promise<User> {
+    const [newUser] = await db.insert(users).values({
+      username: user.username,
+      password: user.password,
+      email: user.email,
+      nome: user.nome || null,
+      avatarUrl: user.avatarUrl || null,
+      perfilId: user.perfilId || 3,
+      empresaId: user.empresaId || 1,
+      status: user.status || "ativo"
+    }).returning();
+    return newUser;
+  }
+
+  async updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined> {
+    const [updatedUser] = await db.update(users)
+      .set({
+        ...userData,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, id))
+      .returning();
+    return updatedUser;
+  }
+
+  async deleteUser(id: number): Promise<boolean> {
+    const result = await db.delete(users).where(eq(users.id, id));
+    return result.rowCount > 0;
+  }
+
+  async updateUserLastLogin(id: number): Promise<User | undefined> {
+    const now = new Date();
+    const [updatedUser] = await db.update(users)
+      .set({
+        ultimoLogin: now,
+        updatedAt: now
+      })
+      .where(eq(users.id, id))
+      .returning();
+    return updatedUser;
+  }
+
+  async updateUserPasswordResetToken(id: number, token: string): Promise<User | undefined> {
+    const now = new Date();
+    const expireDate = new Date(now);
+    expireDate.setHours(expireDate.getHours() + 1); // Token válido por 1 hora
+    
+    const [updatedUser] = await db.update(users)
+      .set({
+        tokenReset: token,
+        dataExpiracaoToken: expireDate,
+        updatedAt: now
+      })
+      .where(eq(users.id, id))
+      .returning();
+    return updatedUser;
+  }
+  
+  // Fornecedor methods (substitui Collection)
+  async getFornecedores(userId: number, empresaId?: number): Promise<Fornecedor[]> {
+    let query = db.select().from(fornecedores).where(eq(fornecedores.userId, userId));
+    
+    if (empresaId) {
+      query = query.where(eq(fornecedores.empresaId, empresaId));
+    }
+    
+    return await query;
+  }
+
+  async getFornecedor(id: number, empresaId?: number): Promise<Fornecedor | undefined> {
+    let query = db.select().from(fornecedores).where(eq(fornecedores.id, id));
+    
+    if (empresaId) {
+      query = query.where(eq(fornecedores.empresaId, empresaId));
+    }
+    
+    const [fornecedor] = await query;
+    return fornecedor;
+  }
+
+  async getFornecedoresByEmpresa(empresaId: number): Promise<Fornecedor[]> {
+    return await db.select().from(fornecedores).where(eq(fornecedores.empresaId, empresaId));
+  }
+
+  async createFornecedor(fornecedor: InsertFornecedor): Promise<Fornecedor> {
+    const [newFornecedor] = await db.insert(fornecedores).values({
+      nome: fornecedor.nome,
+      descricao: fornecedor.descricao || null,
+      website: fornecedor.website || null,
+      logo: fornecedor.logo || null,
+      status: fornecedor.status || "ativo",
+      userId: fornecedor.userId,
+      empresaId: fornecedor.empresaId || 1
+    }).returning();
+    return newFornecedor;
+  }
+
+  async updateFornecedor(id: number, fornecedorData: Partial<InsertFornecedor>): Promise<Fornecedor | undefined> {
+    const [updatedFornecedor] = await db.update(fornecedores)
+      .set(fornecedorData)
+      .where(eq(fornecedores.id, id))
+      .returning();
+    return updatedFornecedor;
+  }
+
+  async deleteFornecedor(id: number): Promise<boolean> {
+    const result = await db.delete(fornecedores).where(eq(fornecedores.id, id));
+    return result.rowCount > 0;
+  }
+  
+  // Supplier methods (fornecedores de gift cards)
+  async getSuppliers(userId: number, empresaId?: number): Promise<Supplier[]> {
+    let query = db.select().from(suppliers).where(eq(suppliers.userId, userId));
+    
+    if (empresaId) {
+      query = query.where(eq(suppliers.empresaId, empresaId));
+    }
+    
+    return await query;
+  }
+
+  async getSupplier(id: number, empresaId?: number): Promise<Supplier | undefined> {
+    let query = db.select().from(suppliers).where(eq(suppliers.id, id));
+    
+    if (empresaId) {
+      query = query.where(eq(suppliers.empresaId, empresaId));
+    }
+    
+    const [supplier] = await query;
+    return supplier;
+  }
+
+  async getSuppliersByEmpresa(empresaId: number): Promise<Supplier[]> {
+    return await db.select().from(suppliers).where(eq(suppliers.empresaId, empresaId));
+  }
+
+  async createSupplier(supplier: InsertSupplier): Promise<Supplier> {
+    const [newSupplier] = await db.insert(suppliers).values({
+      nome: supplier.nome,
+      cnpj: supplier.cnpj || null,
+      email: supplier.email || null,
+      telefone: supplier.telefone || null,
+      endereco: supplier.endereco || null,
+      cidade: supplier.cidade || null,
+      estado: supplier.estado || null,
+      descricao: supplier.descricao || null,
+      website: supplier.website || null,
+      logo: supplier.logo || null,
+      desconto: supplier.desconto || null,
+      observacoes: supplier.observacoes || null,
+      status: supplier.status || "ativo",
+      userId: supplier.userId,
+      empresaId: supplier.empresaId || 1
+    }).returning();
+    return newSupplier;
+  }
+
+  async updateSupplier(id: number, supplierData: Partial<InsertSupplier>): Promise<Supplier | undefined> {
+    const [updatedSupplier] = await db.update(suppliers)
+      .set({
+        ...supplierData,
+        updatedAt: new Date()
+      })
+      .where(eq(suppliers.id, id))
+      .returning();
+    return updatedSupplier;
+  }
+
+  async deleteSupplier(id: number): Promise<boolean> {
+    const result = await db.delete(suppliers).where(eq(suppliers.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Gift Card methods (substitui Card)
+  async getGiftCards(userId: number, fornecedorId?: number, empresaId?: number): Promise<GiftCard[]> {
+    let query = db.select().from(giftCards).where(eq(giftCards.userId, userId));
+    
+    if (fornecedorId) {
+      query = query.where(eq(giftCards.fornecedorId, fornecedorId));
+    }
+    
+    if (empresaId) {
+      query = query.where(eq(giftCards.empresaId, empresaId));
+    }
+    
+    // Ordenar por data de cadastro (mais recentes primeiro)
+    query = query.orderBy(desc(giftCards.createdAt));
+    
+    return await query;
+  }
+
+  async getGiftCardsByEmpresa(empresaId: number): Promise<GiftCard[]> {
+    return await db.select()
+      .from(giftCards)
+      .where(eq(giftCards.empresaId, empresaId))
+      .orderBy(desc(giftCards.createdAt));
+  }
+
+  async getGiftCard(id: number, empresaId?: number): Promise<GiftCard | undefined> {
+    let query = db.select().from(giftCards).where(eq(giftCards.id, id));
+    
+    if (empresaId) {
+      query = query.where(eq(giftCards.empresaId, empresaId));
+    }
+    
+    const [giftCard] = await query;
+    return giftCard;
+  }
+
+  async createGiftCard(giftCard: InsertGiftCard): Promise<GiftCard> {
+    const [newGiftCard] = await db.insert(giftCards).values({
+      codigo: giftCard.codigo,
+      valorInicial: giftCard.valorInicial,
+      saldoAtual: giftCard.saldoAtual || giftCard.valorInicial,
+      dataValidade: giftCard.dataValidade || null,
+      status: giftCard.status || "ativo",
+      fornecedorId: giftCard.fornecedorId,
+      supplierId: giftCard.supplierId || null,
+      userId: giftCard.userId,
+      observacoes: giftCard.observacoes || null,
+      empresaId: giftCard.empresaId || 1,
+      comprador: giftCard.comprador || null,
+      login: giftCard.login || null,
+      dataCompra: giftCard.dataCompra || new Date(),
+      ordemCompra: giftCard.ordemCompra || null,
+      percentualDesconto: giftCard.percentualDesconto || null,
+      valorPago: giftCard.valorPago || giftCard.valorInicial,
+      valorPendente: giftCard.valorPendente || giftCard.valorInicial,
+      gcNumber: giftCard.gcNumber || null,
+      gcPass: giftCard.gcPass || null,
+      ordemUsado: giftCard.ordemUsado || null
+    }).returning();
+    return newGiftCard;
+  }
+
+  async updateGiftCard(id: number, giftCardData: Partial<InsertGiftCard>): Promise<GiftCard | undefined> {
+    const [updatedGiftCard] = await db.update(giftCards)
+      .set({
+        ...giftCardData,
+        updatedAt: new Date()
+      })
+      .where(eq(giftCards.id, id))
+      .returning();
+    return updatedGiftCard;
+  }
+
+  async deleteGiftCard(id: number): Promise<boolean> {
+    const result = await db.delete(giftCards).where(eq(giftCards.id, id));
+    return result.rowCount > 0;
+  }
+
+  async getGiftCardsVencimento(userId: number, dias: number): Promise<GiftCard[]> {
+    const hoje = new Date();
+    const limite = new Date();
+    limite.setDate(hoje.getDate() + dias);
+    
+    return await db.select()
+      .from(giftCards)
+      .where(eq(giftCards.userId, userId))
+      .where(eq(giftCards.status, "ativo"))
+      .where(sql`${giftCards.dataValidade} IS NOT NULL`)
+      .where(lte(giftCards.dataValidade, limite))
+      .orderBy(giftCards.dataValidade);
+  }
+
+  async getGiftCardsByTag(tagId: number): Promise<GiftCard[]> {
+    return await db.select({
+      giftCard: giftCards
+    })
+    .from(giftCards)
+    .innerJoin(giftCardTags, eq(giftCards.id, giftCardTags.giftCardId))
+    .where(eq(giftCardTags.tagId, tagId))
+    .orderBy(desc(giftCards.createdAt))
+    .then(rows => rows.map(row => row.giftCard));
+  }
+
+  async searchGiftCards(userId: number, searchTerm: string): Promise<GiftCard[]> {
+    const term = `%${searchTerm}%`;
+    
+    return await db.select()
+      .from(giftCards)
+      .where(eq(giftCards.userId, userId))
+      .where(
+        or(
+          like(giftCards.codigo, term),
+          like(giftCards.observacoes, term)
+        )
+      )
+      .orderBy(desc(giftCards.createdAt));
+  }
+
+  // Transação methods (novo)
+  async getTransacoes(giftCardId: number, empresaId?: number): Promise<Transacao[]> {
+    let query = db.select().from(transacoes).where(eq(transacoes.giftCardId, giftCardId));
+    
+    if (empresaId) {
+      query = query.where(eq(transacoes.empresaId, empresaId));
+    }
+    
+    return await query.orderBy(desc(transacoes.dataTransacao));
+  }
+
+  async getTransacoesByEmpresa(empresaId: number): Promise<Transacao[]> {
+    return await db.select()
+      .from(transacoes)
+      .where(eq(transacoes.empresaId, empresaId))
+      .orderBy(desc(transacoes.dataTransacao));
+  }
+
+  async getTransacao(id: number, empresaId?: number): Promise<Transacao | undefined> {
+    let query = db.select().from(transacoes).where(eq(transacoes.id, id));
+    
+    if (empresaId) {
+      query = query.where(eq(transacoes.empresaId, empresaId));
+    }
+    
+    const [transacao] = await query;
+    return transacao;
+  }
+
+  async createTransacao(transacao: InsertTransacao): Promise<Transacao> {
+    const [newTransacao] = await db.insert(transacoes).values({
+      giftCardId: transacao.giftCardId,
+      giftCardIds: transacao.giftCardIds,
+      valor: transacao.valor,
+      descricao: transacao.descricao,
+      userId: transacao.userId,
+      dataTransacao: transacao.dataTransacao || new Date(),
+      comprovante: transacao.comprovante || null,
+      status: transacao.status || "concluida",
+      motivoCancelamento: transacao.motivoCancelamento || null,
+      valorRefund: transacao.valorRefund || null,
+      motivoRefund: transacao.motivoRefund || null,
+      refundDe: transacao.refundDe || null,
+      ordemInterna: transacao.ordemInterna || null,
+      ordemCompra: transacao.ordemCompra || null,
+      nomeUsuario: transacao.nomeUsuario || null,
+      empresaId: transacao.empresaId || 1
+    }).returning();
+    return newTransacao;
+  }
+
+  async updateTransacao(id: number, transacaoData: Partial<InsertTransacao>): Promise<Transacao | undefined> {
+    const [updatedTransacao] = await db.update(transacoes)
+      .set(transacaoData)
+      .where(eq(transacoes.id, id))
+      .returning();
+    return updatedTransacao;
+  }
+
+  async deleteTransacao(id: number): Promise<boolean> {
+    const result = await db.delete(transacoes).where(eq(transacoes.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Tag methods
+  async getTags(empresaId?: number): Promise<Tag[]> {
+    let query = db.select().from(tags);
+    
+    if (empresaId) {
+      query = query.where(eq(tags.empresaId, empresaId));
+    }
+    
+    return await query;
+  }
+
+  async getTag(id: number, empresaId?: number): Promise<Tag | undefined> {
+    let query = db.select().from(tags).where(eq(tags.id, id));
+    
+    if (empresaId) {
+      query = query.where(eq(tags.empresaId, empresaId));
+    }
+    
+    const [tag] = await query;
+    return tag;
+  }
+
+  async getTagsByEmpresa(empresaId: number): Promise<Tag[]> {
+    return await db.select().from(tags).where(eq(tags.empresaId, empresaId));
+  }
+
+  async createTag(tag: InsertTag): Promise<Tag> {
+    const [newTag] = await db.insert(tags).values({
+      nome: tag.nome,
+      empresaId: tag.empresaId || 1
+    }).returning();
+    return newTag;
+  }
+  
+  // Gift Card Tag methods
+  async addTagToGiftCard(giftCardId: number, tagId: number): Promise<GiftCardTag> {
+    const [giftCardTag] = await db.insert(giftCardTags).values({
+      giftCardId: giftCardId,
+      tagId: tagId
+    }).returning();
+    return giftCardTag;
+  }
+
+  async removeTagFromGiftCard(giftCardId: number, tagId: number): Promise<boolean> {
+    const result = await db.delete(giftCardTags)
+      .where(and(
+        eq(giftCardTags.giftCardId, giftCardId),
+        eq(giftCardTags.tagId, tagId)
+      ));
+    return result.rowCount > 0;
+  }
+
+  async getGiftCardTags(giftCardId: number, empresaId?: number): Promise<Tag[]> {
+    let query = db
+      .select({
+        tag: tags
+      })
+      .from(tags)
+      .innerJoin(giftCardTags, eq(tags.id, giftCardTags.tagId))
+      .where(eq(giftCardTags.giftCardId, giftCardId));
+    
+    if (empresaId) {
+      query = query.where(eq(tags.empresaId, empresaId));
+    }
+    
+    const results = await query;
+    return results.map(r => r.tag);
+  }
+
+  // Método para inicializar os dados de demonstração
+  async initializeDemoData() {
+    console.log("Inicializando dados de demonstração no banco de dados...");
+    
+    try {
+      // Verificar se já existem dados no banco
+      const empresaCount = await db.select({ count: sql<number>`count(*)` }).from(empresas);
+      const hasData = empresaCount[0].count > 0;
+      
+      if (hasData) {
+        console.log("Dados já existem no banco, pulando inicialização.");
+        return;
+      }
+      
+      // Inicializa empresa demo
+      const [empresa] = await db.insert(empresas).values({
+        nome: "CardVault Inc.",
+        cnpj: "12.345.678/0001-99",
+        email: "contato@cardvault.com",
+        telefone: "+55 11 1234-5678",
+        plano: "empresarial",
+        status: "ativo",
+        dataExpiracao: new Date("2026-12-31"),
+        logoUrl: "https://logo.cardvault.com/logo.png"
+      }).returning();
+      
+      console.log("Empresa demo criada com ID:", empresa.id);
+      
+      // Inicializa perfis
+      await db.insert(perfis).values([
+        {
+          nome: "admin",
+          descricao: "Administrador do sistema",
+          permissoes: ["*"]
+        },
+        {
+          nome: "gerente",
+          descricao: "Gerente de departamento",
+          permissoes: [
+            "fornecedor.*",
+            "giftcard.*",
+            "transacao.*",
+            "relatorio.*",
+            "usuario.visualizar"
+          ]
+        },
+        {
+          nome: "usuario",
+          descricao: "Usuário comum",
+          permissoes: [
+            "fornecedor.visualizar",
+            "giftcard.visualizar",
+            "giftcard.criar",
+            "transacao.visualizar",
+            "transacao.criar"
+          ]
+        },
+        {
+          nome: "convidado",
+          descricao: "Usuário convidado (somente visualização)",
+          permissoes: [
+            "fornecedor.visualizar",
+            "giftcard.visualizar",
+            "transacao.visualizar"
+          ]
+        }
+      ]);
+      
+      // Inicializa usuário demo
+      await db.insert(users).values({
+        username: "demo",
+        password: "$2b$10$2rvbmAa5cJmDxFBclqnS4.Y9I2xXQib06w5FUAF5mlIc.08wZHyxa", // senha: password
+        email: "demo@cardvault.com",
+        nome: "Usuário Demo",
+        perfilId: 1,
+        empresaId: empresa.id
+      });
+      
+      // Inicializa fornecedores demo
+      const [fornecedor1] = await db.insert(fornecedores).values({
+        nome: "Amazon",
+        descricao: "Gift cards da Amazon",
+        website: "https://www.amazon.com.br",
+        logo: "https://logo.amazon.com/logo.png",
+        status: "ativo",
+        userId: 1,
+        empresaId: empresa.id
+      }).returning();
+      
+      // Inicializa gift cards demo
+      await db.insert(giftCards).values([
+        {
+          codigo: "AMZN-1234-5678",
+          valorInicial: 100,
+          saldoAtual: 75,
+          dataValidade: new Date("2025-12-31"),
+          status: "ativo",
+          fornecedorId: fornecedor1.id,
+          userId: 1,
+          empresaId: empresa.id,
+          percentualDesconto: 5
+        },
+        {
+          codigo: "TESTE123",
+          valorInicial: 200,
+          saldoAtual: 150,
+          dataValidade: new Date("2025-12-31"),
+          status: "Ativo",
+          fornecedorId: fornecedor1.id,
+          userId: 1,
+          empresaId: empresa.id,
+          percentualDesconto: 5
+        }
+      ]);
+      
+      console.log("Dados demo inicializados com sucesso");
+    } catch (error) {
+      console.error("Erro ao inicializar dados demo:", error);
+      throw error;
+    }
+  }
+}
+
+// Criar instância de DatabaseStorage em vez de MemStorage
+export const storage = new DatabaseStorage();
