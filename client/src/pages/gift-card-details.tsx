@@ -1,6 +1,6 @@
 import { useParams, useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { GiftCard, Fornecedor, Transacao } from '@shared/schema';
 import { useToast } from '@/hooks/use-toast';
 import { getQueryFn, apiRequest, queryClient } from '@/lib/queryClient';
@@ -38,16 +38,10 @@ export default function GiftCardDetailsPage() {
   const [newTransactionValue, setNewTransactionValue] = useState('');
   const [newTransactionDescription, setNewTransactionDescription] = useState('');
 
-  // Fetch gift card details with default values for missing fields
+  // Fetch gift card details
   const { data: giftCardData, isLoading: isLoadingGiftCard } = useQuery<GiftCard>({
     queryKey: [`/api/gift-cards/${id}`],
-    queryFn: getQueryFn({ on401: "throw" }),
-    onSuccess: (data) => {
-      console.log("Gift card data retrieved:", data);
-    },
-    onError: (error) => {
-      console.error("Error fetching gift card:", error);
-    }
+    queryFn: getQueryFn({ on401: "throw" })
   });
 
   // Add default values for missing fields
