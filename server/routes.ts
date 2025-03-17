@@ -8,6 +8,7 @@ import {
   insertUserSchema,
   insertTransacaoSchema,
   insertGiftCardTagSchema,
+  insertSupplierSchema,
   Transacao // Adiciona a importação do tipo
 } from "@shared/schema";
 import { z } from "zod";

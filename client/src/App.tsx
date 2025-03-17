@@ -14,6 +14,7 @@ import GiftCardNewFixed from "@/pages/gift-card-new-fixed";
 import CalculadoraSimples from "@/pages/CalculadoraSimples";
 import Fornecedores from "@/pages/fornecedores";
 import FornecedorDetalhes from "@/pages/fornecedor-detalhes";
+import Suppliers from "@/pages/suppliers";
 import Transacoes from "@/pages/transacoes";
 import Relatorios from "@/pages/relatorios";
 import UserProfiles from "@/pages/user-profiles";

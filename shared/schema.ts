@@ -68,12 +68,21 @@ export const fornecedores = pgTable("fornecedores", {
 export const suppliers = pgTable("suppliers", {
   id: serial("id").primaryKey(),
   nome: text("nome").notNull(),
+  cnpj: text("cnpj"), // CNPJ do fornecedor
+  email: text("email"), // Email de contato
+  telefone: text("telefone"), // Telefone de contato
+  endereco: text("endereco"), // Endereço completo
+  cidade: text("cidade"), // Cidade
+  estado: text("estado"), // Estado/UF
   descricao: text("descricao"),
   website: text("website"),
   logo: text("logo"),
+  desconto: doublePrecision("desconto"), // Percentual de desconto padrão
+  observacoes: text("observacoes"), // Observações adicionais
   status: text("status").default("ativo").notNull(), // 'ativo', 'inativo'
   userId: integer("user_id").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
   empresaId: integer("empresa_id").notNull().default(1), // ID da empresa a que o supplier pertence
 });
 
@@ -165,6 +174,7 @@ export const insertFornecedorSchema = createInsertSchema(fornecedores).omit({
 export const insertSupplierSchema = createInsertSchema(suppliers).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
 });
 
 export const insertGiftCardSchema = createInsertSchema(giftCards)
