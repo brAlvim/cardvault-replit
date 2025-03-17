@@ -50,11 +50,43 @@ export default function GiftCardNewPageFixed() {
   const handleValorInicialChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setValorInicial(newValue);
+    
+    // Garante que tanto valorInicial quanto valorPago são atualizados imediatamente
+    if (newValue && valorPago) {
+      const total = parseFloat(newValue);
+      const pago = parseFloat(valorPago);
+      
+      if (total > 0 && pago >= 0 && pago < total) {
+        // Calcula o percentual de desconto
+        const descontoCalculado = ((total - pago) / total) * 100;
+        setPercentualDesconto(descontoCalculado.toFixed(2));
+        
+        // Calcula o valor economizado
+        const economizado = total - pago;
+        setValorEconomizado(`R$ ${economizado.toFixed(2)}`);
+      }
+    }
   };
   
   const handleValorPagoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setValorPago(newValue);
+    
+    // Garante que tanto valorInicial quanto valorPago são atualizados imediatamente
+    if (valorInicial && newValue) {
+      const total = parseFloat(valorInicial);
+      const pago = parseFloat(newValue);
+      
+      if (total > 0 && pago >= 0 && pago < total) {
+        // Calcula o percentual de desconto
+        const descontoCalculado = ((total - pago) / total) * 100;
+        setPercentualDesconto(descontoCalculado.toFixed(2));
+        
+        // Calcula o valor economizado
+        const economizado = total - pago;
+        setValorEconomizado(`R$ ${economizado.toFixed(2)}`);
+      }
+    }
   };
   
   // Dados do usuário logado
@@ -262,11 +294,13 @@ export default function GiftCardNewPageFixed() {
                     {isLoadingSuppliers ? (
                       <SelectItem value="loading" disabled>Carregando fornecedores...</SelectItem>
                     ) : suppliers && suppliers.length > 0 ? (
-                      suppliers.map((supplier: any) => (
-                        <SelectItem key={supplier.id} value={String(supplier.id)}>
-                          {supplier.nome}
-                        </SelectItem>
-                      ))
+                      suppliers
+                        .filter((supplier: any) => supplier.status === "ativo")
+                        .map((supplier: any) => (
+                          <SelectItem key={supplier.id} value={String(supplier.id)}>
+                            {supplier.nome}
+                          </SelectItem>
+                        ))
                     ) : (
                       <SelectItem value="no_suppliers" disabled>Nenhum fornecedor de gift card disponível</SelectItem>
                     )}

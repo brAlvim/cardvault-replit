@@ -44,12 +44,20 @@ export default function GiftCardDetailsPage() {
     queryFn: getQueryFn({ on401: "throw" }),
   });
 
-  // Fetch fornecedor details - tentando primeiro pelo supplierId e depois pelo fornecedorId
-  const fornecedorId = giftCard?.supplierId || giftCard?.fornecedorId;
+  // Fetch fornecedor details
+  const fornecedorId = giftCard?.fornecedorId;
   const { data: fornecedor, isLoading: isLoadingFornecedor } = useQuery<Fornecedor>({
     queryKey: ['/api/fornecedores', fornecedorId],
     queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: !!fornecedorId,
+  });
+  
+  // Fetch supplier details
+  const supplierId = giftCard?.supplierId;
+  const { data: supplier, isLoading: isLoadingSupplier } = useQuery({
+    queryKey: ['/api/suppliers', supplierId],
+    queryFn: () => supplierId ? fetch(`/api/suppliers/${supplierId}`).then(res => res.json()) : null,
+    enabled: !!supplierId,
   });
 
   // Fetch transações
