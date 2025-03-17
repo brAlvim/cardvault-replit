@@ -114,56 +114,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Função para inicializar fornecedores padrão para um usuário
   async function initializeDefaultSuppliersForUser(userId: number, empresaId: number) {
-    const defaultSuppliers = [
-      "CARDCOOKIE",
-      "CARD CASH",
-      "CARD DEPOT",
-      "GCX / RAISE",
-      "ARBITRAGE CARD",
-      "FLUZ",
-      "EGIFTER",
-      "GIFTCARD OUTLET"
-    ];
-    
-    for (const supplierName of defaultSuppliers) {
-      await storage.createSupplier({
-        nome: supplierName,
-        status: "ativo",
-        userId: userId,
-        empresaId: empresaId
-      });
+    try {
+      console.log(`Inicializando suppliers padrão para usuário ${userId}`);
+      const defaultSuppliers = [
+        "CARDCOOKIE",
+        "CARD CASH",
+        "CARD DEPOT",
+        "GCX / RAISE",
+        "ARBITRAGE CARD",
+        "FLUZ",
+        "EGIFTER",
+        "GIFTCARD OUTLET"
+      ];
+      
+      for (const supplierName of defaultSuppliers) {
+        console.log(`Criando supplier ${supplierName} para usuário ${userId}`);
+        await storage.createSupplier({
+          nome: supplierName,
+          descricao: `Supplier padrão (${supplierName})`,
+          website: null,
+          status: "ativo",
+          userId: userId,
+          empresaId: empresaId
+        });
+      }
+      console.log(`Suppliers padrão criados com sucesso para usuário ${userId}`);
+    } catch (error) {
+      console.error("Erro ao criar suppliers padrão:", error);
     }
   }
   
   // Função para inicializar fornecedores de giftcards padrão para um usuário
   async function initializeDefaultFornecedoresForUser(userId: number, empresaId: number) {
-    const defaultFornecedores = [
-      "TARGET",
-      "BESTBUY",
-      "WALMART",
-      "HOMEDEPOT",
-      "LOWES",
-      "BOSCOVS",
-      "WALGREENS",
-      "SEPHORA",
-      "NORDSTROM",
-      "BARNES NOBLES",
-      "ULTA",
-      "WAYFAIR",
-      "AMAZON",
-      "MACYS",
-      "DICKS SPORTING GOODS",
-      "ACADEMY SPORTS",
-      "GAME STOP"
-    ];
-    
-    for (const fornecedorName of defaultFornecedores) {
-      await storage.createFornecedor({
-        nome: fornecedorName,
-        status: "ativo",
-        userId: userId,
-        empresaId: empresaId
-      });
+    try {
+      console.log(`Inicializando fornecedores padrão para usuário ${userId}`);
+      const defaultFornecedores = [
+        "TARGET",
+        "BESTBUY",
+        "WALMART",
+        "HOMEDEPOT",
+        "LOWES",
+        "BOSCOVS",
+        "WALGREENS",
+        "SEPHORA",
+        "NORDSTROM",
+        "BARNES NOBLES",
+        "ULTA",
+        "WAYFAIR",
+        "AMAZON",
+        "MACYS",
+        "DICKS SPORTING GOODS",
+        "ACADEMY SPORTS",
+        "GAME STOP"
+      ];
+      
+      for (const fornecedorName of defaultFornecedores) {
+        console.log(`Criando fornecedor ${fornecedorName} para usuário ${userId}`);
+        await storage.createFornecedor({
+          nome: fornecedorName,
+          descricao: `Fornecedor padrão (${fornecedorName})`,
+          website: null,
+          logo: null,
+          status: "ativo",
+          userId: userId,
+          empresaId: empresaId
+        });
+      }
+      console.log(`Fornecedores padrão criados com sucesso para usuário ${userId}`);
+    } catch (error) {
+      console.error("Erro ao criar fornecedores padrão:", error);
     }
   }
 
