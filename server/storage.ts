@@ -552,18 +552,30 @@ class MemStorage implements IStorage {
   }
 
   // Gift Card methods (anteriormente cards)
-  async getGiftCards(userId: number, fornecedorId?: number, empresaId?: number): Promise<GiftCard[]> {
+  async getGiftCards(userId: number, fornecedorId?: number, empresaId?: number, perfilId?: number): Promise<GiftCard[]> {
     // Aplicar filtro rigoroso de usuário e empresa para garantir isolamento de dados
     let giftCards = Array.from(this.giftCards.values());
     
-    // Filtro primário: o gift card DEVE pertencer à empresa do usuário ou ter sido criado pelo próprio usuário
+    // Registrar para fins de segurança e auditoria
+    console.log(`[SEGURANÇA] Obtendo gift cards para usuário ID ${userId}, perfil ID ${perfilId || 'não especificado'}, empresa ID ${empresaId || 'não especificada'}`);
+    
+    // Filtro primário: o gift card DEVE pertencer à empresa do usuário
     giftCards = giftCards.filter(giftCard => 
       // Garantir que o card pertença à empresa especificada, se fornecida
-      (empresaId ? giftCard.empresaId === empresaId : true) && 
-      // E TAMBÉM garantir que ou pertença ao usuário especificado OU que seja da mesma empresa
-      (giftCard.userId === userId)
+      (empresaId ? giftCard.empresaId === empresaId : true)
     );
     
+    // Aplicar filtro adicional com base no perfil do usuário
+    // Se o perfil não for especificado ou se for um perfil não-administrativo (não 1 e não 2),
+    // mostrar apenas os gift cards do próprio usuário
+    if (!perfilId || (perfilId !== 1 && perfilId !== 2)) {
+      console.log(`[SEGURANÇA] Aplicando restrição de usuário ID ${userId} (perfil ${perfilId || 'não especificado'} não é admin/gerente)`);
+      giftCards = giftCards.filter(giftCard => giftCard.userId === userId);
+    } 
+    // Para gerentes (perfilId === 2), já garantimos que estamos filtrando pela empresaId acima
+    // Para admins (perfilId === 1), não aplicamos restrições adicionais
+    
+    // Aplicar filtro por fornecedor, se especificado
     if (fornecedorId) {
       giftCards = giftCards.filter(giftCard => giftCard.fornecedorId === fornecedorId);
     }
@@ -732,9 +744,10 @@ class MemStorage implements IStorage {
     return this.giftCards.delete(id);
   }
   
-  async searchGiftCards(userId: number, searchTerm: string): Promise<GiftCard[]> {
+  async searchGiftCards(userId: number, searchTerm: string, perfilId?: number): Promise<GiftCard[]> {
     const lowercaseSearchTerm = searchTerm.toLowerCase();
-    const giftCards = await this.getGiftCards(userId);
+    // Passa o perfilId para garantir a aplicação das restrições baseadas em perfil
+    const giftCards = await this.getGiftCards(userId, undefined, undefined, perfilId);
     
     return giftCards.filter(giftCard => {
       // Busca no código, observações, etc.
@@ -745,12 +758,13 @@ class MemStorage implements IStorage {
     });
   }
   
-  async getGiftCardsVencimento(userId: number, dias: number): Promise<GiftCard[]> {
+  async getGiftCardsVencimento(userId: number, dias: number, perfilId?: number): Promise<GiftCard[]> {
     const dataAtual = new Date();
     const dataLimite = new Date();
     dataLimite.setDate(dataLimite.getDate() + dias);
     
-    const giftCards = await this.getGiftCards(userId);
+    // Passamos o perfilId para aplicar as restrições adequadas
+    const giftCards = await this.getGiftCards(userId, undefined, undefined, perfilId);
     
     return giftCards.filter(giftCard => {
       if (!giftCard.dataValidade) return false;

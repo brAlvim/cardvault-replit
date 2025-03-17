@@ -885,7 +885,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Buscar gift cards por fornecedor ou todos
-      let giftCards = await storage.getGiftCards(userId, fornecedorId, empresaId);
+      // Passamos o perfilId para que a lógica de filtragem baseada em perfil seja aplicada
+      let giftCards = await storage.getGiftCards(userId, fornecedorId, empresaId, user.perfilId);
       
       // Filtrar dados confidenciais conforme o perfil
       if (isGuest) {
