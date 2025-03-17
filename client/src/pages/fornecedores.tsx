@@ -185,7 +185,7 @@ export default function FornecedoresPage() {
       return apiRequest("PUT", `/api/fornecedores/${id}`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/fornecedores?userId=${user?.id}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/fornecedores`] });
       toast({
         title: "Fornecedor atualizado com sucesso",
         description: "As informações do fornecedor foram atualizadas.",
@@ -209,7 +209,7 @@ export default function FornecedoresPage() {
       return apiRequest("DELETE", `/api/fornecedores/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/fornecedores?userId=${user?.id}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/fornecedores`] });
       toast({
         title: "Fornecedor excluído com sucesso",
         description: "O fornecedor foi removido do sistema.",
@@ -232,7 +232,7 @@ export default function FornecedoresPage() {
       return apiRequest("PUT", `/api/fornecedores/${id}`, { status: novoStatus });
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/fornecedores?userId=${user?.id}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/fornecedores`] });
       toast({
         title: data.status === "ativo" ? "Fornecedor ativado" : "Fornecedor desativado",
         description: data.status === "ativo" 

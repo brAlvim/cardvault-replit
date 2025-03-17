@@ -44,11 +44,11 @@ export default function Dashboard() {
   
   // Get gift cards
   const { data: giftCards, isLoading: isLoadingGiftCards } = useQuery<GiftCard[]>({
-    queryKey: ['/api/gift-cards', { userId: 1, fornecedor: selectedFornecedor }],
+    queryKey: ['/api/gift-cards', { fornecedor: selectedFornecedor }],
     queryFn: () => {
       const url = selectedFornecedor 
-        ? `/api/gift-cards?userId=1&fornecedorId=${selectedFornecedor}`
-        : '/api/gift-cards?userId=1';
+        ? `/api/gift-cards?fornecedorId=${selectedFornecedor}`
+        : '/api/gift-cards';
       
       // Adicionar token de autenticação ao cabeçalho
       const token = localStorage.getItem('token');
@@ -65,8 +65,19 @@ export default function Dashboard() {
 
   // Get fornecedores
   const { data: fornecedores, isLoading: isLoadingFornecedores } = useQuery<Fornecedor[]>({
-    queryKey: ['/api/fornecedores', { userId: 1 }],
-    queryFn: () => fetch('/api/fornecedores?userId=1').then(res => res.json()),
+    queryKey: ['/api/fornecedores'],
+    queryFn: () => {
+      // Adicionar token de autenticação ao cabeçalho
+      const token = localStorage.getItem('token');
+      const headers: HeadersInit = token ? { 'Authorization': `Bearer ${token}` } : {};
+      
+      return fetch('/api/fornecedores', { headers }).then(res => {
+        if (!res.ok) {
+          throw new Error('Falha ao carregar fornecedores');
+        }
+        return res.json();
+      });
+    },
   });
 
   // Get perfis (roles)
