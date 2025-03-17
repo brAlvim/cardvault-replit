@@ -156,7 +156,7 @@ export default function GiftCardNewPage() {
           valorInicial: parseFloat(valorInicial),
           saldoAtual: parseFloat(valorInicial), // Initially, saldo is the same as valor inicial
           fornecedorId: parseInt(fornecedorId),
-          supplierId: parseInt(fornecedorId), // Usando o mesmo ID para supplier e fornecedor
+          supplierId: parseInt(supplierId || fornecedorId), // Usar o supplierId selecionado ou fornecedorId como fallback
           userId,
           dataValidade: dataValidade || null,
           observacoes: observacoes.trim() || null,
@@ -226,27 +226,50 @@ export default function GiftCardNewPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2 mb-4">
-              <Label htmlFor="fornecedor">Fornecedor *</Label>
-              <Select value={fornecedorId} onValueChange={setFornecedorId} required>
-                <SelectTrigger className="border-2 border-primary/20">
-                  <SelectValue placeholder="Selecione um fornecedor" />
-                </SelectTrigger>
-                <SelectContent>
-                  {isLoadingFornecedores ? (
-                    <SelectItem value="loading" disabled>Carregando fornecedores...</SelectItem>
-                  ) : fornecedores && fornecedores.length > 0 ? (
-                    // Lista apenas fornecedores ativos (já filtrados no useMemo)
-                    fornecedores.map((fornecedor: Fornecedor) => (
-                      <SelectItem key={fornecedor.id} value={String(fornecedor.id)}>
-                        {fornecedor.nome}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="no_fornecedores" disabled>Nenhum fornecedor ativo disponível</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="space-y-2">
+                <Label htmlFor="fornecedor">Fornecedor *</Label>
+                <Select value={fornecedorId} onValueChange={setFornecedorId} required>
+                  <SelectTrigger className="border-2 border-primary/20">
+                    <SelectValue placeholder="Selecione um fornecedor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {isLoadingFornecedores ? (
+                      <SelectItem value="loading" disabled>Carregando fornecedores...</SelectItem>
+                    ) : fornecedores && fornecedores.length > 0 ? (
+                      fornecedores.map((fornecedor: Fornecedor) => (
+                        <SelectItem key={fornecedor.id} value={String(fornecedor.id)}>
+                          {fornecedor.nome}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no_fornecedores" disabled>Nenhum fornecedor ativo disponível</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="supplier">Fornecedor do Gift Card *</Label>
+                <Select value={supplierId} onValueChange={setSupplierId} required>
+                  <SelectTrigger className="border-2 border-primary/20">
+                    <SelectValue placeholder="Selecione o fornecedor do gift card" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {isLoadingFornecedores ? (
+                      <SelectItem value="loading" disabled>Carregando fornecedores...</SelectItem>
+                    ) : fornecedores && fornecedores.length > 0 ? (
+                      fornecedores.map((fornecedor: Fornecedor) => (
+                        <SelectItem key={fornecedor.id} value={String(fornecedor.id)}>
+                          {fornecedor.nome}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no_fornecedores" disabled>Nenhum fornecedor de gift card disponível</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

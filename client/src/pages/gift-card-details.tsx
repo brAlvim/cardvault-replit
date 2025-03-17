@@ -196,7 +196,8 @@ export default function GiftCardDetailsPage() {
                 <div className="flex flex-col">
                   <span className="text-sm text-muted-foreground">Fornecedor</span>
                   <span className="font-medium">
-                    {isLoadingFornecedor ? "Carregando..." : fornecedor?.nome || "N/A"}
+                    {isLoadingFornecedor ? "Carregando..." : fornecedor?.nome || 
+                    (giftCard?.supplierId ? "Fornecedor #" + giftCard.supplierId : "Não definido")}
                   </span>
                 </div>
                 
