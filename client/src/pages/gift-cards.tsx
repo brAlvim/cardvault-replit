@@ -193,7 +193,9 @@ export default function GiftCardsPage() {
                 </TableHeader>
                 <TableBody>
                   {giftCards.map((giftCard) => {
-                    const fornecedor = fornecedores?.find(f => f.id === giftCard.fornecedorId);
+                    const fornecedor = fornecedores && Array.isArray(fornecedores) 
+                      ? fornecedores.find(f => f.id === giftCard.fornecedorId)
+                      : undefined;
                     const daysRemaining = calculateDaysRemaining(giftCard.dataValidade);
                     const isExpired = daysRemaining !== null && daysRemaining <= 0;
                     const isExpiringSoon = daysRemaining !== null && daysRemaining > 0 && daysRemaining <= 30;
