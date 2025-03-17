@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import { storage } from "./storage";
 import { GiftCard } from "@shared/schema";
 
@@ -20,7 +21,36 @@ declare global {
 }
 
 // Chave secreta para JWT - em produção, isso deve estar no .env
-const JWT_SECRET = "cardvault-secret-key-2024";
+const JWT_SECRET = "cardvault-secret-key-2024-advanced-security-protocol";
+
+// Chave para criptografia dos dados sensíveis
+const ENCRYPTION_KEY = crypto.scryptSync("cardvault-encryption-key-2024", "salt", 32);
+const IV_LENGTH = 16; // Para AES, este é sempre 16
+
+// Função para criptografar dados sensíveis
+export function encrypt(text: string): string {
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv("aes-256-cbc", ENCRYPTION_KEY, iv);
+  let encrypted = cipher.update(text, "utf8", "hex");
+  encrypted += cipher.final("hex");
+  return `${iv.toString("hex")}:${encrypted}`;
+}
+
+// Função para descriptografar dados sensíveis
+export function decrypt(text: string): string {
+  try {
+    const textParts = text.split(":");
+    const iv = Buffer.from(textParts.shift() || "", "hex");
+    const encryptedText = textParts.join(":");
+    const decipher = crypto.createDecipheriv("aes-256-cbc", ENCRYPTION_KEY, iv);
+    let decrypted = decipher.update(encryptedText, "hex", "utf8");
+    decrypted += decipher.final("utf8");
+    return decrypted;
+  } catch (error) {
+    console.error("Erro ao descriptografar:", error);
+    return text; // Retorna o texto original se houver erro na descriptografia
+  }
+}
 
 // Schema para validação do login
 const loginSchema = z.object({
@@ -167,8 +197,29 @@ export function requirePermission(permission: string) {
         return res.status(403).json({ message: "Perfil do usuário não encontrado" });
       }
 
-      // Verificar se o perfil tem a permissão necessária
-      if (!perfil.permissoes.includes(permission)) {
+      // Administradores têm acesso a tudo
+      if (perfil.permissoes.includes('*')) {
+        return next();
+      }
+
+      // Verificar se o perfil tem a permissão exata ou permissão mais ampla
+      // Por exemplo, 'fornecedor.*' concede 'fornecedor.visualizar'
+      const hasPermission = perfil.permissoes.some(p => {
+        // Permissão exata
+        if (p === permission) return true;
+        
+        // Permissão wildcard (exemplo: 'fornecedor.*')
+        const wildcardParts = p.split('.');
+        const permParts = permission.split('.');
+        
+        if (wildcardParts.length === 2 && permParts.length === 2) {
+          return wildcardParts[0] === permParts[0] && wildcardParts[1] === '*';
+        }
+        
+        return false;
+      });
+
+      if (!hasPermission) {
         return res.status(403).json({ message: "Você não tem permissão para acessar este recurso" });
       }
 
@@ -191,20 +242,70 @@ export async function isGuestProfile(perfilId: number): Promise<boolean> {
   }
 }
 
-// Função para filtrar informações confidenciais para convidados
+// Função para filtrar informações confidenciais para convidados e aplicar criptografia
 export function filterConfidentialData(giftCard: GiftCard, isGuest: boolean): GiftCard {
   if (isGuest) {
     // Cria uma cópia do objeto para não modificar o original
     const filteredCard = { ...giftCard };
     
-    // Remove informações confidenciais
+    // Remove informações confidenciais completamente para convidados
     filteredCard.gcNumber = "********"; // Mascara o número do gift card
     filteredCard.gcPass = "********";   // Mascara a senha do gift card
     
     return filteredCard;
+  } else {
+    // Para usuários autorizados, criptografa os dados sensíveis
+    const card = { ...giftCard };
+    
+    // Criptografa valores sensíveis se não estiverem vazios
+    if (card.gcNumber && !card.gcNumber.startsWith('***')) {
+      try {
+        // Verificamos se o número já está criptografado
+        if (!card.gcNumber.includes(':')) {
+          card.gcNumber = encrypt(card.gcNumber);
+        }
+      } catch (err) {
+        console.error("Erro ao criptografar gcNumber:", err);
+      }
+    }
+    
+    if (card.gcPass && !card.gcPass.startsWith('***')) {
+      try {
+        // Verificamos se a senha já está criptografada
+        if (!card.gcPass.includes(':')) {
+          card.gcPass = encrypt(card.gcPass);
+        }
+      } catch (err) {
+        console.error("Erro ao criptografar gcPass:", err);
+      }
+    }
+    
+    return card;
+  }
+}
+
+// Função para descriptografar dados sensíveis de gift cards
+export function decryptGiftCardData(giftCard: GiftCard): GiftCard {
+  const decryptedCard = { ...giftCard };
+  
+  // Descriptografa somente se o campo estiver preenchido e criptografado
+  if (decryptedCard.gcNumber && decryptedCard.gcNumber.includes(':')) {
+    try {
+      decryptedCard.gcNumber = decrypt(decryptedCard.gcNumber);
+    } catch (err) {
+      console.error("Erro ao descriptografar gcNumber:", err);
+    }
   }
   
-  return giftCard;
+  if (decryptedCard.gcPass && decryptedCard.gcPass.includes(':')) {
+    try {
+      decryptedCard.gcPass = decrypt(decryptedCard.gcPass);
+    } catch (err) {
+      console.error("Erro ao descriptografar gcPass:", err);
+    }
+  }
+  
+  return decryptedCard;
 }
 
 // Função para filtrar array de gift cards com base no perfil
@@ -212,4 +313,149 @@ export function filterGiftCardArray(giftCards: GiftCard[], isGuest: boolean): Gi
   if (!isGuest) return giftCards;
   
   return giftCards.map(card => filterConfidentialData(card, true));
+}
+
+// Verifica se o recurso pertence ao usuário ou se o usuário tem acesso hierárquico
+export async function canUserAccessResource(
+  userId: number, 
+  resourceOwnerId: number, 
+  empresaId: number,
+  perfilId: number
+): Promise<boolean> {
+  try {
+    // Admin pode acessar qualquer recurso
+    if (perfilId === 1) {
+      return true;
+    }
+    
+    // Se for o próprio recurso do usuário
+    if (userId === resourceOwnerId) {
+      return true;
+    }
+    
+    // Gerente pode acessar recursos de usuários da mesma empresa
+    if (perfilId === 2) {
+      // Verificar se o recurso pertence à mesma empresa
+      const resourceOwner = await storage.getUser(resourceOwnerId);
+      return resourceOwner?.empresaId === empresaId;
+    }
+    
+    // Outros perfis só podem acessar seus próprios recursos
+    return false;
+  } catch (error) {
+    console.error('Erro ao verificar acesso ao recurso:', error);
+    return false;
+  }
+}
+
+// Verifica se um usuário pode acessar os dados de outro
+export async function canUserManageOtherUser(
+  currentUserId: number,
+  targetUserId: number,
+  currentUserPerfilId: number
+): Promise<boolean> {
+  // Não pode gerenciar a si mesmo neste contexto
+  if (currentUserId === targetUserId) {
+    return false;
+  }
+  
+  // Admin pode gerenciar qualquer usuário
+  if (currentUserPerfilId === 1) {
+    return true;
+  }
+  
+  // Gerente pode gerenciar apenas usuários com perfil inferior
+  if (currentUserPerfilId === 2) {
+    const targetUser = await storage.getUser(targetUserId);
+    if (!targetUser) return false;
+    
+    // Verificar se o alvo tem perfil "usuário" ou "convidado"
+    return targetUser.perfilId === 3 || targetUser.perfilId === 4;
+  }
+  
+  // Outros perfis não podem gerenciar usuários
+  return false;
+}
+
+// Middleware para verificar se um usuário pode acessar um recurso específico
+export function requireResourceOwnership(resourceType: string) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
+      
+      // Administradores têm acesso a tudo
+      if (user.perfilId === 1) {
+        return next();
+      }
+      
+      const resourceId = parseInt(req.params.id);
+      if (isNaN(resourceId)) {
+        return res.status(400).json({ message: "ID de recurso inválido" });
+      }
+      
+      let resourceOwnerId: number | undefined;
+      
+      // Obter o userId do recurso com base no tipo
+      switch (resourceType) {
+        case 'fornecedor':
+          const fornecedor = await storage.getFornecedor(resourceId);
+          resourceOwnerId = fornecedor?.userId;
+          break;
+        case 'supplier':
+          const supplier = await storage.getSupplier(resourceId);
+          resourceOwnerId = supplier?.userId;
+          break;
+        case 'giftCard':
+          const giftCard = await storage.getGiftCard(resourceId);
+          resourceOwnerId = giftCard?.userId;
+          break;
+        case 'transacao':
+          const transacao = await storage.getTransacao(resourceId);
+          // Para transações, verificamos se o usuário é dono do gift card associado
+          if (transacao) {
+            const giftCard = await storage.getGiftCard(transacao.giftCardId);
+            resourceOwnerId = giftCard?.userId;
+          }
+          break;
+        case 'user':
+          // Para usuários, verificar se o alvo pode ser gerenciado pelo usuário atual
+          const canManage = await canUserManageOtherUser(user.id, resourceId, user.perfilId);
+          if (!canManage) {
+            return res.status(403).json({ 
+              message: "Você não tem permissão para gerenciar este usuário" 
+            });
+          }
+          return next();
+        default:
+          return res.status(400).json({ message: "Tipo de recurso inválido" });
+      }
+      
+      // Se o recurso não for encontrado
+      if (!resourceOwnerId) {
+        return res.status(404).json({ message: "Recurso não encontrado" });
+      }
+      
+      // Verificar se o usuário tem acesso ao recurso
+      const hasAccess = await canUserAccessResource(
+        user.id, 
+        resourceOwnerId, 
+        user.empresaId,
+        user.perfilId
+      );
+      
+      if (!hasAccess) {
+        return res.status(403).json({ 
+          message: "Você não tem permissão para acessar este recurso" 
+        });
+      }
+      
+      next();
+    } catch (error) {
+      console.error("Erro ao verificar propriedade do recurso:", error);
+      res.status(500).json({ message: "Erro ao verificar acesso ao recurso" });
+    }
+  };
 }
