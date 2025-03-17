@@ -1336,7 +1336,15 @@ export default function TransacoesPage() {
               </div>
             </CardContent>
           </Card>
-        </div>
+        ) : (
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-center py-4">
+                <p className="text-muted-foreground">Gift card não encontrado</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
         
         {/* Tabela de transações */}
         <Card>
