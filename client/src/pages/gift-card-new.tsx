@@ -32,6 +32,7 @@ export default function GiftCardNewPage() {
   const [codigo, setCodigo] = useState('');
   const [valorInicial, setValorInicial] = useState('');
   const [fornecedorId, setFornecedorId] = useState('');
+  const [supplierId, setSupplierId] = useState('');
   const [dataValidade, setDataValidade] = useState<Date | undefined>(undefined);
   const [observacoes, setObservacoes] = useState('');
   
