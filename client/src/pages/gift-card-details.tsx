@@ -44,11 +44,12 @@ export default function GiftCardDetailsPage() {
     queryFn: getQueryFn({ on401: "throw" }),
   });
 
-  // Fetch fornecedor details
+  // Fetch fornecedor details - tentando primeiro pelo supplierId e depois pelo fornecedorId
+  const fornecedorId = giftCard?.supplierId || giftCard?.fornecedorId;
   const { data: fornecedor, isLoading: isLoadingFornecedor } = useQuery<Fornecedor>({
-    queryKey: ['/api/fornecedores', giftCard?.fornecedorId],
+    queryKey: ['/api/fornecedores', fornecedorId],
     queryFn: getQueryFn({ on401: "returnNull" }),
-    enabled: !!giftCard?.fornecedorId,
+    enabled: !!fornecedorId,
   });
 
   // Fetch transações

@@ -155,6 +155,7 @@ export default function GiftCardNewPage() {
           valorInicial: parseFloat(valorInicial),
           saldoAtual: parseFloat(valorInicial), // Initially, saldo is the same as valor inicial
           fornecedorId: parseInt(fornecedorId),
+          supplierId: parseInt(fornecedorId), // Usando o mesmo ID para supplier e fornecedor
           userId,
           dataValidade: dataValidade || null,
           observacoes: observacoes.trim() || null,
