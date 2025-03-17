@@ -33,16 +33,17 @@ export default function FornecedorSummaryTable({ giftCards, fornecedores }: Forn
     const disponivel = fornecedorGiftCards.reduce((sum, gc) => sum + gc.saldoAtual, 0);
     
     // Calcular média de desconto (percentual de desconto médio)
-    // Considerando desconto como (1 - saldoAtual/valorInicial) para cada gift card
+    // Buscando o valor de percentualDesconto de cada gift card
     const mediaDescontoValue = fornecedorGiftCards.length > 0 
       ? fornecedorGiftCards.reduce((sum, gc) => {
-          const desconto = 1 - (gc.saldoAtual / gc.valorInicial);
+          // Usar o percentualDesconto diretamente, ou calcular com base nos valores
+          const desconto = gc.percentualDesconto || 0;
           return sum + desconto;
         }, 0) / fornecedorGiftCards.length
       : 0;
     
     // Formatar como percentual
-    const mediaDesconto = `${(mediaDescontoValue * 100).toFixed(1)}%`;
+    const mediaDesconto = `${mediaDescontoValue.toFixed(1)}%`;
     
     // Calcular valor médio
     const valorMedio = fornecedorGiftCards.length > 0 
