@@ -549,10 +549,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Gift Card routes (antigo Card)
   router.get("/gift-cards", requireAuth, async (req: Request, res: Response) => {
     try {
-      // Se userId não for fornecido, retorna todos os gift cards do usuário 1 (demo)
-      let userId = 1;
+      // Usar o ID do usuário autenticado por padrão
+      const user = (req as any).user;
+      let userId = user.id;
       
-      if (req.query.userId) {
+      // Permitir que administradores vejam os gift cards de outros usuários
+      if (req.query.userId && user.perfilId === 1) { // perfilId 1 é admin
         userId = parseInt(req.query.userId as string);
         if (isNaN(userId)) {
           return res.status(400).json({ message: "Invalid user ID format" });
@@ -564,7 +566,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const search = req.query.search as string | undefined;
       
       // Verificar se o usuário é do perfil convidado
-      const user = (req as any).user;
       const isGuest = await isGuestProfile(user.perfilId);
       
       if (search) {
@@ -598,12 +599,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  router.post("/gift-cards", async (req: Request, res: Response) => {
+  router.post("/gift-cards", requireAuth, async (req: Request, res: Response) => {
     try {
+      // Obter o usuário autenticado
+      const user = (req as any).user;
+      
       // Garantir que empresaId seja incluído se vier como query parameter mas não no body
       if (!req.body.empresaId && req.query.empresaId) {
         req.body.empresaId = parseInt(req.query.empresaId as string);
       }
+      
+      // Garantir que userId seja o do usuário autenticado
+      req.body.userId = user.id;
       
       const giftCardData = insertGiftCardSchema.parse(req.body);
       const giftCard = await storage.createGiftCard(giftCardData);
@@ -626,8 +633,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Gift Card not found" });
       }
       
-      // Verificar se o usuário é do perfil convidado
+      // Verificar se o usuário tem permissão para ver o gift card
       const user = (req as any).user;
+      
+      // Verificar se o gift card pertence ao usuário ou se é admin
+      if (giftCard.userId !== user.id && user.perfilId !== 1) {
+        return res.status(403).json({ message: "Você não tem permissão para acessar este Gift Card" });
+      }
+      
+      // Verificar se o usuário é do perfil convidado
       const isGuest = await isGuestProfile(user.perfilId);
       
       // Filtrar dados confidenciais se for perfil convidado
@@ -642,17 +656,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  router.put("/gift-cards/:id", async (req: Request, res: Response) => {
+  router.put("/gift-cards/:id", requireAuth, async (req: Request, res: Response) => {
     try {
       const giftCardId = parseInt(req.params.id);
       const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
       
-      // Verificar se o gift card pertence à empresa antes de atualizar
-      if (empresaId) {
-        const giftCard = await storage.getGiftCard(giftCardId, empresaId);
-        if (!giftCard) {
-          return res.status(404).json({ message: "Gift Card not found for this company" });
-        }
+      // Buscar o gift card para verificações
+      const giftCard = await storage.getGiftCard(giftCardId, empresaId);
+      
+      if (!giftCard) {
+        return res.status(404).json({ message: "Gift Card not found" });
+      }
+      
+      // Verificar se o usuário tem permissão para atualizar o gift card
+      const user = (req as any).user;
+      
+      // Verificar se o gift card pertence ao usuário ou se é admin
+      if (giftCard.userId !== user.id && user.perfilId !== 1) {
+        return res.status(403).json({ message: "Você não tem permissão para modificar este Gift Card" });
       }
       
       const giftCardData = insertGiftCardSchema.partial().parse(req.body);
@@ -672,17 +693,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  router.delete("/gift-cards/:id", async (req: Request, res: Response) => {
+  router.delete("/gift-cards/:id", requireAuth, async (req: Request, res: Response) => {
     try {
       const giftCardId = parseInt(req.params.id);
       const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
       
-      // Verificar se o gift card pertence à empresa antes de excluir
-      if (empresaId) {
-        const giftCard = await storage.getGiftCard(giftCardId, empresaId);
-        if (!giftCard) {
-          return res.status(404).json({ message: "Gift Card not found for this company" });
-        }
+      // Buscar o gift card para verificações
+      const giftCard = await storage.getGiftCard(giftCardId, empresaId);
+      
+      if (!giftCard) {
+        return res.status(404).json({ message: "Gift Card not found" });
+      }
+      
+      // Verificar se o usuário tem permissão para excluir o gift card
+      const user = (req as any).user;
+      
+      // Verificar se o gift card pertence ao usuário ou se é admin
+      if (giftCard.userId !== user.id && user.perfilId !== 1) {
+        return res.status(403).json({ message: "Você não tem permissão para excluir este Gift Card" });
       }
       
       const success = await storage.deleteGiftCard(giftCardId);
@@ -697,9 +725,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  router.get("/gift-cards/vencimento/:dias/:userId", requireAuth, async (req: Request, res: Response) => {
+  router.get("/gift-cards/vencimento/:dias/:userId?", requireAuth, async (req: Request, res: Response) => {
     try {
-      const userId = parseInt(req.params.userId);
+      // Usar o ID do usuário autenticado por padrão
+      const user = (req as any).user;
+      let userId = user.id;
+      
+      // Permitir que administradores vejam os gift cards de outros usuários
+      if (req.params.userId && user.perfilId === 1) { // perfilId 1 é admin
+        userId = parseInt(req.params.userId);
+      }
+      
       const dias = parseInt(req.params.dias);
       
       if (isNaN(dias)) {
@@ -718,7 +754,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verificar se o usuário é do perfil convidado
-      const user = (req as any).user;
       const isGuest = await isGuestProfile(user.perfilId);
       
       // Filtrar dados confidenciais se for perfil convidado
@@ -792,15 +827,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Obter o usuário autenticado
+      const user = (req as any).user;
+      
+      // Buscar todos os gift cards com a tag
       const giftCards = await storage.getGiftCardsByTag(tagId);
       
-      // Filtrar os gift cards por empresa se necessário
-      let filteredGiftCards = empresaId 
-        ? giftCards.filter(card => card.empresaId === empresaId)
-        : giftCards;
+      // Filtrar por usuário e empresa se necessário
+      let filteredGiftCards = giftCards.filter(card => {
+        const matchesEmpresa = empresaId ? card.empresaId === empresaId : true;
+        const matchesUser = user.perfilId === 1 ? true : card.userId === user.id; // Admin vê todos, outros só os seus
+        return matchesEmpresa && matchesUser;
+      });
       
       // Verificar se o usuário é do perfil convidado
-      const user = (req as any).user;
       const isGuest = await isGuestProfile(user.perfilId);
       
       // Filtrar dados confidenciais se for perfil convidado
@@ -857,8 +897,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Transação routes (novo)
   // Nova rota para buscar todas as transações
-  router.get("/transacoes", async (req: Request, res: Response) => {
+  router.get("/transacoes", requireAuth, async (req: Request, res: Response) => {
     try {
+      // Obter o usuário autenticado
+      const user = (req as any).user;
+      
       // Verifica se há um filtro por empresa
       const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
       
@@ -866,19 +909,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Se houver empresaId, usa o método de busca específico para a empresa
         const transacoes = await storage.getTransacoesByEmpresa(empresaId);
         
+        // Filtrar por usuário (a menos que seja admin)
+        const filteredTransacoes = user.perfilId === 1 
+          ? transacoes // admin vê tudo
+          : transacoes.filter(t => t.userId === user.id);
+        
         // Ordena por data decrescente (mais recentes primeiro)
-        transacoes.sort((a, b) => {
+        filteredTransacoes.sort((a, b) => {
           return new Date(b.dataTransacao).getTime() - new Date(a.dataTransacao).getTime();
         });
         
-        return res.json(transacoes);
+        return res.json(filteredTransacoes);
       }
       
       // Implementação padrão (sem filtro por empresa)
       const todasTransacoes: Transacao[] = [];
       
       // Itera por todos os gift cards para coletar suas transações
-      const giftCards = await storage.getGiftCards(1); // Usuário demo fixo para simplificar
+      // Usuário atual, não mais o usuário demo fixo
+      const giftCards = await storage.getGiftCards(user.id); 
       
       // Incluir transações para cada gift card existente
       for (const card of giftCards) {
