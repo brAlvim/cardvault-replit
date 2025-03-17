@@ -242,14 +242,13 @@ export default function GiftCardNewPageFixed() {
             {/* Primeiras informações: SKU e Fornecedor do Gift Card */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div className="space-y-2">
-                <Label htmlFor="codigo">Código/SKU do gift card *</Label>
+                <Label htmlFor="codigo">Código/SKU do gift card</Label>
                 <Input 
                   id="codigo" 
                   placeholder="Ex: AMZN-12345"
                   value={codigo}
                   onChange={(e) => setCodigo(e.target.value)}
                   className="border-2 border-primary/20"
-                  required
                 />
               </div>
               
@@ -424,17 +423,6 @@ export default function GiftCardNewPageFixed() {
               </Popover>
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="observacoes">Observações</Label>
-              <Textarea 
-                id="observacoes" 
-                placeholder="Informações adicionais sobre o gift card"
-                value={observacoes}
-                onChange={(e) => setObservacoes(e.target.value)}
-                rows={4}
-              />
-            </div>
-            
             {/* Seção de dados detalhados do gift card */}
             <div className="border-t pt-6 mt-6">
               <h3 className="font-semibold text-lg mb-4">Informações Detalhadas da Compra</h3>
@@ -507,6 +495,17 @@ export default function GiftCardNewPageFixed() {
                   />
                 </div>
               </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="observacoes">Observações</Label>
+              <Textarea 
+                id="observacoes" 
+                placeholder="Informações adicionais sobre o gift card"
+                value={observacoes}
+                onChange={(e) => setObservacoes(e.target.value)}
+                rows={4}
+              />
             </div>
             
             <div className="flex justify-end space-x-4 pt-4">

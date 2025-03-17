@@ -291,7 +291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Supplier routes (fornecedores de gift cards)
-  router.get("/suppliers", requireAuth, async (req: Request, res: Response) => {
+  router.get("/suppliers", async (req: Request, res: Response) => {
     try {
       // Obter o usuário logado do token
       const userId = req.user?.id || 1;
