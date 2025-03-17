@@ -150,7 +150,7 @@ type TransacaoFormReset = {
   giftCardIds?: string;
   selectedGiftCards?: SelectedGiftCard[];
   userId?: number;
-  dataTransacao: Date;
+  dataTransacao: Date | string; // Pode ser Date ou string ISO
   comprovante?: string;
   motivoCancelamento?: string;
   valorRefund?: number; // Valor do reembolso
@@ -161,7 +161,10 @@ type TransacaoFormReset = {
   nomeUsuario?: string;
 };
 
-type TransacaoFormValues = z.infer<typeof transacaoFormSchema>;
+// Estende o tipo inferido do schema para permitir que dataTransacao seja string ou Date
+type TransacaoFormValues = Omit<z.infer<typeof transacaoFormSchema>, 'dataTransacao'> & {
+  dataTransacao?: Date | string;
+};
 
 export default function TransacoesPage() {
   const [isRouteMatch, params] = useRoute('/transacoes/:id');
@@ -417,15 +420,36 @@ export default function TransacoesPage() {
         }
       }
       
-      // Formatando a data explicitamente para o formato ISO
-      const formattedData = data.dataTransacao ? new Date(data.dataTransacao).toISOString() : new Date().toISOString();
+      // Garantir que a dataTransacao é uma string ISO válida
+      // Isso deve ser redundante com o tratamento no onSubmit, mas mantemos por segurança
+      let dataTransacaoFormatada = data.dataTransacao;
+      if (dataTransacaoFormatada) {
+        if (dataTransacaoFormatada instanceof Date) {
+          dataTransacaoFormatada = dataTransacaoFormatada.toISOString();
+        } else if (typeof dataTransacaoFormatada === 'string') {
+          try {
+            const date = new Date(dataTransacaoFormatada);
+            if (!isNaN(date.getTime())) {
+              dataTransacaoFormatada = date.toISOString();
+            } else {
+              dataTransacaoFormatada = new Date().toISOString();
+            }
+          } catch (e) {
+            dataTransacaoFormatada = new Date().toISOString();
+          }
+        } else {
+          dataTransacaoFormatada = new Date().toISOString();
+        }
+      } else {
+        dataTransacaoFormatada = new Date().toISOString();
+      }
       
       // Garantir campos obrigatórios
       const dadosParaEnviar = {
         ...data,
         status: data.status || "concluida",
         // Formato ISO string para garantir serialização adequada
-        dataTransacao: formattedData,
+        dataTransacao: dataTransacaoFormatada,
         // Valores nulos para campos opcionais
         comprovante: data.comprovante || null,
         motivoCancelamento: data.motivoCancelamento || null,
@@ -575,19 +599,40 @@ export default function TransacoesPage() {
       data.giftCardId = selectedGiftCards[0].id;
     }
     
-    // Nota: Não estamos mais removendo o campo dataTransacao, pois o mutationFn o utiliza
-    // Criar uma cópia para enviar
+    // **SOLUÇÃO CRÍTICA**: Convertemos dataTransacao para string ISO
     const dataToSend = { ...data };
+    
+    // Sempre garantir que dataTransacao seja uma string ISO
+    if (dataToSend.dataTransacao) {
+      if (dataToSend.dataTransacao instanceof Date) {
+        dataToSend.dataTransacao = dataToSend.dataTransacao.toISOString();
+      } else if (typeof dataToSend.dataTransacao === 'string') {
+        // Se já for string, garantir que é um formato ISO válido
+        try {
+          const date = new Date(dataToSend.dataTransacao);
+          dataToSend.dataTransacao = date.toISOString();
+        } catch (e) {
+          // Se der erro, usar data atual
+          dataToSend.dataTransacao = new Date().toISOString();
+        }
+      } else {
+        // Se não for nem string nem Date, usar data atual
+        dataToSend.dataTransacao = new Date().toISOString();
+      }
+    } else {
+      // Se não tiver data, usar data atual
+      dataToSend.dataTransacao = new Date().toISOString();
+    }
     
     // Log detalhado dos dados antes de enviar
     console.log("Dados finais para envio:", {
-      valor: data.valor,
-      descricao: data.descricao,
-      status: data.status,
-      giftCardId: data.giftCardId,
-      giftCardIds: data.giftCardIds,
-      userId: data.userId,
-      dataTransacao: data.dataTransacao,
+      valor: dataToSend.valor,
+      descricao: dataToSend.descricao,
+      status: dataToSend.status,
+      giftCardId: dataToSend.giftCardId,
+      giftCardIds: dataToSend.giftCardIds,
+      userId: dataToSend.userId,
+      dataTransacao: dataToSend.dataTransacao, // Agora sempre será string ISO
       selectedGiftCards
     });
     

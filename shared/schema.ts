@@ -203,13 +203,32 @@ export const insertGiftCardSchema = createInsertSchema(giftCards)
 export const insertTransacaoSchema = createInsertSchema(transacoes)
   .omit({
     id: true,
+    dataTransacao: true, // Removemos completamente do schema original
   })
   .extend({
-    // Permite que a dataTransacao venha como string e seja convertida para Date
-    dataTransacao: z.union([
-      z.date(),
-      z.string().transform((str) => new Date(str))
-    ]).optional().default(() => new Date())
+    // Definição explícita melhorada para o campo dataTransacao
+    dataTransacao: z
+      .string()
+      .nullable()
+      .transform((val) => {
+        // Se for null ou undefined, retorna a data atual
+        if (!val) return new Date();
+        
+        try {
+          // Tenta converter para Date
+          const date = new Date(val);
+          // Verifica se é uma data válida
+          if (isNaN(date.getTime())) {
+            console.log("Data inválida, usando data atual:", val);
+            return new Date();
+          }
+          return date;
+        } catch (e) {
+          console.error("Erro ao converter data:", e);
+          return new Date();
+        }
+      })
+      .default(() => new Date().toISOString())
   });
 
 export const insertTagSchema = createInsertSchema(tags).omit({
