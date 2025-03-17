@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {
   path: string;
-  component: React.ComponentType;
+  component: React.ComponentType<any>;
 }
 
 export function ProtectedRoute({ path, component: Component }: ProtectedRouteProps) {
@@ -18,11 +18,11 @@ export function ProtectedRoute({ path, component: Component }: ProtectedRoutePro
       try {
         const isAuthed = await checkAuth();
         if (!isAuthed) {
-          navigate("/login");
+          navigate("/auth");
         }
       } catch (error) {
         console.error("Auth check failed:", error);
-        navigate("/login");
+        navigate("/auth");
       } finally {
         setIsChecking(false);
       }
@@ -48,5 +48,10 @@ export function ProtectedRoute({ path, component: Component }: ProtectedRoutePro
     );
   }
 
-  return <Route path={path} component={Component} />;
+  // Usar o render prop pattern para passar os parâmetros corretamente ao componente
+  return (
+    <Route path={path}>
+      {(params) => <Component {...params} />}
+    </Route>
+  );
 }

@@ -28,8 +28,8 @@ function Router() {
       <Route path="/login" component={AuthPage} />
       <Route path="/auth" component={AuthPage} />
       
-      {/* Redirecionar a rota raiz para dashboard */}
-      <Route path="/" component={Dashboard} />
+      {/* Redirecionar a rota raiz para dashboard (protegida) */}
+      <ProtectedRoute path="/" component={Dashboard} />
       
       {/* Rotas protegidas */}
       <ProtectedRoute path="/dashboard" component={Dashboard} />

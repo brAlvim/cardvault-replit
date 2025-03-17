@@ -111,23 +111,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // User routes
+  // User routes - Registro de novos usuários
   router.post("/users", async (req: Request, res: Response) => {
     try {
       const userData = insertUserSchema.parse(req.body);
-      const existingUser = await storage.getUserByUsername(userData.username);
       
-      if (existingUser) {
-        return res.status(409).json({ message: "Username already exists" });
+      // Verificar se o nome de usuário já existe
+      const existingUsername = await storage.getUserByUsername(userData.username);
+      if (existingUsername) {
+        return res.status(409).json({ message: "Nome de usuário já está em uso" });
       }
       
-      const user = await storage.createUser(userData);
-      res.status(201).json(user);
+      // Verificar se o email já existe
+      if (userData.email) {
+        const existingEmail = await storage.getUserByEmail(userData.email);
+        if (existingEmail) {
+          return res.status(409).json({ message: "Email já está em uso" });
+        }
+      }
+      
+      // Criptografar a senha com bcrypt
+      const saltRounds = 10;
+      const hashedPassword = await bcrypt.hash(userData.password, saltRounds);
+      
+      // Substituir a senha em texto puro pela senha criptografada
+      const userDataWithHashedPassword = {
+        ...userData,
+        password: hashedPassword,
+        // Por padrão, novos usuários são do perfil 'convidado' (id 4)
+        perfilId: userData.perfilId || 4,
+        status: 'ativo'
+      };
+      
+      // Criar o usuário no banco de dados
+      const newUser = await storage.createUser(userDataWithHashedPassword);
+      
+      // Remover a senha da resposta por segurança
+      const { password, ...userWithoutPassword } = newUser;
+      
+      // Gerar JWT token para o novo usuário
+      const token = jwt.sign(
+        {
+          userId: newUser.id,
+          username: newUser.username,
+          empresaId: newUser.empresaId,
+          perfilId: newUser.perfilId,
+        },
+        JWT_SECRET,
+        { expiresIn: "24h" }
+      );
+      
+      // Buscar dados adicionais para a resposta
+      const perfil = await storage.getPerfil(newUser.perfilId);
+      const empresa = await storage.getEmpresa(newUser.empresaId);
+      
+      // Retornar dados do usuário e token
+      res.status(201).json({
+        token,
+        user: {
+          id: newUser.id,
+          username: newUser.username,
+          nome: newUser.nome,
+          email: newUser.email,
+          empresaId: newUser.empresaId,
+          empresaNome: empresa?.nome,
+          perfilId: newUser.perfilId,
+          perfilNome: perfil?.nome,
+        }
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: fromZodError(error).message });
       }
-      res.status(500).json({ message: "Internal server error" });
+      console.error("Erro ao criar usuário:", error);
+      res.status(500).json({ message: "Erro interno do servidor" });
     }
   });
 
