@@ -344,10 +344,10 @@ export default function NewGiftCardPage() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="codigo">Código do Gift Card</Label>
+              <Label htmlFor="codigo">GIFTCARD SKU</Label>
               <Input 
                 id="codigo" 
-                placeholder="Código do gift card"
+                placeholder="Digite o SKU do gift card"
                 value={codigo}
                 onChange={(e) => setCodigo(e.target.value)}
               />

@@ -274,7 +274,7 @@ export default function GiftCardNewPageFixed() {
             {/* Primeiras informações: SKU e Fornecedor do Gift Card */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div className="space-y-2">
-                <Label htmlFor="codigo">Código/SKU do gift card</Label>
+                <Label htmlFor="codigo">GIFTCARD SKU</Label>
                 <Input 
                   id="codigo" 
                   placeholder="Ex: AMZN-12345"

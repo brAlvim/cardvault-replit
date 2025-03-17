@@ -276,13 +276,12 @@ export default function GiftCardNewPage() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="codigo">Código *</Label>
+                <Label htmlFor="codigo">GIFTCARD SKU</Label>
                 <Input 
                   id="codigo" 
-                  placeholder="Código do gift card"
+                  placeholder="Digite o SKU do gift card"
                   value={codigo}
                   onChange={(e) => setCodigo(e.target.value)}
-                  required
                 />
               </div>
               
