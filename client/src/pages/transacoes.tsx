@@ -169,6 +169,7 @@ type TransacaoFormReset = {
 // Estende o tipo inferido do schema para permitir que dataTransacao seja string ou Date
 type TransacaoFormValues = Omit<z.infer<typeof transacaoFormSchema>, 'dataTransacao'> & {
   dataTransacao?: Date | string;
+  cardValores?: string; // Adiciona o campo cardValores para indicar valores por cartão
 };
 
 export default function TransacoesPage() {
@@ -599,7 +600,7 @@ export default function TransacoesPage() {
       toast({
         title: "Aviso",
         description: `O valor total (${formatMoney(valorTotal)}) é diferente da soma dos valores distribuídos (${formatMoney(valorDistribuido)})`,
-        variant: "warning",
+        variant: "destructive", // Usamos destructive ao invés de warning, que não está disponível
       });
       
       // Pergunta se deseja continuar
