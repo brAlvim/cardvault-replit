@@ -67,6 +67,14 @@ export interface IStorage {
   createFornecedor(fornecedor: InsertFornecedor): Promise<Fornecedor>;
   updateFornecedor(id: number, fornecedor: Partial<InsertFornecedor>): Promise<Fornecedor | undefined>;
   deleteFornecedor(id: number): Promise<boolean>;
+  
+  // Supplier methods (fornecedores de gift cards)
+  getSuppliers(userId: number, empresaId?: number): Promise<Supplier[]>;
+  getSupplier(id: number, empresaId?: number): Promise<Supplier | undefined>;
+  getSuppliersByEmpresa(empresaId: number): Promise<Supplier[]>;
+  createSupplier(supplier: InsertSupplier): Promise<Supplier>;
+  updateSupplier(id: number, supplier: Partial<InsertSupplier>): Promise<Supplier | undefined>;
+  deleteSupplier(id: number): Promise<boolean>;
 
   // Gift Card methods (substitui Card)
   getGiftCards(userId: number, fornecedorId?: number, empresaId?: number): Promise<GiftCard[]>;
@@ -106,6 +114,7 @@ class MemStorage implements IStorage {
   private perfis: Map<number, Perfil> = new Map();
   private users: Map<number, User> = new Map();
   private fornecedores: Map<number, Fornecedor> = new Map();
+  private suppliers: Map<number, Supplier> = new Map();
   private giftCards: Map<number, GiftCard> = new Map();
   private transacoes: Map<number, Transacao> = new Map();
   private tags: Map<number, Tag> = new Map();
@@ -116,6 +125,7 @@ class MemStorage implements IStorage {
   private perfilId: number = 1;
   private userId: number = 1;
   private fornecedorId: number = 1;
+  private supplierId: number = 1;
   private giftCardId: number = 1;
   private transacaoId: number = 1;
   private tagId: number = 1;
@@ -432,6 +442,100 @@ class MemStorage implements IStorage {
 
   async deleteFornecedor(id: number): Promise<boolean> {
     return this.fornecedores.delete(id);
+  }
+  
+  // Supplier methods (fornecedores de gift cards)
+  async getSuppliers(userId: number, empresaId?: number): Promise<Supplier[]> {
+    let suppliers = Array.from(this.suppliers.values()).filter(
+      (supplier) => supplier.userId === userId
+    );
+    
+    // Se for especificado um empresaId, filtramos por ele
+    if (empresaId) {
+      suppliers = suppliers.filter(
+        (supplier) => supplier.empresaId === empresaId
+      );
+    }
+    
+    return suppliers;
+  }
+
+  async getSupplier(id: number, empresaId?: number): Promise<Supplier | undefined> {
+    const supplier = this.suppliers.get(id);
+    
+    // Verifica se o supplier pertence à empresa especificada
+    if (supplier && empresaId && supplier.empresaId !== empresaId) {
+      return undefined;
+    }
+    
+    return supplier;
+  }
+
+  async getSuppliersByEmpresa(empresaId: number): Promise<Supplier[]> {
+    const suppliers = Array.from(this.suppliers.values());
+    
+    const result = suppliers.filter(
+      (supplier) => supplier.empresaId === empresaId
+    );
+    
+    return result;
+  }
+
+  async createSupplier(supplier: InsertSupplier): Promise<Supplier> {
+    const id = this.supplierId++;
+    const timestamp = new Date();
+    const newSupplier: Supplier = { 
+      id, 
+      nome: supplier.nome,
+      cnpj: supplier.cnpj || null,
+      email: supplier.email || null,
+      telefone: supplier.telefone || null,
+      endereco: supplier.endereco || null,
+      cidade: supplier.cidade || null,
+      estado: supplier.estado || null,
+      website: supplier.website || null,
+      logo: supplier.logo || null,
+      desconto: supplier.desconto || 0,
+      observacoes: supplier.observacoes || null,
+      status: supplier.status || "ativo",
+      userId: supplier.userId,
+      empresaId: supplier.empresaId || 1,
+      createdAt: timestamp,
+      updatedAt: null
+    };
+    this.suppliers.set(id, newSupplier);
+    return newSupplier;
+  }
+
+  async updateSupplier(id: number, supplierData: Partial<InsertSupplier>): Promise<Supplier | undefined> {
+    const supplier = this.suppliers.get(id);
+    if (!supplier) return undefined;
+    
+    const timestamp = new Date();
+    const updatedSupplier: Supplier = { 
+      ...supplier,
+      nome: supplierData.nome !== undefined ? supplierData.nome : supplier.nome,
+      cnpj: supplierData.cnpj !== undefined ? supplierData.cnpj : supplier.cnpj,
+      email: supplierData.email !== undefined ? supplierData.email : supplier.email,
+      telefone: supplierData.telefone !== undefined ? supplierData.telefone : supplier.telefone,
+      endereco: supplierData.endereco !== undefined ? supplierData.endereco : supplier.endereco,
+      cidade: supplierData.cidade !== undefined ? supplierData.cidade : supplier.cidade,
+      estado: supplierData.estado !== undefined ? supplierData.estado : supplier.estado,
+      website: supplierData.website !== undefined ? supplierData.website : supplier.website,
+      logo: supplierData.logo !== undefined ? supplierData.logo : supplier.logo,
+      desconto: supplierData.desconto !== undefined ? supplierData.desconto : supplier.desconto,
+      observacoes: supplierData.observacoes !== undefined ? supplierData.observacoes : supplier.observacoes,
+      status: supplierData.status !== undefined ? supplierData.status : supplier.status,
+      userId: supplierData.userId !== undefined ? supplierData.userId : supplier.userId,
+      empresaId: supplierData.empresaId !== undefined ? supplierData.empresaId : supplier.empresaId,
+      updatedAt: timestamp
+    };
+    this.suppliers.set(id, updatedSupplier);
+    return updatedSupplier;
+  }
+
+  async deleteSupplier(id: number): Promise<boolean> {
+    return this.suppliers.delete(id);
   }
 
   // Gift Card methods (anteriormente cards)
