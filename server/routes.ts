@@ -13,6 +13,10 @@ import {
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import { login, requireAuth, requirePermission, isGuestProfile, filterConfidentialData, filterGiftCardArray } from "./auth";
+import jwt from "jsonwebtoken";
+
+// Chave secreta para JWT - em produção, isso deve estar no .env
+const JWT_SECRET = "cardvault-secret-key-2024";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const router = express.Router();

@@ -73,12 +73,39 @@ function Router() {
 }
 
 function App() {
-  // Verificar token ao iniciar a aplicação
+  // Verificar token ao iniciar a aplicação e obter um token de desenvolvimento se necessário
   useEffect(() => {
     const token = localStorage.getItem('token');
+    
+    // Função para obter token de desenvolvimento do servidor
+    const fetchDevToken = async () => {
+      try {
+        console.log("Obtendo token de desenvolvimento...");
+        const response = await fetch('/api/auth/dev-token');
+        
+        if (!response.ok) {
+          throw new Error('Falha ao obter token de desenvolvimento');
+        }
+        
+        const data = await response.json();
+        console.log("Token de desenvolvimento obtido com sucesso");
+        
+        // Armazenar dados no localStorage
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('empresaId', data.user.empresaId.toString());
+        
+        // Invalidar todas as consultas para forçar recarregamento
+        queryClient.invalidateQueries();
+      } catch (error) {
+        console.error("Erro ao obter token de desenvolvimento:", error);
+      }
+    };
+    
+    // Se não houver token, tentar obter um token de desenvolvimento
     if (!token) {
-      // Se não houver token, garantir que queryClient não tenha dados em cache
-      queryClient.clear();
+      console.log("Nenhum token encontrado, tentando obter token de desenvolvimento...");
+      fetchDevToken();
     }
   }, []);
 
