@@ -840,9 +840,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Criando transação com:", transacaoObj);
       const transacao = await storage.createTransacao(transacaoObj);
       
-      // Atualiza o saldo dos gift cards se a transação for concluída
-      if (transacao.status === 'concluida') {
+      // Atualiza o saldo dos gift cards se a transação for concluída ou for um reembolso
+      if (transacao.status === 'concluida' || transacao.status === 'refund') {
         try {
+          // Fator para determinar se soma ou subtrai o valor (adiciona para reembolso, subtrai para transação normal)
+          const fator = transacao.status === 'refund' ? 1 : -1;
+          
           // Verifica se temos múltiplos gift cards
           if (transacao.giftCardIds && transacao.giftCardIds.includes(',')) {
             console.log(`Processando múltiplos gift cards: ${transacao.giftCardIds}`);
@@ -858,7 +861,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log(`Gift cards válidos encontrados: ${validCards.length}`);
             
             if (validCards.length > 0) {
-              // Calcula o total de saldo disponível
+              // Calcula o total de saldo disponível (só relevante para transações de débito)
               const totalSaldo = validCards.reduce((sum, card) => sum + card.saldoAtual, 0);
               console.log(`Saldo total disponível: ${totalSaldo}`);
               
@@ -875,35 +878,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 }
               }
               
-              // Se o valor da transação for maior que o saldo total, usamos o máximo disponível
-              const valorTransacao = Math.min(transacao.valor, totalSaldo);
+              // Para reembolso, não precisamos verificar se o valor é maior que o saldo
+              // Para transações normais, limitamos ao saldo disponível
+              const valorTransacao = transacao.status === 'refund' 
+                ? transacao.valor 
+                : Math.min(transacao.valor, totalSaldo);
+              
               let valorRestante = valorTransacao;
               
               // Processa cada cartão com seus valores específicos ou distribuição automática
               for (let i = 0; i < validCards.length; i++) {
                 const card = validCards[i];
                 const isLastCard = i === validCards.length - 1;
-                let valorDebitar;
+                let valorAlterar;
                 
                 // Se temos um valor específico para este cartão
                 if (valoresPorCard && Object.keys(valoresPorCard).length > 0 && valoresPorCard[card.id] !== undefined) {
-                  valorDebitar = Math.min(valoresPorCard[card.id], card.saldoAtual);
+                  valorAlterar = transacao.status === 'refund' 
+                    ? valoresPorCard[card.id] 
+                    : Math.min(valoresPorCard[card.id], card.saldoAtual);
                 } else if (isLastCard) {
                   // Para o último cartão (sem valor específico), usamos o que sobrar
-                  valorDebitar = Math.min(valorRestante, card.saldoAtual);
+                  valorAlterar = transacao.status === 'refund'
+                    ? valorRestante
+                    : Math.min(valorRestante, card.saldoAtual);
                 } else {
                   // Distribuição proporcional para os demais cartões
-                  valorDebitar = Math.min(valorRestante, card.saldoAtual);
+                  valorAlterar = transacao.status === 'refund'
+                    ? valorRestante
+                    : Math.min(valorRestante, card.saldoAtual);
                 }
                 
-                const novoSaldo = card.saldoAtual - valorDebitar;
-                console.log(`Gift card ${card.codigo}: debitando ${valorDebitar}, novo saldo: ${novoSaldo}`);
+                // Para reembolso, adicionamos o valor, para transações normais subtraímos
+                const novoSaldo = card.saldoAtual + (valorAlterar * fator);
+                
+                if (transacao.status === 'refund') {
+                  console.log(`Gift card ${card.codigo}: adicionando ${valorAlterar} (REEMBOLSO), novo saldo: ${novoSaldo}`);
+                } else {
+                  console.log(`Gift card ${card.codigo}: debitando ${valorAlterar}, novo saldo: ${novoSaldo}`);
+                }
                 
                 await storage.updateGiftCard(card.id, {
                   saldoAtual: novoSaldo
                 });
                 
-                valorRestante -= valorDebitar;
+                valorRestante -= valorAlterar;
                 
                 // Se não há mais valor para distribuir, saímos do loop
                 if (valorRestante <= 0) break;
@@ -912,13 +931,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           } 
           // Compatibilidade com transações antigas (gift card único)
           else if (transacao.giftCardId) {
-            console.log(`Atualizando saldo do gift card ${transacao.giftCardId} após transação concluída`);
+            if (transacao.status === 'refund') {
+              console.log(`Atualizando saldo do gift card ${transacao.giftCardId} após reembolso`);
+            } else {
+              console.log(`Atualizando saldo do gift card ${transacao.giftCardId} após transação concluída`);
+            }
+            
             const giftCard = await storage.getGiftCard(transacao.giftCardId);
             
             if (giftCard) {
               console.log(`Gift card encontrado: ${giftCard.codigo}, saldo atual: ${giftCard.saldoAtual}`);
-              const novoSaldo = giftCard.saldoAtual - transacao.valor;
-              console.log(`Novo saldo calculado: ${novoSaldo}`);
+              
+              // Para reembolso, adicionamos o valor, para transações normais subtraímos
+              const novoSaldo = giftCard.saldoAtual + (transacao.valor * fator);
+              
+              if (transacao.status === 'refund') {
+                console.log(`Novo saldo calculado após reembolso: ${novoSaldo} (adicionando ${transacao.valor})`);
+              } else {
+                console.log(`Novo saldo calculado após débito: ${novoSaldo} (subtraindo ${transacao.valor})`);
+              }
               
               await storage.updateGiftCard(giftCard.id, {
                 saldoAtual: novoSaldo
