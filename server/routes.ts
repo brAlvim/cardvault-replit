@@ -34,7 +34,7 @@ import {
 import jwt from "jsonwebtoken";
 
 // Chave secreta para JWT - em produção, isso deve estar no .env
-const JWT_SECRET = "cardvault-secret-key-2024";
+const JWT_SECRET = "cardvault-secret-key-2024-advanced-security-protocol";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const router = express.Router();
