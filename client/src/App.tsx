@@ -18,6 +18,7 @@ import Transacoes from "@/pages/transacoes";
 import Relatorios from "@/pages/relatorios";
 import UserProfiles from "@/pages/user-profiles";
 import AuthPage from "@/pages/auth-page";
+import LoginPage from "@/pages/login";
 import { ProtectedRoute } from "@/lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth";
 
@@ -25,11 +26,11 @@ function Router() {
   return (
     <Switch>
       {/* Rota de autenticação - aberta para todos */}
-      <Route path="/login" component={AuthPage} />
+      <Route path="/login" component={LoginPage} />
       <Route path="/auth" component={AuthPage} />
       
       {/* Redirecionar a rota raiz para dashboard */}
-      <Route path="/" component={Dashboard} />
+      <ProtectedRoute path="/" component={Dashboard} />
       
       {/* Rotas protegidas */}
       <ProtectedRoute path="/dashboard" component={Dashboard} />
