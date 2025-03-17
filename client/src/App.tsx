@@ -13,6 +13,7 @@ import GiftCardNew from "@/pages/gift-card-new";
 import GiftCardNewFixed from "@/pages/gift-card-new-fixed";
 import CalculadoraSimples from "@/pages/CalculadoraSimples";
 import Fornecedores from "@/pages/fornecedores";
+import FornecedorDetalhes from "@/pages/fornecedor-detalhes";
 import Transacoes from "@/pages/transacoes";
 import Relatorios from "@/pages/relatorios";
 import UserProfiles from "@/pages/user-profiles";
@@ -57,6 +58,7 @@ function Router() {
       <ProtectedRoute path="/gift-cards/new" component={GiftCardNewFixed} />
       <ProtectedRoute path="/gift-cards/:id" component={GiftCardDetails} />
       <ProtectedRoute path="/fornecedores" component={Fornecedores} />
+      <ProtectedRoute path="/fornecedores/:id" component={FornecedorDetalhes} />
       <ProtectedRoute path="/calculadora" component={CalculadoraSimples} />
       <ProtectedRoute path="/transacoes" component={Transacoes} />
       <ProtectedRoute path="/transacoes/:id" component={Transacoes} />
