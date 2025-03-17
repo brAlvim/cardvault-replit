@@ -903,7 +903,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  router.post("/gift-cards", requireAuth, requirePermission("giftcard.criar"), async (req: Request, res: Response) => {
+  router.post("/gift-cards", requireAuth, async (req: Request, res: Response) => {
     try {
       // Obter o usuário autenticado
       const user = req.user;

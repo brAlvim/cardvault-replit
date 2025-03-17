@@ -95,6 +95,12 @@ export default function NewGiftCardPage() {
         // Calcula o valor economizado
         const economizado = total - pago;
         setValorEconomizado(`R$ ${economizado.toFixed(2)}`);
+        
+        console.log(`Cálculo atualizado: 
+          - Valor inicial: ${total}
+          - Valor pago: ${pago}
+          - Desconto: ${descontoCalculado.toFixed(2)}%
+          - Economia: R$ ${economizado.toFixed(2)}`);
       } else {
         setPercentualDesconto('0');
         setValorEconomizado('R$ 0.00');
@@ -335,31 +341,15 @@ export default function NewGiftCardPage() {
               </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="codigo">Código *</Label>
-                <Input 
-                  id="codigo" 
-                  placeholder="Código do gift card"
-                  value={codigo}
-                  onChange={(e) => setCodigo(e.target.value)}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="valor">Valor Inicial *</Label>
-                <Input 
-                  id="valor" 
-                  placeholder="0.00"
-                  value={valorInicial}
-                  onChange={handleValorInicialChange}
-                  required
-                  type="number"
-                  step="0.01"
-                  min="0"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="codigo">Código do Gift Card *</Label>
+              <Input 
+                id="codigo" 
+                placeholder="Código do gift card"
+                value={codigo}
+                onChange={(e) => setCodigo(e.target.value)}
+                required
+              />
             </div>
             
             <div className="space-y-2">
@@ -502,6 +492,20 @@ export default function NewGiftCardPage() {
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div className="space-y-2">
+                  <Label htmlFor="valorInicial">Valor Inicial *</Label>
+                  <Input 
+                    id="valorInicial" 
+                    placeholder="0.00"
+                    value={valorInicial}
+                    onChange={handleValorInicialChange}
+                    required
+                    type="number"
+                    step="0.01"
+                    min="0"
+                  />
+                </div>
+                
+                <div className="space-y-2">
                   <Label htmlFor="valorPago">Valor Pago</Label>
                   <Input 
                     id="valorPago" 
@@ -516,19 +520,6 @@ export default function NewGiftCardPage() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="valorPendente">Valor Pendente</Label>
-                  <Input 
-                    id="valorPendente" 
-                    placeholder="0.00"
-                    value={valorPendente}
-                    onChange={(e) => setValorPendente(e.target.value)}
-                    type="number"
-                    step="0.01"
-                    min="0"
-                  />
-                </div>
-                
-                <div className="space-y-2">
                   <Label htmlFor="valorEconomizado" className="text-green-600 font-medium">Valor Economizado</Label>
                   <Input 
                     id="valorEconomizado" 
@@ -539,6 +530,21 @@ export default function NewGiftCardPage() {
                   <p className="text-xs text-green-600">
                     Economia total na compra deste gift card
                   </p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div className="space-y-2">
+                  <Label htmlFor="valorPendente">Valor Pendente</Label>
+                  <Input 
+                    id="valorPendente" 
+                    placeholder="0.00"
+                    value={valorPendente}
+                    onChange={(e) => setValorPendente(e.target.value)}
+                    type="number"
+                    step="0.01"
+                    min="0"
+                  />
                 </div>
               </div>
               
