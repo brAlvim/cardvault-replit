@@ -215,7 +215,7 @@ export default function GiftCardDetailsPage() {
                 
                 <div className="flex flex-col">
                   <span className="text-sm text-muted-foreground">Valor Inicial</span>
-                  <span className="font-medium">R$ {giftCard.valorInicial.toFixed(2)}</span>
+                  <span className="font-medium">R$ {(giftCard.valorInicial || 0).toFixed(2)}</span>
                 </div>
               </div>
             </div>

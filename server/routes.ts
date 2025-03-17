@@ -129,7 +129,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         gc.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (gc.observacoes && gc.observacoes.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (gc.ordemCompra && gc.ordemCompra.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (gc.gcNumber && gc.gcNumber.toLowerCase().includes(searchTerm.toLowerCase()))
+        (gc.gc_number && gc.gc_number.toLowerCase().includes(searchTerm.toLowerCase()))
       );
 
       // Buscar em transações
