@@ -552,50 +552,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Fornecedor routes (antigo Collection)
   router.get("/fornecedores", requireAuth, async (req: Request, res: Response) => {
     try {
-      // Usar o ID do usuário autenticado por padrão
-      const user = req.user as any;
-      let userId = user.id;
-      
-      console.log("Usuário autenticado:", JSON.stringify(user));
-      
-      // Permitir que administradores vejam os fornecedores de outros usuários
-      if (req.query.userId && user.perfilId === 1) { // perfilId 1 é admin
-        userId = parseInt(req.query.userId as string);
-        if (isNaN(userId)) {
-          return res.status(400).json({ message: "Invalid user ID format" });
-        }
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
       }
       
-      // Verificar se o userId está sendo obtido corretamente da query
-      console.log("Query params:", req.query);
-      console.log("userId da query:", req.query.userId);
+      // Usar apenas o ID do usuário autenticado - isolamento estrito de dados
+      const userId = user.id;
       
-      // Filtrar por empresa se especificado ou usar a empresa do usuário autenticado
-      const empresaId = user.empresaId || 
-        (req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined);
+      // Usar apenas a empresa do usuário autenticado para garantir isolamento
+      const empresaId = user.empresaId;
       
-      console.log(`Buscando fornecedores para usuário ${userId}, empresa ${empresaId}`);
+      // Carregar os fornecedores com isolamento de dados
+      let fornecedores: Fornecedor[] = [];
       
-      // Carregar todos os fornecedores da empresa para usuários com perfil diferente de admin
-      let fornecedores: Fornecedor[];
-      if (user.perfilId !== 1) {
-        // Para usuários normais (não admin), mostrar todos os fornecedores da empresa
-        // mais os fornecedores que o próprio usuário criou
+      if (user.perfilId === 1) {
+        // Administradores podem ver todos os fornecedores da empresa
+        fornecedores = await storage.getFornecedoresByEmpresa(empresaId);
+      } else if (user.perfilId === 2) {
+        // Gerentes podem ver todos os fornecedores da empresa deles
         fornecedores = await storage.getFornecedoresByEmpresa(empresaId);
       } else {
-        // Para admins, usar a busca por userId se especificado
+        // Usuários normais e convidados só veem os fornecedores que eles criaram
         fornecedores = await storage.getFornecedores(userId, empresaId);
       }
       
-      console.log(`Fornecedores encontrados para userId=${userId}:`, fornecedores.length);
-      if (fornecedores.length > 0) {
-        console.log("Amostra de fornecedores:", fornecedores.slice(0, 3).map(f => ({ 
-          id: f.id, 
-          nome: f.nome, 
-          userId: f.userId, 
-          empresaId: f.empresaId 
-        })));
-      }
+      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${user.id}) consultou a lista de fornecedores (${fornecedores.length} resultados)`);
       
       res.json(fornecedores);
     } catch (error) {
@@ -704,35 +686,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Supplier routes (fornecedores de gift cards)
   router.get("/suppliers", requireAuth, async (req: Request, res: Response) => {
     try {
-      // Usar o ID do usuário autenticado por padrão
-      const user = req.user as any;
-      let userId = user.id;
-      
-      // Permitir que administradores vejam os suppliers de outros usuários
-      if (req.query.userId && user.perfilId === 1) { // perfilId 1 é admin
-        userId = parseInt(req.query.userId as string);
-        if (isNaN(userId)) {
-          return res.status(400).json({ message: "Invalid user ID format" });
-        }
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
       }
       
-      // Filtrar por empresa se especificado ou usar a empresa do usuário autenticado
-      const empresaId = user.empresaId || 
-        (req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined);
+      // Usar apenas o ID do usuário autenticado - isolamento estrito de dados
+      const userId = user.id;
       
-      console.log(`Buscando suppliers para usuário ${userId}, empresa ${empresaId}`);
+      // Usar apenas a empresa do usuário autenticado para garantir isolamento
+      const empresaId = user.empresaId;
       
-      // Carregar todos os suppliers da empresa para usuários com perfil diferente de admin
-      let suppliers: Supplier[];
-      if (user.perfilId !== 1) {
-        // Para usuários normais (não admin), mostrar todos os suppliers da empresa
+      // Carregar os suppliers com isolamento de dados
+      let suppliers: Supplier[] = [];
+      
+      if (user.perfilId === 1) {
+        // Administradores podem ver todos os suppliers da empresa
+        suppliers = await storage.getSuppliersByEmpresa(empresaId);
+      } else if (user.perfilId === 2) {
+        // Gerentes podem ver todos os suppliers da empresa deles
         suppliers = await storage.getSuppliersByEmpresa(empresaId);
       } else {
-        // Para admins, usar a busca por userId se especificado
+        // Usuários normais e convidados só veem os suppliers que eles criaram
         suppliers = await storage.getSuppliers(userId, empresaId);
       }
       
-      console.log(`Suppliers encontrados para userId=${userId}:`, suppliers.length);
+      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${user.id}) consultou a lista de suppliers (${suppliers.length} resultados)`);
       
       res.json(suppliers);
     } catch (error) {
@@ -1089,92 +1068,176 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  router.get("/gift-cards/vencimento/:dias/:userId?", requireAuth, async (req: Request, res: Response) => {
+  router.get("/gift-cards/vencimento/:dias/:userId?", requireAuth, requirePermission("giftcard.visualizar"), async (req: Request, res: Response) => {
     try {
       // Usar o ID do usuário autenticado por padrão
-      const user = (req as any).user;
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
+      
       let userId = user.id;
       
-      // Permitir que administradores vejam os gift cards de outros usuários
-      if (req.params.userId && user.perfilId === 1) { // perfilId 1 é admin
-        userId = parseInt(req.params.userId);
+      // Permitir que administradores e gerentes vejam os gift cards de outros usuários
+      if (req.params.userId && (user.perfilId === 1 || user.perfilId === 2)) {
+        const requestedUserId = parseInt(req.params.userId);
+        
+        if (isNaN(requestedUserId)) {
+          return res.status(400).json({ message: "Formato de ID de usuário inválido" });
+        }
+        
+        // Se for gerente, verificar se o usuário solicitado pertence à mesma empresa
+        if (user.perfilId === 2) {
+          const requestedUser = await storage.getUser(requestedUserId);
+          if (!requestedUser || requestedUser.empresaId !== user.empresaId) {
+            return res.status(403).json({ 
+              message: "Você não tem permissão para acessar os gift cards deste usuário" 
+            });
+          }
+        }
+        
+        userId = requestedUserId;
       }
       
+      // Validar o parâmetro de dias
       const dias = parseInt(req.params.dias);
-      
-      if (isNaN(dias)) {
-        return res.status(400).json({ message: "Invalid number of days" });
+      if (isNaN(dias) || dias < 0 || dias > 365) {
+        return res.status(400).json({ message: "Parâmetro de dias inválido. Deve ser um número entre 0 e 365." });
       }
       
-      // Obter o empresaId se fornecido como parâmetro de consulta
-      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      // Garantir que o empresaId seja sempre o do usuário autenticado para evitar vazamento de dados
+      const empresaId = user.empresaId;
       
-      // TODO: Atualizar o método getGiftCardsVencimento para suportar empresaId quando necessário
+      // Buscar gift cards com vencimento próximo
       let giftCards = await storage.getGiftCardsVencimento(userId, dias);
       
-      // Filtrar manualmente por empresa, se especificada (até que o método seja atualizado)
-      if (empresaId) {
-        giftCards = giftCards.filter(giftCard => giftCard.empresaId === empresaId);
-      }
+      // Garantir isolamento de dados por empresa
+      giftCards = giftCards.filter(giftCard => giftCard.empresaId === empresaId);
       
-      // Verificar se o usuário é do perfil convidado
+      // Verificar se o usuário é do perfil convidado para aplicar filtros de confidencialidade
       const isGuest = await isGuestProfile(user.perfilId);
       
-      // Filtrar dados confidenciais se for perfil convidado
+      // Processar os gift cards conforme o perfil do usuário
       if (isGuest) {
+        // Para convidados, mascarar informações sensíveis
         giftCards = filterGiftCardArray(giftCards, true);
+      } else {
+        // Para usuários autorizados, descriptografar dados sensíveis
+        giftCards = giftCards.map(card => decryptGiftCardData(card));
       }
+      
+      // Registrar evento para auditoria
+      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${user.id}) consultou gift cards com vencimento em ${dias} dias`);
       
       res.json(giftCards);
     } catch (error) {
       console.error("Erro ao buscar gift cards com vencimento próximo:", error);
-      res.status(500).json({ message: "Internal server error" });
+      res.status(500).json({ message: "Erro interno do servidor" });
     }
   });
 
   // Tag routes
-  router.get("/tags", async (req: Request, res: Response) => {
+  router.get("/tags", requireAuth, async (req: Request, res: Response) => {
     try {
-      // Filtrar por empresa se especificado
-      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
+      
+      // Garantir que o empresaId seja sempre o do usuário autenticado para evitar vazamento de dados
+      const empresaId = user.empresaId;
+      
+      // Buscar tags da empresa do usuário
       const tags = await storage.getTags(empresaId);
+      
+      // Registrar evento para auditoria
+      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${user.id}) consultou a lista de tags`);
+      
       res.json(tags);
     } catch (error) {
-      res.status(500).json({ message: "Internal server error" });
+      console.error("Erro ao buscar tags:", error);
+      res.status(500).json({ message: "Erro interno do servidor" });
     }
   });
 
-  router.post("/tags", async (req: Request, res: Response) => {
+  router.post("/tags", requireAuth, async (req: Request, res: Response) => {
     try {
-      // Garantir que o empresaId seja armazenado
-      if (!req.body.empresaId && req.query.empresaId) {
-        req.body.empresaId = parseInt(req.query.empresaId as string);
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
       }
       
+      // Garantir que o empresaId seja sempre o do usuário autenticado para evitar vazamento de dados
+      req.body.empresaId = user.empresaId;
+      req.body.userId = user.id;
+      
+      // Validar e sanitizar os dados
       const tagData = insertTagSchema.parse(req.body);
+      
+      // Prevenir injeção de código e XSS
+      if (tagData.nome) {
+        tagData.nome = tagData.nome.trim().substring(0, 50);
+      }
+      
+      if (tagData.cor) {
+        // Garantir que a cor seja um valor hexadecimal válido
+        if (!/^#[0-9A-F]{6}$/i.test(tagData.cor)) {
+          tagData.cor = "#3B82F6"; // Cor padrão azul
+        }
+      }
+      
+      // Criar a tag com os dados validados
       const tag = await storage.createTag(tagData);
+      
+      // Registrar evento para auditoria
+      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${user.id}) criou a tag "${tag.nome}" (ID: ${tag.id})`);
+      
       res.status(201).json(tag);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: fromZodError(error).message });
       }
-      res.status(500).json({ message: "Internal server error" });
+      console.error("Erro ao criar tag:", error);
+      res.status(500).json({ message: "Erro interno do servidor" });
     }
   });
 
-  router.get("/tags/:id", async (req: Request, res: Response) => {
+  router.get("/tags/:id", requireAuth, async (req: Request, res: Response) => {
     try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
+      
       const tagId = parseInt(req.params.id);
-      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      if (isNaN(tagId)) {
+        return res.status(400).json({ message: "ID de tag inválido" });
+      }
+      
+      // Garantir que as tags sejam buscadas apenas da empresa do usuário
+      const empresaId = user.empresaId;
+      
+      // Buscar a tag
       const tag = await storage.getTag(tagId, empresaId);
       
       if (!tag) {
-        return res.status(404).json({ message: "Tag not found" });
+        return res.status(404).json({ message: "Tag não encontrada" });
       }
+      
+      // Verificar se a tag pertence à empresa do usuário
+      if (tag.empresaId !== user.empresaId) {
+        return res.status(403).json({ 
+          message: "Você não tem permissão para acessar esta tag" 
+        });
+      }
+      
+      // Registrar evento para auditoria
+      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${user.id}) consultou a tag "${tag.nome}" (ID: ${tag.id})`);
       
       res.json(tag);
     } catch (error) {
-      res.status(500).json({ message: "Internal server error" });
+      console.error("Erro ao buscar tag:", error);
+      res.status(500).json({ message: "Erro interno do servidor" });
     }
   });
 
@@ -1219,43 +1282,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  router.get("/gift-cards/:giftCardId/tags", async (req: Request, res: Response) => {
+  router.get("/gift-cards/:giftCardId/tags", requireAuth, requirePermission("giftcard.visualizar"), requireResourceOwnership("giftCard"), async (req: Request, res: Response) => {
     try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
+      
       const giftCardId = parseInt(req.params.giftCardId);
-      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      if (isNaN(giftCardId)) {
+        return res.status(400).json({ message: "ID de Gift Card inválido" });
+      }
+      
+      // Verificar se o gift card existe
+      const giftCard = await storage.getGiftCard(giftCardId);
+      if (!giftCard) {
+        return res.status(404).json({ message: "Gift Card não encontrado" });
+      }
+      
+      // Garantir que só busque tags da empresa do usuário
+      const empresaId = user.empresaId;
+      
+      // Buscar as tags associadas ao gift card
       const tags = await storage.getGiftCardTags(giftCardId, empresaId);
+      
+      // Registrar evento para auditoria
+      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${user.id}) consultou as tags do Gift Card ID: ${giftCardId}`);
+      
       res.json(tags);
     } catch (error) {
-      res.status(500).json({ message: "Internal server error" });
+      console.error("Erro ao buscar tags do gift card:", error);
+      res.status(500).json({ message: "Erro interno do servidor" });
     }
   });
 
-  router.post("/gift-cards/:giftCardId/tags/:tagId", async (req: Request, res: Response) => {
+  router.post("/gift-cards/:giftCardId/tags/:tagId", requireAuth, requirePermission("giftcard.editar"), requireResourceOwnership("giftCard"), async (req: Request, res: Response) => {
     try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
+      
       const giftCardId = parseInt(req.params.giftCardId);
       const tagId = parseInt(req.params.tagId);
       
+      if (isNaN(giftCardId) || isNaN(tagId)) {
+        return res.status(400).json({ message: "IDs inválidos" });
+      }
+      
+      // Verificar se o gift card existe
+      const giftCard = await storage.getGiftCard(giftCardId);
+      if (!giftCard) {
+        return res.status(404).json({ message: "Gift Card não encontrado" });
+      }
+      
+      // Verificar se a tag existe e pertence à empresa do usuário
+      const tag = await storage.getTag(tagId, user.empresaId);
+      if (!tag) {
+        return res.status(404).json({ message: "Tag não encontrada" });
+      }
+      
+      // Associar a tag ao gift card
       const giftCardTag = await storage.addTagToGiftCard(giftCardId, tagId);
+      
+      // Registrar evento para auditoria
+      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${user.id}) associou a tag "${tag.nome}" (ID: ${tagId}) ao Gift Card ID: ${giftCardId}`);
+      
       res.status(201).json(giftCardTag);
     } catch (error) {
-      res.status(500).json({ message: "Internal server error" });
+      console.error("Erro ao associar tag ao gift card:", error);
+      res.status(500).json({ message: "Erro interno do servidor" });
     }
   });
 
-  router.delete("/gift-cards/:giftCardId/tags/:tagId", async (req: Request, res: Response) => {
+  router.delete("/gift-cards/:giftCardId/tags/:tagId", requireAuth, requirePermission("giftcard.editar"), requireResourceOwnership("giftCard"), async (req: Request, res: Response) => {
     try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
+      
       const giftCardId = parseInt(req.params.giftCardId);
       const tagId = parseInt(req.params.tagId);
       
+      if (isNaN(giftCardId) || isNaN(tagId)) {
+        return res.status(400).json({ message: "IDs inválidos" });
+      }
+      
+      // Verificar se a relação entre gift card e tag existe antes de remover
+      const tags = await storage.getGiftCardTags(giftCardId);
+      const tagExists = tags.some(tag => tag.id === tagId);
+      if (!tagExists) {
+        return res.status(404).json({ message: "Relação entre Gift Card e Tag não encontrada" });
+      }
+      
+      // Remover a tag do gift card
       const success = await storage.removeTagFromGiftCard(giftCardId, tagId);
       
       if (!success) {
-        return res.status(404).json({ message: "Gift card tag relation not found" });
+        return res.status(500).json({ message: "Falha ao remover tag do Gift Card" });
       }
+      
+      // Registrar evento para auditoria
+      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${user.id}) removeu a tag ID: ${tagId} do Gift Card ID: ${giftCardId}`);
       
       res.status(204).send();
     } catch (error) {
-      res.status(500).json({ message: "Internal server error" });
+      console.error("Erro ao remover tag do gift card:", error);
+      res.status(500).json({ message: "Erro interno do servidor" });
     }
   });
   
@@ -1315,28 +1449,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Rota para buscar transações de um gift card específico
-  router.get("/transacoes/:giftCardId", async (req: Request, res: Response) => {
+  router.get("/transacoes/:giftCardId", requireAuth, requirePermission("giftcard.visualizar"), requireResourceOwnership("giftCard"), async (req: Request, res: Response) => {
     try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
+      
       const giftCardId = parseInt(req.params.giftCardId);
       if (isNaN(giftCardId)) {
         return res.status(400).json({ message: "ID de Gift Card inválido" });
       }
       
-      // Verifica se há um filtro por empresa
-      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
-      
-      // Busca o gift card para verificar se ele pertence à empresa especificada
-      if (empresaId) {
-        const giftCard = await storage.getGiftCard(giftCardId, empresaId);
-        if (!giftCard) {
-          return res.status(404).json({ message: "Gift Card not found for this company" });
-        }
+      // Verificar se o gift card existe
+      const giftCard = await storage.getGiftCard(giftCardId);
+      if (!giftCard) {
+        return res.status(404).json({ message: "Gift Card não encontrado" });
       }
       
+      // Garantir que o usuário só veja transações de gift cards da sua empresa
+      const empresaId = user.empresaId;
+      
+      // Buscar as transações do gift card
       const transacoes = await storage.getTransacoes(giftCardId, empresaId);
+      
+      // Registrar evento para auditoria
+      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${user.id}) consultou as transações do Gift Card ID: ${giftCardId}`);
+      
       res.json(transacoes);
     } catch (error) {
-      res.status(500).json({ message: "Internal server error" });
+      console.error("Erro ao buscar transações do gift card:", error);
+      res.status(500).json({ message: "Erro interno do servidor" });
     }
   });
   
