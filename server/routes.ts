@@ -1123,7 +1123,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Buscar usuário demo
-      const user = await storage.getUserByEmail("demo@example.com");
+      const user = await storage.getUserByEmail("demo@cardvault.com");
       if (!user) {
         return res.status(404).json({ message: "Usuário demo não encontrado" });
       }
