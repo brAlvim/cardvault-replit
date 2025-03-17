@@ -3,6 +3,7 @@ import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { Fornecedor, User } from '@shared/schema';
 import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -146,34 +147,29 @@ export default function GiftCardNewPage() {
       // Get user ID (temporary solution - in a real app, this would come from auth context)
       const userId = 1;
 
-      const response = await fetch('/api/gift-cards', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          codigo,
-          valorInicial: parseFloat(valorInicial),
-          saldoAtual: parseFloat(valorInicial), // Initially, saldo is the same as valor inicial
-          fornecedorId: parseInt(fornecedorId),
-          supplierId: parseInt(supplierId || fornecedorId), // Usar o supplierId selecionado ou fornecedorId como fallback
-          userId,
-          dataValidade: dataValidade || null,
-          observacoes: observacoes.trim() || null,
-          status: 'Ativo',
-          
-          // Novos campos
-          comprador: userData?.username || null, // Nome do usuário logado
-          login: login.trim() || null,
-          dataCompra: dataCompra || null,
-          ordemCompra: ordemCompra.trim() || null,
-          percentualDesconto: parseFloat(percentualDesconto),
-          valorPago: valorPago ? parseFloat(valorPago) : null,
-          valorPendente: valorPendente ? parseFloat(valorPendente) : null,
-          gcNumber: gcNumber.trim() || null,
-          gcPass: gcPass.trim() || null,
-          ordemUsado: ordemUsado.trim() || null,
-        }),
+      // Usando apiRequest em vez de fetch direto para incluir o token de autenticação
+      const response = await apiRequest('POST', '/api/gift-cards', {
+        codigo,
+        valorInicial: parseFloat(valorInicial),
+        saldoAtual: parseFloat(valorInicial), // Initially, saldo is the same as valor inicial
+        fornecedorId: parseInt(fornecedorId),
+        supplierId: parseInt(supplierId || fornecedorId), // Usar o supplierId selecionado ou fornecedorId como fallback
+        userId,
+        dataValidade: dataValidade || null,
+        observacoes: observacoes.trim() || null,
+        status: 'Ativo',
+        
+        // Novos campos
+        comprador: userData?.username || null, // Nome do usuário logado
+        login: login.trim() || null,
+        dataCompra: dataCompra || null,
+        ordemCompra: ordemCompra.trim() || null,
+        percentualDesconto: parseFloat(percentualDesconto),
+        valorPago: valorPago ? parseFloat(valorPago) : null,
+        valorPendente: valorPendente ? parseFloat(valorPendente) : null,
+        gcNumber: gcNumber.trim() || null,
+        gcPass: gcPass.trim() || null,
+        ordemUsado: ordemUsado.trim() || null,
       });
 
       if (!response.ok) {

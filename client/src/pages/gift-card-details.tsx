@@ -41,18 +41,8 @@ export default function GiftCardDetailsPage() {
   // Fetch gift card details
   const { data: giftCardData, isLoading: isLoadingGiftCard } = useQuery<GiftCard>({
     queryKey: [`/api/gift-cards/${id}`],
-    queryFn: async () => {
-      console.log("Buscando detalhes do gift card:", id);
-      const res = await fetch(`/api/gift-cards/${id}`);
-      if (!res.ok) {
-        console.error(`Erro ao buscar gift card ${id}:`, res.status, res.statusText);
-        throw new Error('Falha ao carregar gift card');
-      }
-      const data = await res.json();
-      console.log(`Gift card ${id} carregado:`, data);
-      return data;
-    },
-    staleTime: 0, // Não mantenha cache
+    // Usando a função getQueryFn para enviar o token de autenticação
+    // Isso usará automaticamente o token JWT armazenado no localStorage
     refetchOnMount: true, // Refaz a query quando o componente é montado
     refetchOnWindowFocus: true, // Refaz a query quando a janela recebe foco
   });
@@ -78,17 +68,6 @@ export default function GiftCardDetailsPage() {
   const fornecedorId = giftCard?.fornecedorId;
   const { data: fornecedor, isLoading: isLoadingFornecedor } = useQuery<Fornecedor>({
     queryKey: ['/api/fornecedores', fornecedorId],
-    queryFn: async () => {
-      if (!fornecedorId) return null;
-      try {
-        const res = await fetch(`/api/fornecedores/${fornecedorId}`);
-        if (!res.ok) throw new Error('Fornecedor not found');
-        return await res.json();
-      } catch (error) {
-        console.error('Error fetching fornecedor:', error);
-        return null;
-      }
-    },
     enabled: !!fornecedorId,
   });
   
@@ -96,36 +75,14 @@ export default function GiftCardDetailsPage() {
   const supplierId = giftCard?.supplierId;
   const { data: supplier, isLoading: isLoadingSupplier } = useQuery({
     queryKey: ['/api/suppliers', supplierId],
-    queryFn: async () => {
-      if (!supplierId) return null;
-      try {
-        const res = await fetch(`/api/suppliers/${supplierId}`);
-        if (!res.ok) throw new Error('Supplier not found');
-        return await res.json();
-      } catch (error) {
-        console.error('Error fetching supplier:', error);
-        return null;
-      }
-    },
     enabled: !!supplierId,
   });
 
   // Fetch transações
   const { data: transacoes, isLoading: isLoadingTransacoes } = useQuery<Transacao[]>({
     queryKey: [`/api/transacoes/${id}`],
-    queryFn: async () => {
-      console.log("Buscando transações para o gift card:", id);
-      const res = await fetch(`/api/transacoes/${id}`);
-      if (!res.ok) {
-        console.error(`Erro ao buscar transações do gift card ${id}:`, res.status, res.statusText);
-        return [];
-      }
-      const data = await res.json();
-      console.log(`Transações do gift card ${id} carregadas:`, data.length);
-      return data;
-    },
+    // Use o token de autenticação e a função padrão de query
     enabled: !!id,
-    staleTime: 0, // Não mantenha cache
     refetchOnMount: true, // Refaz a query quando o componente é montado
     refetchOnWindowFocus: true, // Refaz a query quando a janela recebe foco
   });
