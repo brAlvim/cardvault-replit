@@ -1,7 +1,7 @@
 import { Fornecedor } from '@shared/schema';
 import { useLocation } from 'wouter';
 import { Badge } from '@/components/ui/badge';
-import { CreditCard, Store, Receipt, BarChart3, Home, Users, LogOut } from 'lucide-react';
+import { CreditCard, Store, Receipt, BarChart3, Home, Users, LogOut, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -87,6 +87,17 @@ export default function Sidebar({ collections, user }: SidebarProps) {
             >
               <Store className="h-4 w-4" />
               <span>Fornecedores</span>
+            </a>
+          </li>
+          <li>
+            <a 
+              href="/suppliers"
+              className={`flex items-center space-x-3 p-2 rounded-lg ${
+                location.includes('/suppliers') ? 'bg-blue-50 text-primary font-medium' : 'text-slate-600 hover:bg-slate-100'
+              } transition-colors`}
+            >
+              <ShoppingCart className="h-4 w-4" />
+              <span>Fornecedores de Gift Cards</span>
             </a>
           </li>
           <li>

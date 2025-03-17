@@ -60,6 +60,7 @@ function Router() {
       <ProtectedRoute path="/gift-cards/:id" component={GiftCardDetails} />
       <ProtectedRoute path="/fornecedores" component={Fornecedores} />
       <ProtectedRoute path="/fornecedores/:id" component={FornecedorDetalhes} />
+      <ProtectedRoute path="/suppliers" component={Suppliers} />
       <ProtectedRoute path="/calculadora" component={CalculadoraSimples} />
       <ProtectedRoute path="/transacoes" component={Transacoes} />
       <ProtectedRoute path="/transacoes/:id" component={Transacoes} />
