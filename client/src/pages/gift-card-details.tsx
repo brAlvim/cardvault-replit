@@ -236,7 +236,7 @@ export default function GiftCardDetailsPage() {
                   <span className="font-medium text-green-600">
                     {giftCard.valorPago !== null && giftCard.valorInicial > giftCard.valorPago 
                       ? `R$ ${(giftCard.valorInicial - giftCard.valorPago).toFixed(2)}`
-                      : 'N/A'
+                      : `R$ 0,00`
                     }
                   </span>
                 </div>
