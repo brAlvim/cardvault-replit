@@ -995,46 +995,93 @@ export default function TransacoesPage() {
                       </FormItem>
                     </div>
                     
-                    {/* Seleção de Gift Cards */}
+                    {/* Seleção de Gift Cards - NOVA VERSÃO */}
                     <div className="p-4 border rounded-lg bg-blue-50 space-y-4">
                       <div className="flex justify-between items-center">
                         <h3 className="text-sm font-semibold text-blue-800">Gift Cards para esta transação</h3>
                         <Badge variant="outline" className="bg-blue-100 text-blue-800">
-                          {selectedGiftCards.length} de 10 selecionados
+                          {selectedGiftCards.length} selecionado(s)
                         </Badge>
                       </div>
                       
                       {selectedGiftCards.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          {selectedGiftCards.map((gCard) => (
-                            <div key={gCard.id} className="flex items-center p-2 border rounded bg-white">
-                              <div className="flex-1">
-                                <p className="text-sm font-medium">{gCard.codigo}</p>
-                                <div className="flex justify-between text-xs">
-                                  <span className="text-muted-foreground">{gCard.fornecedorNome}</span>
-                                  <span className="font-medium text-green-600">Saldo: {formatMoney(gCard.saldoAtual)}</span>
+                        <div className="space-y-3">
+                          {selectedGiftCards.map((gCard) => {
+                            // Buscar o gift card completo para obter gcNumber e gcPass
+                            const fullCard = allGiftCards.find(gc => gc.id === gCard.id);
+                            
+                            return (
+                              <div key={gCard.id} className="p-3 border rounded bg-white space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <CreditCard className="h-4 w-4 text-blue-800" />
+                                    <p className="text-sm font-medium">{gCard.codigo}</p>
+                                  </div>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon"
+                                    className="h-6 w-6 text-red-500"
+                                    onClick={() => {
+                                      setSelectedGiftCards(selectedGiftCards.filter(g => g.id !== gCard.id));
+                                      
+                                      // Atualiza o campo giftCardIds no formulário
+                                      const newIds = selectedGiftCards
+                                        .filter(g => g.id !== gCard.id)
+                                        .map(g => g.id)
+                                        .join(',');
+                                      
+                                      form.setValue('giftCardIds', newIds);
+                                      
+                                      // Se for o último card, zera também o giftCardId principal
+                                      if (newIds === '') {
+                                        form.setValue('giftCardId', 0);
+                                      }
+                                    }}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
                                 </div>
+                                
+                                {/* Informações básicas */}
+                                <div className="grid grid-cols-2 gap-1 text-xs">
+                                  <div>
+                                    <span className="text-muted-foreground">Fornecedor:</span>
+                                    <span className="ml-1 font-medium">{gCard.fornecedorNome}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">Saldo:</span>
+                                    <span className="ml-1 font-medium text-green-600">{formatMoney(gCard.saldoAtual)}</span>
+                                  </div>
+                                </div>
+                                
+                                {/* Informações de acesso (gcNumber e gcPass) */}
+                                {fullCard && (
+                                  <div className="mt-2 pt-2 border-t space-y-2">
+                                    <p className="text-xs font-medium text-blue-800">Informações para compra:</p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      {fullCard.gcNumber && (
+                                        <div className="space-y-1">
+                                          <p className="text-xs text-muted-foreground">Número do cartão:</p>
+                                          <div className="bg-slate-50 rounded p-1 font-mono text-xs overflow-x-auto">
+                                            {fullCard.gcNumber}
+                                          </div>
+                                        </div>
+                                      )}
+                                      
+                                      {fullCard.gcPass && (
+                                        <div className="space-y-1">
+                                          <p className="text-xs text-muted-foreground">Senha:</p>
+                                          <div className="bg-slate-50 rounded p-1 font-mono text-xs overflow-x-auto">
+                                            {fullCard.gcPass}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                className="h-6 w-6 text-red-500"
-                                onClick={() => {
-                                  setSelectedGiftCards(selectedGiftCards.filter(g => g.id !== gCard.id));
-                                  
-                                  // Atualiza o campo giftCardIds no formulário
-                                  const newIds = selectedGiftCards
-                                    .filter(g => g.id !== gCard.id)
-                                    .map(g => g.id)
-                                    .join(',');
-                                  
-                                  form.setValue('giftCardIds', newIds);
-                                }}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       ) : (
                         <div className="py-4 text-center text-sm text-muted-foreground">
