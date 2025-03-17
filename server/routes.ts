@@ -1446,7 +1446,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.status(200).json({ message: "Logout realizado com sucesso" });
   });
   
-  // Rota para buscar gift cards por código (completo ou últimos 4 dígitos)
+  // Rota para buscar gift cards pelo código (completo ou últimos 4 dígitos)
   router.get("/gift-cards/search/:codigo/:empresaId", requireAuth, async (req: Request, res: Response) => {
     try {
       const { codigo, empresaId } = req.params;

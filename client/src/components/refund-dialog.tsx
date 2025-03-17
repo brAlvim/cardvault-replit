@@ -34,13 +34,15 @@ interface GiftCard {
 interface RefundDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
-  empresaId: number;
-  userId: number;
-  userName: string;
+  onRefundComplete: (data: any) => void;
+  user?: any; // Usuário atual do sistema
 }
 
-const RefundDialog = ({ isOpen, onClose, onSuccess, empresaId, userId, userName }: RefundDialogProps) => {
+const RefundDialog = ({ isOpen, onClose, onRefundComplete, user }: RefundDialogProps) => {
+  // Extrair dados do usuário
+  const userId = user?.id || 1;
+  const userName = user?.nome || user?.username || 'Usuário';
+  const empresaId = user?.empresaId || 1;
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedGiftCard, setSelectedGiftCard] = useState<GiftCard | null>(null);
@@ -74,7 +76,7 @@ const RefundDialog = ({ isOpen, onClose, onSuccess, empresaId, userId, userName 
           return res.json();
         });
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/transacoes'] });
       queryClient.invalidateQueries({ queryKey: ['/api/gift-cards'] });
       
@@ -86,7 +88,9 @@ const RefundDialog = ({ isOpen, onClose, onSuccess, empresaId, userId, userName 
       // Resetar formulário e fechar
       form.reset();
       setSelectedGiftCard(null);
-      onSuccess();
+      
+      // Notificar componente pai
+      onRefundComplete(data);
     },
     onError: (error) => {
       console.error("Erro ao processar reembolso:", error);
@@ -128,7 +132,12 @@ const RefundDialog = ({ isOpen, onClose, onSuccess, empresaId, userId, userName 
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog 
+      open={isOpen} 
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <DialogContent className="sm:max-w-[550px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center">
