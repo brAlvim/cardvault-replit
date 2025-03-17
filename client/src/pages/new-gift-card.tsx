@@ -118,17 +118,7 @@ export default function NewGiftCardPage() {
     queryKey: ['/api/fornecedores'],
     queryFn: async () => {
       try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          throw new Error('Authentication token not found');
-        }
-        
-        const response = await fetch('/api/fornecedores', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          }
-        });
+        const response = await apiRequest('GET', '/api/fornecedores');
         
         if (!response.ok) {
           console.error('Failed to fetch fornecedores:', response.statusText);
@@ -148,17 +138,7 @@ export default function NewGiftCardPage() {
     queryKey: ['/api/suppliers'],
     queryFn: async () => {
       try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          throw new Error('Authentication token not found');
-        }
-        
-        const response = await fetch('/api/suppliers', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          }
-        });
+        const response = await apiRequest('GET', '/api/suppliers');
         
         if (!response.ok) {
           console.error('Failed to fetch suppliers:', response.statusText);
