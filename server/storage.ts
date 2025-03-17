@@ -401,9 +401,17 @@ export class MemStorage implements IStorage {
   }
   
   async getFornecedoresByEmpresa(empresaId: number): Promise<Fornecedor[]> {
-    return Array.from(this.fornecedores.values()).filter(
+    console.log("Buscando fornecedores para empresaId:", empresaId);
+    const fornecedores = Array.from(this.fornecedores.values());
+    console.log("Total de fornecedores no sistema:", fornecedores.length);
+    console.log("Detalhes dos fornecedores:", fornecedores.map(f => ({ id: f.id, nome: f.nome, empresaId: f.empresaId })));
+    
+    const result = fornecedores.filter(
       (fornecedor) => fornecedor.empresaId === empresaId
     );
+    
+    console.log("Fornecedores encontrados após filtro:", result.length);
+    return result;
   }
 
   async createFornecedor(fornecedor: InsertFornecedor): Promise<Fornecedor> {

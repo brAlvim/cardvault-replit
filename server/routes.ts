@@ -115,8 +115,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Search term is required" });
       }
 
-      // Buscar em fornecedores
-      const fornecedores = await storage.getFornecedores(userId, empresaId);
+      // Buscar em fornecedores - usamos getFornecedoresByEmpresa em vez de getFornecedores
+      // pois precisamos de todos os fornecedores da empresa, não apenas do usuário específico
+      const fornecedores = await storage.getFornecedoresByEmpresa(empresaId);
       console.log("Fornecedores encontrados:", fornecedores.map(f => f.nome));
       console.log("Termo de busca:", searchTerm);
       const matchingFornecedores = fornecedores.filter(f => 
