@@ -117,11 +117,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Buscar em fornecedores
       const fornecedores = await storage.getFornecedores(userId, empresaId);
+      console.log("Fornecedores encontrados:", fornecedores.map(f => f.nome));
+      console.log("Termo de busca:", searchTerm);
       const matchingFornecedores = fornecedores.filter(f => 
         f.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
         (f.descricao && f.descricao.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (f.website && f.website.toLowerCase().includes(searchTerm.toLowerCase()))
       );
+      console.log("Fornecedores filtrados:", matchingFornecedores.map(f => f.nome));
 
       // Buscar em gift cards
       const giftCards = await storage.getGiftCards(userId, undefined, empresaId);
