@@ -1465,13 +1465,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Obtém todos os gift cards da empresa
       const allGiftCards = await storage.getGiftCardsByEmpresa(parsedEmpresaId);
       
-      // Filtra os gift cards pelo código (exato ou últimos 4 dígitos)
+      // Filtra os gift cards pelo código com lógica mais flexível
       const matchingGiftCards = allGiftCards.filter(card => {
-        // Busca por código exato
-        if (card.codigo === codigo) return true;
+        // Se o código já estiver vazio ou nulo, não incluir
+        if (!card.codigo) return false;
         
-        // Busca pelos últimos 4 dígitos
-        if (codigo.length === 4 && card.codigo.endsWith(codigo)) return true;
+        // Normaliza os códigos para busca (remove espaços, traços, etc.)
+        const normalizedCardCode = card.codigo.toLowerCase().replace(/[^a-z0-9]/gi, '');
+        const normalizedSearchCode = codigo.toLowerCase().replace(/[^a-z0-9]/gi, '');
+        
+        // Busca por código exato
+        if (normalizedCardCode === normalizedSearchCode) return true;
+        
+        // Busca por código contendo a substring
+        if (normalizedCardCode.includes(normalizedSearchCode)) return true;
+        
+        // Busca pelos últimos dígitos
+        if (normalizedCardCode.endsWith(normalizedSearchCode)) return true;
         
         return false;
       });

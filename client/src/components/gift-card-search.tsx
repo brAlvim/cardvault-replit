@@ -27,8 +27,8 @@ const GiftCardSearch: React.FC<GiftCardSearchProps> = ({ onGiftCardSelected, emp
 
   // Procurar gift cards por código (completo ou últimos 4 dígitos)
   const searchGiftCards = async () => {
-    if (!searchTerm || searchTerm.length < 4) {
-      setError('Digite pelo menos 4 dígitos para buscar');
+    if (!searchTerm || searchTerm.length < 2) {
+      setError('Digite pelo menos 2 dígitos para buscar');
       return;
     }
 
@@ -36,16 +36,26 @@ const GiftCardSearch: React.FC<GiftCardSearchProps> = ({ onGiftCardSelected, emp
     setError('');
 
     try {
-      const token = localStorage.getItem('authToken');
-      const headers: HeadersInit = token ? { 'Authorization': `Bearer ${token}` } : {};
+      // Obter token do localStorage - corrigido para usar o token correto
+      const token = localStorage.getItem('token');
+      console.log("Fazendo requisição GET para /api/gift-cards/search/" + searchTerm + "/" + empresaId, token ? "Com token" : "Sem token");
       
-      const res = await apiRequest('GET', `/api/gift-cards/search/${searchTerm}/${empresaId}`, null, headers);
+      // Usar a API do navegador fetch diretamente para ter mais controle
+      const response = await fetch(`/api/gift-cards/search/${searchTerm}/${empresaId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        }
+      });
       
-      if (!res.ok) {
-        throw new Error('Falha ao buscar gift cards');
+      if (!response.ok) {
+        throw new Error(`Falha ao buscar gift cards: ${response.statusText}`);
       }
       
-      const data = await res.json();
+      const data = await response.json();
+      console.log("Resposta OK GET /api/gift-cards/search/" + searchTerm + "/" + empresaId + ":", response.status);
+      console.log("Gift cards encontrados:", data.length, data);
       
       if (data.length === 0) {
         setError('Nenhum gift card encontrado com este código');
@@ -112,7 +122,7 @@ const GiftCardSearch: React.FC<GiftCardSearchProps> = ({ onGiftCardSelected, emp
             variant="secondary" 
             size="sm"
             onClick={searchGiftCards}
-            disabled={isSearching || searchTerm.length < 4}
+            disabled={isSearching || searchTerm.length < 2}
           >
             <Search className="h-4 w-4 mr-1" />
             Buscar
