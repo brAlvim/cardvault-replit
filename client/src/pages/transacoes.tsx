@@ -98,7 +98,15 @@ function formatDate(date: Date | string): string {
   return format(new Date(date), 'dd/MM/yyyy', { locale: ptBR });
 }
 
-function formatMoney(value: number): string {
+function formatMoney(value: number | null | undefined): string {
+  // Se o valor for null, undefined ou NaN, retorna R$ 0,00
+  if (value === null || value === undefined || isNaN(value)) {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(0);
+  }
+  
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
