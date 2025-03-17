@@ -49,7 +49,17 @@ export default function Dashboard() {
       const url = selectedFornecedor 
         ? `/api/gift-cards?userId=1&fornecedorId=${selectedFornecedor}`
         : '/api/gift-cards?userId=1';
-      return fetch(url).then(res => res.json());
+      
+      // Adicionar token de autenticação ao cabeçalho
+      const token = localStorage.getItem('token');
+      const headers: HeadersInit = token ? { 'Authorization': `Bearer ${token}` } : {};
+      
+      return fetch(url, { headers }).then(res => {
+        if (!res.ok) {
+          throw new Error('Falha ao carregar gift cards');
+        }
+        return res.json();
+      });
     },
   });
 
@@ -86,7 +96,18 @@ export default function Dashboard() {
   // Get upcoming expirations
   const { data: expiracoes, isLoading: isLoadingExpiracoes } = useQuery<GiftCard[]>({
     queryKey: ['/api/gift-cards/vencimento/30/1'], // Cards expiring in 30 days
-    queryFn: () => fetch('/api/gift-cards/vencimento/30/1').then(res => res.json()),
+    queryFn: () => {
+      // Adicionar token de autenticação ao cabeçalho
+      const token = localStorage.getItem('token');
+      const headers: HeadersInit = token ? { 'Authorization': `Bearer ${token}` } : {};
+      
+      return fetch('/api/gift-cards/vencimento/30/1', { headers }).then(res => {
+        if (!res.ok) {
+          throw new Error('Falha ao carregar expiracoes');
+        }
+        return res.json();
+      });
+    },
   });
 
   // Calculate statistics

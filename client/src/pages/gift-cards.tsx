@@ -47,7 +47,16 @@ export default function GiftCardsPage() {
         url += `?${params.join('&')}`;
       }
       
-      return fetch(url).then(res => res.json());
+      // Adicionar token de autenticação ao cabeçalho
+      const token = localStorage.getItem('token');
+      const headers: HeadersInit = token ? { 'Authorization': `Bearer ${token}` } : {};
+      
+      return fetch(url, { headers }).then(res => {
+        if (!res.ok) {
+          throw new Error('Falha ao carregar gift cards');
+        }
+        return res.json();
+      });
     },
   });
 
