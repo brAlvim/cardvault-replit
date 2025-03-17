@@ -1,8 +1,9 @@
 import {
-  empresas, perfis, users, fornecedores, giftCards, transacoes, tags, giftCardTags,
+  empresas, perfis, users, fornecedores, suppliers, giftCards, transacoes, tags, giftCardTags,
   Perfil, InsertPerfil, 
   User, InsertUser,
   Fornecedor, InsertFornecedor,
+  Supplier, InsertSupplier,
   GiftCard, InsertGiftCard,
   Transacao, InsertTransacao,
   Tag, InsertTag,

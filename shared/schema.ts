@@ -64,6 +64,19 @@ export const fornecedores = pgTable("fornecedores", {
   empresaId: integer("empresa_id").notNull().default(1), // ID da empresa a que o fornecedor pertence
 });
 
+// Suppliers schema (fornecedores de gift cards)
+export const suppliers = pgTable("suppliers", {
+  id: serial("id").primaryKey(),
+  nome: text("nome").notNull(),
+  descricao: text("descricao"),
+  website: text("website"),
+  logo: text("logo"),
+  status: text("status").default("ativo").notNull(), // 'ativo', 'inativo'
+  userId: integer("user_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  empresaId: integer("empresa_id").notNull().default(1), // ID da empresa a que o supplier pertence
+});
+
 // Gift Card schema (replaces cards)
 export const giftCards = pgTable("gift_cards", {
   id: serial("id").primaryKey(),
@@ -73,6 +86,7 @@ export const giftCards = pgTable("gift_cards", {
   dataValidade: timestamp("data_validade"), // Alterado de date para timestamp
   status: text("status").default("ativo").notNull(), // 'ativo', 'expirado', 'zerado'
   fornecedorId: integer("fornecedor_id").notNull(),
+  supplierId: integer("supplier_id"), // Novo campo: ID do supplier (fornecedor do gift card)
   userId: integer("user_id").notNull(),
   observacoes: text("observacoes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -148,6 +162,11 @@ export const insertFornecedorSchema = createInsertSchema(fornecedores).omit({
   createdAt: true,
 });
 
+export const insertSupplierSchema = createInsertSchema(suppliers).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertGiftCardSchema = createInsertSchema(giftCards)
   .omit({
     id: true,
@@ -200,6 +219,9 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 
 export type Fornecedor = typeof fornecedores.$inferSelect;
 export type InsertFornecedor = z.infer<typeof insertFornecedorSchema>;
+
+export type Supplier = typeof suppliers.$inferSelect;
+export type InsertSupplier = z.infer<typeof insertSupplierSchema>;
 
 export type GiftCard = typeof giftCards.$inferSelect;
 export type InsertGiftCard = z.infer<typeof insertGiftCardSchema>;
