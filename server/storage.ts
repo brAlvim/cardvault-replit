@@ -1169,6 +1169,12 @@ class MemStorage implements IStorage {
 
 // Implementação da interface IStorage utilizando banco de dados PostgreSQL
 class DatabaseStorage implements IStorage {
+  constructor() {
+    // Inicializar dados de demonstração quando instanciado
+    this.initializeDemoData().catch(err => {
+      console.error("Erro ao inicializar dados de demonstração:", err);
+    });
+  }
   // Empresa methods
   async getEmpresas(): Promise<Empresa[]> {
     return await db.select().from(empresas);
