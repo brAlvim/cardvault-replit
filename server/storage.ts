@@ -1066,8 +1066,80 @@ class MemStorage implements IStorage {
               { nome: "Steam", descricao: "Gift Cards para compras na Steam", website: "https://store.steampowered.com", logo: "https://logo.clearbit.com/steampowered.com", status: "ativo", userId: user.id, empresaId: user.empresaId }
             ];
             
+            // Criar fornecedores
             Promise.all(fornecedores.map(f => this.createFornecedor(f))).then(() => {
-              console.log("Dados demo inicializados com sucesso");
+              // Criar suppliers (fornecedores de gift cards)
+              const suppliers: InsertSupplier[] = [
+                { 
+                  nome: "Amazon Brasil", 
+                  cnpj: "15.436.940/0001-03", 
+                  email: "parceiros@amazon.com.br", 
+                  telefone: "+55 11 4134-4000",
+                  endereco: "Av. Presidente Juscelino Kubitschek, 2041",
+                  cidade: "São Paulo",
+                  estado: "SP",
+                  website: "https://www.amazon.com.br",
+                  logo: "https://logo.clearbit.com/amazon.com.br",
+                  desconto: 8.5,
+                  observacoes: "Desconto aplicado em todas as compras de gift cards",
+                  status: "ativo",
+                  userId: user.id,
+                  empresaId: user.empresaId
+                },
+                { 
+                  nome: "Netflix Brasil", 
+                  cnpj: "13.590.585/0001-99", 
+                  email: "empresas@netflix.com.br", 
+                  telefone: "+55 11 4800-0800",
+                  endereco: "Av. das Nações Unidas, 14171",
+                  cidade: "São Paulo",
+                  estado: "SP",
+                  website: "https://www.netflix.com/br",
+                  logo: "https://logo.clearbit.com/netflix.com",
+                  desconto: 5.0,
+                  observacoes: "Gift cards com desconto para planos anuais",
+                  status: "ativo",
+                  userId: user.id,
+                  empresaId: user.empresaId
+                },
+                { 
+                  nome: "Spotify Brasil", 
+                  cnpj: "17.004.143/0001-53", 
+                  email: "b2b@spotify.com.br", 
+                  telefone: "+55 11 3500-5000",
+                  endereco: "Rua Wisard, 305",
+                  cidade: "São Paulo",
+                  estado: "SP",
+                  website: "https://www.spotify.com/br",
+                  logo: "https://logo.clearbit.com/spotify.com",
+                  desconto: 10.0,
+                  observacoes: "Assinaturas com 10% de desconto para empresas",
+                  status: "ativo",
+                  userId: user.id,
+                  empresaId: user.empresaId
+                },
+                { 
+                  nome: "Valve Corporation", 
+                  cnpj: null, 
+                  email: "b2b@steampowered.com", 
+                  telefone: "+1 425-889-9642",
+                  endereco: "10400 NE 4th St",
+                  cidade: "Bellevue",
+                  estado: "WA",
+                  website: "https://store.steampowered.com",
+                  logo: "https://logo.clearbit.com/steampowered.com",
+                  desconto: 3.0,
+                  observacoes: "Programas de desconto para compras em volume",
+                  status: "ativo",
+                  userId: user.id,
+                  empresaId: user.empresaId
+                }
+              ];
+              
+              // Criar suppliers no sistema
+              Promise.all(suppliers.map(s => this.createSupplier(s))).then(() => {
+                console.log("Dados demo inicializados com sucesso");
+              });
             });
           });
         });

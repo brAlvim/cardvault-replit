@@ -289,6 +289,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Supplier routes (fornecedores de gift cards)
+  router.get("/suppliers", requireAuth, async (req: Request, res: Response) => {
+    try {
+      // Obter o usuário logado do token
+      const userId = req.user?.id || 1;
+      
+      // Filtrar por empresa se especificado
+      const empresaId = req.user?.empresaId || (req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined);
+      
+      const suppliers = await storage.getSuppliers(userId, empresaId);
+      res.json(suppliers);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  router.post("/suppliers", requireAuth, async (req: Request, res: Response) => {
+    try {
+      // Garantir que empresaId e userId sejam incluídos
+      if (!req.body.empresaId && req.user?.empresaId) {
+        req.body.empresaId = req.user.empresaId;
+      }
+      
+      if (!req.body.userId && req.user?.id) {
+        req.body.userId = req.user.id;
+      }
+      
+      const supplierData = insertSupplierSchema.parse(req.body);
+      const supplier = await storage.createSupplier(supplierData);
+      res.status(201).json(supplier);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  router.get("/suppliers/:id", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const supplierId = parseInt(req.params.id);
+      const empresaId = req.user?.empresaId || (req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined);
+      const supplier = await storage.getSupplier(supplierId, empresaId);
+      
+      if (!supplier) {
+        return res.status(404).json({ message: "Supplier not found" });
+      }
+      
+      res.json(supplier);
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  router.put("/suppliers/:id", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const supplierId = parseInt(req.params.id);
+      const empresaId = req.user?.empresaId || (req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined);
+      
+      // Verificar se o supplier pertence à empresa especificada
+      if (empresaId) {
+        const supplier = await storage.getSupplier(supplierId, empresaId);
+        if (!supplier) {
+          return res.status(404).json({ message: "Supplier not found for this company" });
+        }
+      }
+      
+      const supplierData = insertSupplierSchema.partial().parse(req.body);
+      
+      const updatedSupplier = await storage.updateSupplier(supplierId, supplierData);
+      
+      if (!updatedSupplier) {
+        return res.status(404).json({ message: "Supplier not found" });
+      }
+      
+      res.json(updatedSupplier);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: fromZodError(error).message });
+      }
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  router.delete("/suppliers/:id", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const supplierId = parseInt(req.params.id);
+      const empresaId = req.user?.empresaId || (req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined);
+      
+      // Verificar se o supplier pertence à empresa especificada
+      if (empresaId) {
+        const supplier = await storage.getSupplier(supplierId, empresaId);
+        if (!supplier) {
+          return res.status(404).json({ message: "Supplier not found for this company" });
+        }
+      }
+      
+      const success = await storage.deleteSupplier(supplierId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Supplier not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Gift Card routes (antigo Card)
   router.get("/gift-cards", requireAuth, async (req: Request, res: Response) => {
     try {
