@@ -297,7 +297,10 @@ const GiftCardSearch: React.FC<GiftCardSearchProps> = ({ onGiftCardSelected, emp
                     )}
                   </p>
                   <p className="text-xs text-gray-500">
-                    {giftCard.fornecedorNome || `Fornecedor ID: ${giftCard.fornecedorId}`}
+                    {giftCard.fornecedorNome || (giftCard.fornecedorId === 1 ? "Amazon" : 
+                                                giftCard.fornecedorId === 2 ? "Target" : 
+                                                giftCard.fornecedorId === 3 ? "Home Depot" : 
+                                                "Outro Fornecedor")}
                     {giftCard.gcNumber && giftCard.codigo !== giftCard.gcNumber && (
                       <> • <span className="text-gray-400">Código: {giftCard.codigo}</span></>
                     )}
@@ -329,7 +332,10 @@ const GiftCardSearch: React.FC<GiftCardSearchProps> = ({ onGiftCardSelected, emp
                 )}
               </p>
               <p className="text-sm">
-                {selectedGiftCard.fornecedorNome || `Fornecedor ID: ${selectedGiftCard.fornecedorId}`}
+                {selectedGiftCard.fornecedorNome || (selectedGiftCard.fornecedorId === 1 ? "Amazon" : 
+                                               selectedGiftCard.fornecedorId === 2 ? "Target" : 
+                                               selectedGiftCard.fornecedorId === 3 ? "Home Depot" : 
+                                               "Outro Fornecedor")}
                 {selectedGiftCard.gcNumber && selectedGiftCard.codigo !== selectedGiftCard.gcNumber && (
                   <span className="block text-xs text-gray-500">Código: {selectedGiftCard.codigo}</span>
                 )}
