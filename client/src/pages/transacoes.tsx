@@ -417,11 +417,15 @@ export default function TransacoesPage() {
         }
       }
       
+      // Formatando a data explicitamente para o formato ISO
+      const formattedData = data.dataTransacao ? new Date(data.dataTransacao).toISOString() : new Date().toISOString();
+      
       // Garantir campos obrigatórios
       const dadosParaEnviar = {
         ...data,
         status: data.status || "concluida",
-        dataTransacao: data.dataTransacao || new Date(),
+        // Formato ISO string para garantir serialização adequada
+        dataTransacao: formattedData,
         // Valores nulos para campos opcionais
         comprovante: data.comprovante || null,
         motivoCancelamento: data.motivoCancelamento || null,
@@ -571,12 +575,9 @@ export default function TransacoesPage() {
       data.giftCardId = selectedGiftCards[0].id;
     }
     
-    // Criar uma cópia dos dados sem o campo dataTransacao
-    // para permitir que o servidor defina o valor padrão
-    const { dataTransacao, ...dataToSend } = { ...data };
-    // Isso cria uma nova cópia sem o campo dataTransacao
-    
-    // Substituir data por dataToSend ao enviar para o servidor
+    // Nota: Não estamos mais removendo o campo dataTransacao, pois o mutationFn o utiliza
+    // Criar uma cópia para enviar
+    const dataToSend = { ...data };
     
     // Log detalhado dos dados antes de enviar
     console.log("Dados finais para envio:", {
@@ -759,7 +760,7 @@ export default function TransacoesPage() {
                               return;
                             }
                             
-                            // Cria dados fixos para teste - sem o campo dataTransacao para deixar o servidor definir
+                            // Cria dados fixos para teste - incluindo o campo dataTransacao em formato ISO string
                             const testData = {
                               valor: 10,
                               descricao: "Teste de transação",
@@ -767,7 +768,7 @@ export default function TransacoesPage() {
                               giftCardId: testGiftCard.id,
                               giftCardIds: String(testGiftCard.id),
                               userId: 1,
-                              // Removemos dataTransacao completamente
+                              dataTransacao: new Date().toISOString(), // Garantimos a data em formato ISO
                               comprovante: null,
                               motivoCancelamento: null,
                               ordemInterna: null,
