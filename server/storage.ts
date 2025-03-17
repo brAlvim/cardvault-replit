@@ -366,17 +366,23 @@ class MemStorage implements IStorage {
   
   // Fornecedor methods (anteriormente collections)
   async getFornecedores(userId: number, empresaId?: number): Promise<Fornecedor[]> {
-    let fornecedores = Array.from(this.fornecedores.values()).filter(
+    // Aplicar filtro rigoroso para garantir que o usuário só veja fornecedores
+    // que ele criou ou da mesma empresa
+    let fornecedores = Array.from(this.fornecedores.values());
+    
+    // Filtro primário: o fornecedor DEVE ter sido criado pelo usuário
+    // Isso garante isolamento por usuário para contas não-admin
+    fornecedores = fornecedores.filter(
       (fornecedor) => fornecedor.userId === userId
     );
     
-    // Se for especificado um empresaId, filtramos por ele
+    // Se for especificado um empresaId, filtramos adicionalmente por ele
     if (empresaId) {
       fornecedores = fornecedores.filter(
         (fornecedor) => fornecedor.empresaId === empresaId
       );
-      console.log("Filtrando fornecedores por empresaId:", empresaId);
-      console.log("Fornecedores encontrados após filtro:", fornecedores.length);
+      console.log("[SEGURANÇA] Filtrando fornecedores por empresaId:", empresaId);
+      console.log("[SEGURANÇA] Fornecedores encontrados após filtro:", fornecedores.length);
     }
     
     return fornecedores;
@@ -448,15 +454,20 @@ class MemStorage implements IStorage {
   
   // Supplier methods (fornecedores de gift cards)
   async getSuppliers(userId: number, empresaId?: number): Promise<Supplier[]> {
-    let suppliers = Array.from(this.suppliers.values()).filter(
+    // Aplicar filtro rigoroso para garantir isolamento de dados por usuário
+    let suppliers = Array.from(this.suppliers.values());
+    
+    // Filtro primário: o supplier DEVE ter sido criado pelo usuário
+    suppliers = suppliers.filter(
       (supplier) => supplier.userId === userId
     );
     
-    // Se for especificado um empresaId, filtramos por ele
+    // Se for especificado um empresaId, filtramos adicionalmente por ele
     if (empresaId) {
       suppliers = suppliers.filter(
         (supplier) => supplier.empresaId === empresaId
       );
+      console.log(`[SEGURANÇA] Filtrando suppliers por empresaId: ${empresaId}, encontrados: ${suppliers.length}`);
     }
     
     return suppliers;
@@ -542,18 +553,22 @@ class MemStorage implements IStorage {
 
   // Gift Card methods (anteriormente cards)
   async getGiftCards(userId: number, fornecedorId?: number, empresaId?: number): Promise<GiftCard[]> {
-    let giftCards = Array.from(this.giftCards.values()).filter(
-      (giftCard) => giftCard.userId === userId
+    // Aplicar filtro rigoroso de usuário e empresa para garantir isolamento de dados
+    let giftCards = Array.from(this.giftCards.values());
+    
+    // Filtro primário: o gift card DEVE pertencer à empresa do usuário ou ter sido criado pelo próprio usuário
+    giftCards = giftCards.filter(giftCard => 
+      // Garantir que o card pertença à empresa especificada, se fornecida
+      (empresaId ? giftCard.empresaId === empresaId : true) && 
+      // E TAMBÉM garantir que ou pertença ao usuário especificado OU que seja da mesma empresa
+      (giftCard.userId === userId)
     );
     
     if (fornecedorId) {
       giftCards = giftCards.filter(giftCard => giftCard.fornecedorId === fornecedorId);
     }
     
-    // Se for especificado um empresaId, filtramos por ele
-    if (empresaId) {
-      giftCards = giftCards.filter(giftCard => giftCard.empresaId === empresaId);
-    }
+    console.log(`[SEGURANÇA] Retornando ${giftCards.length} gift cards para o usuário ${userId}, empresa ${empresaId || 'não especificada'}`);
     
     // Para cada gift card, calculamos o valor pendente
     const giftCardsComValorPendente = giftCards.map((giftCard) => {
@@ -577,9 +592,14 @@ class MemStorage implements IStorage {
   }
 
   async getGiftCardsByEmpresa(empresaId: number): Promise<GiftCard[]> {
+    // Filtro estrito por empresa para garantir isolamento de dados
+    console.log(`[SEGURANÇA] Buscando gift cards para empresa ${empresaId}`);
+    
     let giftCards = Array.from(this.giftCards.values()).filter(
       (giftCard) => giftCard.empresaId === empresaId
     );
+    
+    console.log(`[SEGURANÇA] Encontrados ${giftCards.length} gift cards para empresa ${empresaId}`);
     
     // Para cada gift card, calculamos o valor pendente
     const giftCardsComValorPendente = giftCards.map((giftCard) => {
@@ -740,7 +760,10 @@ class MemStorage implements IStorage {
     });
   }
   
-  async getGiftCardsByTag(tagId: number): Promise<GiftCard[]> {
+  async getGiftCardsByTag(tagId: number, empresaId?: number, userId?: number): Promise<GiftCard[]> {
+    // Registrar para fins de auditoria
+    console.log(`[SEGURANÇA] Buscando gift cards com tag ${tagId}, empresaId: ${empresaId || 'não especificado'}, userId: ${userId || 'não especificado'}`);
+    
     // Encontra todos os GiftCardTag com o tagId fornecido
     const giftCardTags = Array.from(this.giftCardTags.values()).filter(
       giftCardTag => giftCardTag.tagId === tagId
@@ -748,9 +771,23 @@ class MemStorage implements IStorage {
     
     // Para cada giftCardId, encontrar o gift card correspondente
     const giftCardIds = giftCardTags.map(tag => tag.giftCardId);
-    const giftCards = Array.from(this.giftCards.values()).filter(
+    
+    // Aplicar filtros de segurança para garantir isolamento de dados
+    let giftCards = Array.from(this.giftCards.values()).filter(
       giftCard => giftCardIds.includes(giftCard.id)
     );
+    
+    // Se um empresaId for fornecido, filtrar adicionalmente por ele
+    if (empresaId) {
+      giftCards = giftCards.filter(giftCard => giftCard.empresaId === empresaId);
+    }
+    
+    // Se um userId for fornecido, filtrar adicionalmente por ele
+    if (userId) {
+      giftCards = giftCards.filter(giftCard => giftCard.userId === userId);
+    }
+    
+    console.log(`[SEGURANÇA] Retornando ${giftCards.length} gift cards para tag ${tagId}`);
     
     return giftCards;
   }
