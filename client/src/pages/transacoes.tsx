@@ -132,6 +132,7 @@ const transacaoFormSchema = z.object({
   status: z.string().default('concluida'),
   giftCardId: z.coerce.number(),
   giftCardIds: z.string().default(""), // IDs de gift cards separados por vírgula
+  cardValores: z.string().optional(), // Valores por gift card - formato "cardId:valor,cardId:valor"
   selectedGiftCards: z.array(z.any()).optional(), // Array de gift cards selecionados
   userId: z.coerce.number().default(1), // Temporário - seria o usuário logado
   dataTransacao: z.date().default(() => new Date()),
@@ -590,6 +591,32 @@ export default function TransacoesPage() {
     const giftCardIds = selectedGiftCards.map(g => g.id).join(',');
     data.giftCardIds = giftCardIds;
     
+    // Verifica se o valor total informado é igual à soma dos valores distribuídos nos gift cards
+    const valorTotal = data.valor;
+    const valorDistribuido = Object.values(cardValores).reduce((sum, val) => sum + val, 0);
+    
+    if (Math.abs(valorTotal - valorDistribuido) > 0.01) {
+      toast({
+        title: "Aviso",
+        description: `O valor total (${formatMoney(valorTotal)}) é diferente da soma dos valores distribuídos (${formatMoney(valorDistribuido)})`,
+        variant: "warning",
+      });
+      
+      // Pergunta se deseja continuar
+      if (!confirm("Deseja continuar mesmo com a diferença nos valores?")) {
+        return;
+      }
+    }
+    
+    // Adiciona os valores usados de cada gift card
+    // Precisamos enviar esses valores no formato "cardId:valor,cardId:valor"
+    const cardValoresFormatado = Object.entries(cardValores)
+      .map(([cardId, valor]) => `${cardId}:${valor}`)
+      .join(',');
+    
+    // Adiciona ao objeto data
+    data.cardValores = cardValoresFormatado;
+    
     // Adiciona o ID do usuário logado e o nome
     data.userId = user?.id || 1;
     data.nomeUsuario = user?.username || data.nomeUsuario || 'Usuário';
@@ -873,12 +900,88 @@ export default function TransacoesPage() {
                             if (form.getValues('valor') === 0) {
                               form.setValue('valor', saldoTotal);
                             }
+                            
+                            // Inicializa os valores dos cartões - distribui o valor igualmente
+                            const valorTotal = form.getValues('valor');
+                            const valorPorCard = valorTotal / cards.length;
+                            const novosValores = {...cardValores};
+                            
+                            cards.forEach(card => {
+                              novosValores[card.id] = valorPorCard;
+                            });
+                            
+                            setCardValores(novosValores);
                           } else {
                             form.setValue('giftCardId', 0);
                             form.setValue('giftCardIds', '');
+                            setCardValores({});
                           }
                         }}
                       />
+                      
+                      {/* Exibição dos gift cards selecionados com campo para valor utilizado */}
+                      {selectedGiftCards.length > 0 && (
+                        <div className="mt-4 space-y-3">
+                          <h4 className="text-sm font-medium text-blue-800">Gift Cards Selecionados</h4>
+                          <p className="text-xs text-blue-700 mb-2">
+                            Defina quanto será gasto de cada gift card:
+                          </p>
+                          
+                          <div className="space-y-2">
+                            {selectedGiftCards.map((card) => (
+                              <div key={card.id} className="flex items-center gap-2 p-3 border rounded-md bg-white">
+                                <div className="flex-1">
+                                  <p className="text-sm font-semibold">{card.codigo}</p>
+                                  <div className="flex justify-between">
+                                    <span className="text-xs text-gray-500">{card.fornecedorNome}</span>
+                                    <span className="text-xs font-medium text-green-600">
+                                      Saldo: {formatMoney(card.saldoAtual)}
+                                    </span>
+                                  </div>
+                                </div>
+                                
+                                <div className="w-32">
+                                  <Label htmlFor={`card-valor-${card.id}`} className="sr-only">
+                                    Valor a utilizar
+                                  </Label>
+                                  <div className="relative">
+                                    <Input
+                                      id={`card-valor-${card.id}`}
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      max={card.saldoAtual}
+                                      className="pl-7"
+                                      value={cardValores[card.id] || 0}
+                                      onChange={(e) => {
+                                        const valor = parseFloat(e.target.value) || 0;
+                                        const maxValor = Math.min(valor, card.saldoAtual);
+                                        
+                                        // Atualiza valores do cartão
+                                        const novosValores = {...cardValores};
+                                        novosValores[card.id] = maxValor;
+                                        setCardValores(novosValores);
+                                        
+                                        // Atualiza o valor total do formulário
+                                        const valorTotal = Object.values(novosValores).reduce((sum, val) => sum + val, 0);
+                                        form.setValue('valor', valorTotal);
+                                      }}
+                                    />
+                                    <div className="absolute inset-y-0 left-0 flex items-center pl-2 pointer-events-none">
+                                      <span className="text-xs text-green-600">R$</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          
+                          <div className="pt-2 flex justify-between items-center text-sm font-medium">
+                            <span>Valor Total:</span>
+                            <span className="text-green-600">{formatMoney(Object.values(cardValores).reduce((sum, val) => sum + val, 0))}</span>
+                          </div>
+                        </div>
+                      )}
                       
                       {/* Campos ocultos para manter compatibilidade */}
                       <FormField
