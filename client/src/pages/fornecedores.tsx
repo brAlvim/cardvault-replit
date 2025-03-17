@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Store, Plus, Pencil, Trash2, FileWarning, Power, PowerOff } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 
 import {
   Card,
@@ -78,15 +79,11 @@ type FornecedorFormValues = z.infer<typeof fornecedorFormSchema>;
 
 export default function FornecedoresPage() {
   const { toast } = useToast();
+  const { user } = useAuth(); // Usar o hook de autenticação para obter o usuário atual
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedFornecedor, setSelectedFornecedor] = useState<Fornecedor | null>(null);
   const [giftCardCounts, setGiftCardCounts] = useState<Record<number, number>>({});
-
-  // Buscar usuário atual
-  const { data: user } = useQuery<any>({
-    queryKey: ["/api/users/1"],
-  });
 
   // Fornecedores query
   const {
@@ -94,13 +91,13 @@ export default function FornecedoresPage() {
     isLoading: isLoadingFornecedores,
     error: fornecedoresError,
   } = useQuery<Fornecedor[]>({
-    queryKey: [`/api/fornecedores?userId=${user?.id || 1}`],
+    queryKey: [`/api/fornecedores?userId=${user?.id}`],
     enabled: !!user,
   });
 
   // Buscar gift cards para contar quantos existem por fornecedor
   const { data: giftCards = [] } = useQuery<any[]>({
-    queryKey: [`/api/gift-cards?userId=${user?.id || 1}`],
+    queryKey: [`/api/gift-cards?userId=${user?.id}`],
     enabled: !!user,
   });
 
