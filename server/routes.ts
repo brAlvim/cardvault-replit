@@ -17,6 +17,7 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
+import { format } from "date-fns";
 import { 
   login, 
   requireAuth, 
@@ -1779,6 +1780,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         giftCards = filterGiftCardArray(giftCards, true);
       }
       
+      // Se o formato solicitado for CSV
+      if (req.query.format === 'csv') {
+        // Adicionados campos: valorPago, percentualDesconto, valorEconomizado
+        let csvData = '"ID","Código","Fornecedor","Valor Inicial","Valor Pago","Desconto (%)","Economia","Saldo Atual","Data Validade","Status","Data Criação","Última Atualização"\n';
+        
+        for (const card of giftCards) {
+          const fornecedor = await storage.getFornecedor(card.fornecedorId, empresaId);
+          
+          // Filtrar dados confidenciais
+          const filteredCard = isGuest ? filterConfidentialData(card, true) : card;
+          
+          // Cálculo do valor economizado para exportação
+          const valorEconomizado = (filteredCard.valorInicial - (filteredCard.valorPago || 0)).toFixed(2);
+          
+          csvData += `"${card.id}","${filteredCard.codigo}","${fornecedor?.nome || ''}"`;
+          csvData += `,"${filteredCard.valorInicial}","${filteredCard.valorPago || '0'}"`;
+          csvData += `,"${filteredCard.percentualDesconto || '0'}","${valorEconomizado}"`;
+          csvData += `,"${filteredCard.saldoAtual}"`;
+          csvData += `,"${filteredCard.dataValidade ? format(filteredCard.dataValidade, 'dd/MM/yyyy') : ''}"`;
+          csvData += `,"${filteredCard.status}"`;
+          csvData += `,"${format(card.createdAt, 'dd/MM/yyyy HH:mm')}"`;
+          csvData += `,"${card.updatedAt ? format(card.updatedAt, 'dd/MM/yyyy HH:mm') : ''}"\n`;
+        }
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename=gift-cards.csv');
+        return res.send(csvData);
+      }
+      
+      // Padrão: retornar JSON
       res.json(giftCards);
     } catch (error) {
       console.error("Erro ao exportar gift cards:", error);
@@ -1813,6 +1844,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return new Date(b.dataTransacao).getTime() - new Date(a.dataTransacao).getTime();
       });
       
+      // Se o formato solicitado for CSV
+      if (req.query.format === 'csv') {
+        // Buscar informações adicionais para o relatório
+        let csvData = '"ID","Gift Card","Valor","Data da Transação","Descrição","Status","Ordem de Compra","Usuário"\n';
+        
+        for (const transacao of transacoes) {
+          // Buscar informações do gift card associado
+          const giftCard = await storage.getGiftCard(transacao.giftCardId, empresaId);
+          
+          csvData += `"${transacao.id}","${giftCard?.codigo || ''}"`;
+          csvData += `,"${transacao.valor}","${format(transacao.dataTransacao, 'dd/MM/yyyy HH:mm')}"`;
+          csvData += `,"${transacao.descricao || ''}","${transacao.status || ''}"`;
+          csvData += `,"${transacao.ordemCompra || ''}","${transacao.nomeUsuario || ''}"\n`;
+        }
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename=transacoes.csv');
+        return res.send(csvData);
+      }
+      
+      // Padrão: retornar JSON
       res.json(transacoes);
     } catch (error) {
       console.error("Erro ao exportar transações:", error);
