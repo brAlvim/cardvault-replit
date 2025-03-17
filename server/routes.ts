@@ -1465,22 +1465,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Obtém todos os gift cards da empresa
       const allGiftCards = await storage.getGiftCardsByEmpresa(parsedEmpresaId);
       
-      // Filtra os gift cards pelo código com lógica mais flexível
+      // Filtra os gift cards pelo código OU pelo gcNumber com lógica mais flexível
       const matchingGiftCards = allGiftCards.filter(card => {
-        // Se o código já estiver vazio ou nulo, não incluir
-        if (!card.codigo) return false;
+        // Se ambos os campos estiverem vazios, não incluir
+        if (!card.codigo && !card.gcNumber) return false;
         
         // Normaliza os códigos para busca (remove espaços, traços, etc.)
-        const normalizedCardCode = card.codigo.toLowerCase().replace(/[^a-z0-9]/gi, '');
+        const normalizedCardCode = (card.codigo || '').toLowerCase().replace(/[^a-z0-9]/gi, '');
+        const normalizedGcNumber = (card.gcNumber || '').toLowerCase().replace(/[^a-z0-9]/gi, '');
         const normalizedSearchCode = codigo.toLowerCase().replace(/[^a-z0-9]/gi, '');
         
-        // Busca por código exato
+        // Busca PRIORITÁRIA pelo gcNumber (número do gift card)
+        if (normalizedGcNumber === normalizedSearchCode) return true;
+        if (normalizedGcNumber.includes(normalizedSearchCode)) return true;
+        if (normalizedGcNumber.endsWith(normalizedSearchCode)) return true;
+        
+        // Busca secundária pelo código
         if (normalizedCardCode === normalizedSearchCode) return true;
-        
-        // Busca por código contendo a substring
         if (normalizedCardCode.includes(normalizedSearchCode)) return true;
-        
-        // Busca pelos últimos dígitos
         if (normalizedCardCode.endsWith(normalizedSearchCode)) return true;
         
         return false;

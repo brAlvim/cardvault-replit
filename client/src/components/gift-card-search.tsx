@@ -11,6 +11,8 @@ interface GiftCard {
   saldoAtual: number;
   fornecedorId: number;
   fornecedorNome?: string;
+  gcNumber?: string;  // Número do gift card (principal identificador)
+  gcPass?: string;    // Senha do gift card (quando aplicável)
 }
 
 interface GiftCardSearchProps {
@@ -90,12 +92,24 @@ const GiftCardSearch: React.FC<GiftCardSearchProps> = ({ onGiftCardSelected, emp
       const normalizedSearchTerm = searchTerm.toLowerCase().replace(/[^a-z0-9]/gi, '');
       
       const filteredCards = allGiftCards.filter(card => {
-        if (!card.codigo) return false;
-        const normalizedCardCode = card.codigo.toLowerCase().replace(/[^a-z0-9]/gi, '');
+        // Se ambos os campos estiverem vazios, não incluir
+        if (!card.codigo && !card.gcNumber) return false;
         
-        return normalizedCardCode.includes(normalizedSearchTerm) || 
-               normalizedCardCode === normalizedSearchTerm ||
-               normalizedCardCode.endsWith(normalizedSearchTerm);
+        // Normaliza os códigos para busca (remove espaços, traços, etc.)
+        const normalizedCardCode = (card.codigo || '').toLowerCase().replace(/[^a-z0-9]/gi, '');
+        const normalizedGcNumber = (card.gcNumber || '').toLowerCase().replace(/[^a-z0-9]/gi, '');
+        
+        // Busca PRIORITÁRIA pelo gcNumber (número do gift card)
+        if (normalizedGcNumber === normalizedSearchTerm) return true;
+        if (normalizedGcNumber.includes(normalizedSearchTerm)) return true;
+        if (normalizedGcNumber.endsWith(normalizedSearchTerm)) return true;
+        
+        // Busca secundária pelo código
+        if (normalizedCardCode === normalizedSearchTerm) return true;
+        if (normalizedCardCode.includes(normalizedSearchTerm)) return true;
+        if (normalizedCardCode.endsWith(normalizedSearchTerm)) return true;
+        
+        return false;
       });
       
       if (filteredCards.length > 0) {
@@ -131,12 +145,24 @@ const GiftCardSearch: React.FC<GiftCardSearchProps> = ({ onGiftCardSelected, emp
         
         // Tenta novamente a busca local após recarregar
         const refreshedFilteredCards = allGiftCards.filter(card => {
-          if (!card.codigo) return false;
-          const normalizedCardCode = card.codigo.toLowerCase().replace(/[^a-z0-9]/gi, '');
+          // Se ambos os campos estiverem vazios, não incluir
+          if (!card.codigo && !card.gcNumber) return false;
           
-          return normalizedCardCode.includes(normalizedSearchTerm) || 
-                 normalizedCardCode === normalizedSearchTerm ||
-                 normalizedCardCode.endsWith(normalizedSearchTerm);
+          // Normaliza os códigos para busca (remove espaços, traços, etc.)
+          const normalizedCardCode = (card.codigo || '').toLowerCase().replace(/[^a-z0-9]/gi, '');
+          const normalizedGcNumber = (card.gcNumber || '').toLowerCase().replace(/[^a-z0-9]/gi, '');
+          
+          // Busca PRIORITÁRIA pelo gcNumber (número do gift card)
+          if (normalizedGcNumber === normalizedSearchTerm) return true;
+          if (normalizedGcNumber.includes(normalizedSearchTerm)) return true;
+          if (normalizedGcNumber.endsWith(normalizedSearchTerm)) return true;
+          
+          // Busca secundária pelo código
+          if (normalizedCardCode === normalizedSearchTerm) return true;
+          if (normalizedCardCode.includes(normalizedSearchTerm)) return true;
+          if (normalizedCardCode.endsWith(normalizedSearchTerm)) return true;
+          
+          return false;
         });
         
         if (refreshedFilteredCards.length > 0) {
@@ -184,14 +210,14 @@ const GiftCardSearch: React.FC<GiftCardSearchProps> = ({ onGiftCardSelected, emp
   return (
     <div className="space-y-4">
       <div className="flex flex-col space-y-2">
-        <Label htmlFor="gift-card-search">Buscar Gift Card por código (completo ou últimos 4 dígitos)</Label>
+        <Label htmlFor="gift-card-search">Buscar Gift Card por NÚMERO ou código</Label>
         
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
             <div className="relative flex-grow">
               <Input
                 id="gift-card-search"
-                placeholder="Digite o código completo ou últimos 4 dígitos"
+                placeholder="Digite o NÚMERO ou código do gift card"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pr-10"
@@ -263,8 +289,19 @@ const GiftCardSearch: React.FC<GiftCardSearchProps> = ({ onGiftCardSelected, emp
                 onClick={() => handleSelect(giftCard)}
               >
                 <div>
-                  <p className="font-medium">{giftCard.codigo}</p>
-                  <p className="text-xs text-gray-500">{giftCard.fornecedorNome || `Fornecedor ID: ${giftCard.fornecedorId}`}</p>
+                  <p className="font-medium">
+                    {giftCard.gcNumber ? (
+                      <span className="text-blue-700">{giftCard.gcNumber}</span>
+                    ) : (
+                      giftCard.codigo
+                    )}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {giftCard.fornecedorNome || `Fornecedor ID: ${giftCard.fornecedorId}`}
+                    {giftCard.gcNumber && giftCard.codigo !== giftCard.gcNumber && (
+                      <> • <span className="text-gray-400">Código: {giftCard.codigo}</span></>
+                    )}
+                  </p>
                 </div>
                 <div className="text-right">
                   <p className="text-green-600 font-medium">R$ {giftCard.saldoAtual.toFixed(2)}</p>
@@ -284,8 +321,19 @@ const GiftCardSearch: React.FC<GiftCardSearchProps> = ({ onGiftCardSelected, emp
           <div className="flex justify-between items-center">
             <div>
               <h3 className="text-sm font-medium">Gift Card Selecionado:</h3>
-              <p className="text-base font-bold">{selectedGiftCard.codigo}</p>
-              <p className="text-sm">{selectedGiftCard.fornecedorNome || `Fornecedor ID: ${selectedGiftCard.fornecedorId}`}</p>
+              <p className="text-base font-bold">
+                {selectedGiftCard.gcNumber ? (
+                  <span className="text-blue-700">{selectedGiftCard.gcNumber}</span>
+                ) : (
+                  selectedGiftCard.codigo
+                )}
+              </p>
+              <p className="text-sm">
+                {selectedGiftCard.fornecedorNome || `Fornecedor ID: ${selectedGiftCard.fornecedorId}`}
+                {selectedGiftCard.gcNumber && selectedGiftCard.codigo !== selectedGiftCard.gcNumber && (
+                  <span className="block text-xs text-gray-500">Código: {selectedGiftCard.codigo}</span>
+                )}
+              </p>
             </div>
             <div className="text-right">
               <p className="text-xs text-gray-600">Saldo Atual:</p>
