@@ -782,6 +782,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   router.post("/transacoes", async (req: Request, res: Response) => {
     console.log("Recebendo requisição para criar transação:", req.body);
+    console.log("Tipo da data recebida:", typeof req.body.dataTransacao);
+    
     try {
       // Verificar se os campos obrigatórios estão presentes
       if (!req.body.valor || !req.body.descricao || !req.body.giftCardId) {
@@ -809,6 +811,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Garantir que empresaId seja incluído se vier como query parameter mas não no body
       if (!req.body.empresaId && req.query.empresaId) {
         req.body.empresaId = parseInt(req.query.empresaId as string);
+      }
+
+      // Tratamento especial para o campo dataTransacao
+      if (req.body.dataTransacao) {
+        try {
+          // Se for string, tenta converter para formato ISO
+          if (typeof req.body.dataTransacao === 'string') {
+            const dataObj = new Date(req.body.dataTransacao);
+            // Verifica se a data é válida
+            if (isNaN(dataObj.getTime())) {
+              console.error("Data inválida recebida:", req.body.dataTransacao);
+              req.body.dataTransacao = new Date(); // Usa a data atual como fallback
+            } else {
+              // Usa a data do objeto convertido
+              req.body.dataTransacao = dataObj;
+            }
+          } else if (req.body.dataTransacao instanceof Date) {
+            // Já é um objeto Date, não precisa fazer nada
+            console.log("Data já é um objeto Date");
+          } else {
+            // Não é string nem Date, usa data atual
+            console.error("Tipo de data não reconhecido:", typeof req.body.dataTransacao);
+            req.body.dataTransacao = new Date();
+          }
+        } catch (error) {
+          console.error("Erro no processamento da data:", error);
+          req.body.dataTransacao = new Date(); // Usa a data atual como fallback
+        }
+      } else {
+        // Se não foi fornecido, usa a data atual
+        console.log("Data não fornecida, usando data atual");
+        req.body.dataTransacao = new Date();
       }
 
       // Se o giftCardId for fornecido, verificar se o cartão pertence à empresa
