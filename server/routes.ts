@@ -998,6 +998,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Rota de login (sem autenticação)
   router.post("/auth/login", login);
+  
+  // Rota para obter um token de desenvolvimento sem necessidade de login
+  router.get("/auth/dev-token", async (req: Request, res: Response) => {
+    try {
+      // Verificar se estamos em ambiente de desenvolvimento
+      const isDev = process.env.NODE_ENV !== 'production';
+      if (!isDev) {
+        return res.status(403).json({ message: "Esta rota só está disponível em ambiente de desenvolvimento" });
+      }
+      
+      // Buscar usuário demo
+      const user = await storage.getUserByEmail("demo@example.com");
+      if (!user) {
+        return res.status(404).json({ message: "Usuário demo não encontrado" });
+      }
+      
+      // Buscar o perfil do usuário
+      const perfil = await storage.getPerfil(user.perfilId);
+      if (!perfil) {
+        return res.status(403).json({ message: "Perfil do usuário não encontrado" });
+      }
+
+      // Buscar a empresa do usuário
+      const empresa = await storage.getEmpresa(user.empresaId);
+      if (!empresa) {
+        return res.status(403).json({ message: "Empresa do usuário não encontrada" });
+      }
+      
+      // Gerar token JWT
+      const token = jwt.sign(
+        {
+          userId: user.id,
+          username: user.username,
+          empresaId: user.empresaId,
+          perfilId: user.perfilId,
+        },
+        JWT_SECRET,
+        { expiresIn: "24h" }
+      );
+      
+      // Retornar o token e dados do usuário
+      res.json({
+        token,
+        user: {
+          id: user.id,
+          username: user.username,
+          nome: user.nome,
+          email: user.email,
+          empresaId: user.empresaId,
+          empresaNome: empresa.nome,
+          perfilId: user.perfilId,
+          perfilNome: perfil.nome,
+        },
+      });
+    } catch (error) {
+      console.error("Erro ao gerar token de desenvolvimento:", error);
+      res.status(500).json({ message: "Erro ao gerar token de desenvolvimento" });
+    }
+  });
 
   // Rota para obter empresas (sem autenticação)
   router.get("/empresas", async (req: Request, res: Response) => {
