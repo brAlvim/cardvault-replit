@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { GiftCard, Fornecedor, Transacao } from '@shared/schema';
 import { useToast } from '@/hooks/use-toast';
+import { getQueryFn, apiRequest, queryClient } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -39,24 +40,21 @@ export default function GiftCardDetailsPage() {
 
   // Fetch gift card details
   const { data: giftCard, isLoading: isLoadingGiftCard } = useQuery<GiftCard>({
-    queryKey: ['/api/gift-cards', id],
-    queryFn: () => fetch(`/api/gift-cards/${id}`).then(res => res.json()),
+    queryKey: [`/api/gift-cards/${id}`],
+    queryFn: getQueryFn({ on401: "throw" }),
   });
 
   // Fetch fornecedor details
   const { data: fornecedor, isLoading: isLoadingFornecedor } = useQuery<Fornecedor>({
     queryKey: ['/api/fornecedores', giftCard?.fornecedorId],
-    queryFn: () => {
-      if (!giftCard?.fornecedorId) return Promise.resolve(null);
-      return fetch(`/api/fornecedores/${giftCard.fornecedorId}`).then(res => res.json());
-    },
-    enabled: !!giftCard,
+    queryFn: getQueryFn({ on401: "returnNull" }),
+    enabled: !!giftCard?.fornecedorId,
   });
 
   // Fetch transações
   const { data: transacoes, isLoading: isLoadingTransacoes } = useQuery<Transacao[]>({
-    queryKey: ['/api/transacoes', id],
-    queryFn: () => fetch(`/api/transacoes/${id}`).then(res => res.json()),
+    queryKey: [`/api/transacoes/${id}`],
+    queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: !!id,
   });
 
@@ -102,19 +100,13 @@ export default function GiftCardDetailsPage() {
     }
 
     try {
-      const response = await fetch('/api/transacoes', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          giftCardId: giftCard.id,
-          userId: giftCard.userId, // Assuming same user
-          valor: valorTransacao,
-          descricao: newTransactionDescription,
-          dataTransacao: new Date(),
-          status: "Concluída",
-        }),
+      const response = await apiRequest('POST', '/api/transacoes', {
+        giftCardId: giftCard.id,
+        userId: giftCard.userId, // Assuming same user
+        valor: valorTransacao,
+        descricao: newTransactionDescription,
+        dataTransacao: new Date(),
+        status: "Concluída",
       });
 
       if (!response.ok) {
@@ -132,14 +124,8 @@ export default function GiftCardDetailsPage() {
       setShowTransactionDialog(false);
 
       // Invalidate queries to reload data
-      await Promise.all([
-        fetch(`/api/gift-cards/${id}`).then(res => res.json()),
-        fetch(`/api/transacoes/${id}`).then(res => res.json()),
-      ]);
-
-      // Temporary solution: reload page to see updated data
-      // In a full implementation, we'd use queryClient.invalidateQueries()
-      window.location.reload();
+      queryClient.invalidateQueries({ queryKey: [`/api/gift-cards/${id}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/transacoes/${id}`] });
     } catch (error) {
       console.error('Error creating transaction:', error);
       toast({
