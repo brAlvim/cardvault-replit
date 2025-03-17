@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { apiRequest } from '@/lib/queryClient';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Search, X } from 'lucide-react';
+import { Search, X, RefreshCw } from 'lucide-react';
 
 interface GiftCard {
   id: number;
@@ -24,10 +24,60 @@ const GiftCardSearch: React.FC<GiftCardSearchProps> = ({ onGiftCardSelected, emp
   const [searchResults, setSearchResults] = useState<GiftCard[]>([]);
   const [selectedGiftCard, setSelectedGiftCard] = useState<GiftCard | null>(null);
   const [error, setError] = useState('');
+  const [allGiftCards, setAllGiftCards] = useState<GiftCard[]>([]);
+  const [loadingAll, setLoadingAll] = useState(false);
 
-  // Procurar gift cards por código (completo ou últimos 4 dígitos)
+  // Carregar todos os gift cards na inicialização
+  useEffect(() => {
+    loadAllGiftCards();
+  }, [empresaId]);
+
+  // Função para carregar todos os gift cards disponíveis
+  const loadAllGiftCards = async () => {
+    setLoadingAll(true);
+    setError('');
+    
+    try {
+      const token = localStorage.getItem('token');
+      console.log("Carregando todos os gift cards para a empresa", empresaId);
+      
+      const response = await fetch(`/api/gift-cards?empresaId=${empresaId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Falha ao carregar gift cards: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log("Gift cards carregados:", data.length, data);
+      setAllGiftCards(data);
+      
+      // Se houver poucos gift cards (<10), já os exibe para facilitar a seleção
+      if (data.length > 0 && data.length < 10) {
+        setSearchResults(data);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar gift cards:', error);
+      setError('Erro ao carregar gift cards. Tente novamente.');
+    } finally {
+      setLoadingAll(false);
+    }
+  };
+
+  // Procurar gift cards no cache local e no servidor
   const searchGiftCards = async () => {
-    if (!searchTerm || searchTerm.length < 2) {
+    // Se não houver termo de busca, exibe todos os gift cards carregados (limitados a 10)
+    if (!searchTerm || searchTerm.trim() === '') {
+      setSearchResults(allGiftCards.slice(0, 10));
+      return;
+    }
+
+    if (searchTerm.length < 2) {
       setError('Digite pelo menos 2 dígitos para buscar');
       return;
     }
@@ -36,11 +86,29 @@ const GiftCardSearch: React.FC<GiftCardSearchProps> = ({ onGiftCardSelected, emp
     setError('');
 
     try {
-      // Obter token do localStorage - corrigido para usar o token correto
+      // Primeiro tenta buscar nos gift cards já carregados em cache
+      const normalizedSearchTerm = searchTerm.toLowerCase().replace(/[^a-z0-9]/gi, '');
+      
+      const filteredCards = allGiftCards.filter(card => {
+        if (!card.codigo) return false;
+        const normalizedCardCode = card.codigo.toLowerCase().replace(/[^a-z0-9]/gi, '');
+        
+        return normalizedCardCode.includes(normalizedSearchTerm) || 
+               normalizedCardCode === normalizedSearchTerm ||
+               normalizedCardCode.endsWith(normalizedSearchTerm);
+      });
+      
+      if (filteredCards.length > 0) {
+        console.log("Gift cards encontrados no cache:", filteredCards.length);
+        setSearchResults(filteredCards);
+        setIsSearching(false);
+        return;
+      }
+      
+      // Se não encontrou no cache, busca no servidor
       const token = localStorage.getItem('token');
       console.log("Fazendo requisição GET para /api/gift-cards/search/" + searchTerm + "/" + empresaId, token ? "Com token" : "Sem token");
       
-      // Usar a API do navegador fetch diretamente para ter mais controle
       const response = await fetch(`/api/gift-cards/search/${searchTerm}/${empresaId}`, {
         method: 'GET',
         headers: {
@@ -55,13 +123,39 @@ const GiftCardSearch: React.FC<GiftCardSearchProps> = ({ onGiftCardSelected, emp
       
       const data = await response.json();
       console.log("Resposta OK GET /api/gift-cards/search/" + searchTerm + "/" + empresaId + ":", response.status);
-      console.log("Gift cards encontrados:", data.length, data);
+      console.log("Gift cards encontrados na API:", data.length, data);
       
       if (data.length === 0) {
-        setError('Nenhum gift card encontrado com este código');
+        // Recarrega todos os gift cards para garantir que temos os mais recentes
+        await loadAllGiftCards();
+        
+        // Tenta novamente a busca local após recarregar
+        const refreshedFilteredCards = allGiftCards.filter(card => {
+          if (!card.codigo) return false;
+          const normalizedCardCode = card.codigo.toLowerCase().replace(/[^a-z0-9]/gi, '');
+          
+          return normalizedCardCode.includes(normalizedSearchTerm) || 
+                 normalizedCardCode === normalizedSearchTerm ||
+                 normalizedCardCode.endsWith(normalizedSearchTerm);
+        });
+        
+        if (refreshedFilteredCards.length > 0) {
+          setSearchResults(refreshedFilteredCards);
+        } else {
+          setError('Nenhum gift card encontrado com este código');
+        }
+      } else {
+        setSearchResults(data);
+        
+        // Atualiza o cache com os novos cards encontrados
+        const newCards = data.filter((newCard: GiftCard) => 
+          !allGiftCards.some(existingCard => existingCard.id === newCard.id)
+        );
+        
+        if (newCards.length > 0) {
+          setAllGiftCards(prev => [...prev, ...newCards]);
+        }
       }
-      
-      setSearchResults(data);
     } catch (error) {
       console.error('Erro ao buscar gift cards:', error);
       setError('Erro ao buscar gift cards. Tente novamente.');
@@ -92,41 +186,66 @@ const GiftCardSearch: React.FC<GiftCardSearchProps> = ({ onGiftCardSelected, emp
       <div className="flex flex-col space-y-2">
         <Label htmlFor="gift-card-search">Buscar Gift Card por código (completo ou últimos 4 dígitos)</Label>
         
-        <div className="flex items-center gap-2">
-          <div className="relative flex-grow">
-            <Input
-              id="gift-card-search"
-              placeholder="Digite o código completo ou últimos 4 dígitos"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pr-10"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  searchGiftCards();
-                }
-              }}
-            />
-            {searchTerm && (
-              <button
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                onClick={handleClear}
-                aria-label="Limpar busca"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-grow">
+              <Input
+                id="gift-card-search"
+                placeholder="Digite o código completo ou últimos 4 dígitos"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pr-10"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    searchGiftCards();
+                  }
+                }}
+              />
+              {searchTerm && (
+                <button
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  onClick={handleClear}
+                  aria-label="Limpar busca"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            
+            <Button 
+              variant="secondary" 
+              size="sm"
+              onClick={searchGiftCards}
+              disabled={isSearching}
+            >
+              <Search className="h-4 w-4 mr-1" />
+              Buscar
+            </Button>
           </div>
           
-          <Button 
-            variant="secondary" 
-            size="sm"
-            onClick={searchGiftCards}
-            disabled={isSearching || searchTerm.length < 2}
-          >
-            <Search className="h-4 w-4 mr-1" />
-            Buscar
-          </Button>
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSearchResults(allGiftCards.slice(0, 20))}
+              className="text-xs"
+              disabled={loadingAll || allGiftCards.length === 0}
+            >
+              Mostrar Todos ({allGiftCards.length})
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={loadAllGiftCards}
+              className="text-xs"
+              disabled={loadingAll}
+            >
+              <RefreshCw className={`h-3 w-3 mr-1 ${loadingAll ? 'animate-spin' : ''}`} />
+              Atualizar Lista
+            </Button>
+          </div>
         </div>
         
         {error && <p className="text-sm text-red-500">{error}</p>}
