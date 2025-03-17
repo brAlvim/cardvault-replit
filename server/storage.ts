@@ -795,12 +795,13 @@ class MemStorage implements IStorage {
     const newTransacao: Transacao = {
       id,
       giftCardId: transacao.giftCardId,
+      giftCardIds: transacao.giftCardIds,
       userId: transacao.userId,
       empresaId: transacao.empresaId,
       valor: transacao.valor,
       dataTransacao: transacao.dataTransacao || timestamp,
       descricao: transacao.descricao,
-      status: transacao.status || "Pendente",
+      status: transacao.status || "pendente", // Corrigido para minúsculas
       comprovante: transacao.comprovante || null,
       motivoCancelamento: transacao.motivoCancelamento || null,
       ordemCompra: transacao.ordemCompra || null,
@@ -815,11 +816,28 @@ class MemStorage implements IStorage {
     this.transacoes.set(id, newTransacao);
     
     // Atualizar o saldo do gift card se a transação for concluída
-    if (newTransacao.status === "Concluída") {
+    if (newTransacao.status === "concluida") {
+      // Atualizar o gift card principal
       const giftCard = this.giftCards.get(newTransacao.giftCardId);
       if (giftCard) {
         const novoSaldo = Math.max(0, giftCard.saldoAtual - newTransacao.valor);
         this.updateGiftCard(giftCard.id, { saldoAtual: novoSaldo });
+      }
+      
+      // Verificar se temos mais gift cards na lista giftCardIds
+      if (newTransacao.giftCardIds && newTransacao.giftCardIds !== String(newTransacao.giftCardId)) {
+        const idsArray = newTransacao.giftCardIds.split(',').map(id => parseInt(id.trim()));
+        
+        // Atualizar cada gift card adicional na lista
+        for (const gcId of idsArray) {
+          if (gcId !== newTransacao.giftCardId) { // Evitar atualizar o mesmo cartão duas vezes
+            const additionalGiftCard = this.giftCards.get(gcId);
+            if (additionalGiftCard) {
+              const novoSaldo = Math.max(0, additionalGiftCard.saldoAtual - newTransacao.valor);
+              this.updateGiftCard(additionalGiftCard.id, { saldoAtual: novoSaldo });
+            }
+          }
+        }
       }
     }
     

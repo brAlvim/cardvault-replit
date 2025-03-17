@@ -392,7 +392,7 @@ export default function Dashboard() {
                     </TableHeader>
                     <TableBody>
                       {/* Mostrar gift cards cadastrados recentemente */}
-                      {giftCards && giftCards.slice(0, 4).map((giftCard) => {
+                      {giftCards && giftCards.slice(0, 2).map((giftCard) => {
                         const fornecedor = fornecedores?.find(f => f.id === giftCard.fornecedorId);
                         return (
                           <TableRow key={`giftcard-${giftCard.id}`}>
@@ -411,10 +411,17 @@ export default function Dashboard() {
                       })}
                       
                       {/* Mostrar transações recentes */}
-                      {recentTransacoes && recentTransacoes.slice(0, 2).map((transacao) => (
+                      {recentTransacoes && recentTransacoes.slice(0, 5).map((transacao) => (
                         <TableRow key={`transaction-${transacao.id}`}>
                           <TableCell>{formatDate(transacao.dataTransacao)}</TableCell>
-                          <TableCell>{transacao.descricao}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{transacao.descricao}</span>
+                              <span className="text-xs text-muted-foreground">
+                                Gift Card ID: {transacao.giftCardId}
+                              </span>
+                            </div>
+                          </TableCell>
                           <TableCell>R$ {transacao.valor.toFixed(2)}</TableCell>
                         </TableRow>
                       ))}
