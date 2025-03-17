@@ -38,17 +38,43 @@ export default function GiftCardDetailsPage() {
   const [newTransactionValue, setNewTransactionValue] = useState('');
   const [newTransactionDescription, setNewTransactionDescription] = useState('');
 
-  // Fetch gift card details
-  const { data: giftCard, isLoading: isLoadingGiftCard } = useQuery<GiftCard>({
+  // Fetch gift card details with default values for missing fields
+  const { data: giftCardData, isLoading: isLoadingGiftCard } = useQuery<GiftCard>({
     queryKey: [`/api/gift-cards/${id}`],
     queryFn: getQueryFn({ on401: "throw" }),
+    onSuccess: (data) => {
+      console.log("Gift card data retrieved:", data);
+    },
+    onError: (error) => {
+      console.error("Error fetching gift card:", error);
+    }
   });
+
+  // Add default values for missing fields
+  const giftCard = useMemo(() => {
+    if (!giftCardData) return null;
+    return {
+      ...giftCardData,
+      valorPago: giftCardData.valorPago ?? null,
+      valorPendente: giftCardData.valorPendente ?? giftCardData.valorInicial,
+    };
+  }, [giftCardData]);
 
   // Fetch fornecedor details
   const fornecedorId = giftCard?.fornecedorId;
   const { data: fornecedor, isLoading: isLoadingFornecedor } = useQuery<Fornecedor>({
     queryKey: ['/api/fornecedores', fornecedorId],
-    queryFn: getQueryFn({ on401: "returnNull" }),
+    queryFn: async () => {
+      if (!fornecedorId) return null;
+      try {
+        const res = await fetch(`/api/fornecedores/${fornecedorId}`);
+        if (!res.ok) throw new Error('Fornecedor not found');
+        return await res.json();
+      } catch (error) {
+        console.error('Error fetching fornecedor:', error);
+        return null;
+      }
+    },
     enabled: !!fornecedorId,
   });
   
@@ -56,7 +82,17 @@ export default function GiftCardDetailsPage() {
   const supplierId = giftCard?.supplierId;
   const { data: supplier, isLoading: isLoadingSupplier } = useQuery({
     queryKey: ['/api/suppliers', supplierId],
-    queryFn: () => supplierId ? fetch(`/api/suppliers/${supplierId}`).then(res => res.json()) : null,
+    queryFn: async () => {
+      if (!supplierId) return null;
+      try {
+        const res = await fetch(`/api/suppliers/${supplierId}`);
+        if (!res.ok) throw new Error('Supplier not found');
+        return await res.json();
+      } catch (error) {
+        console.error('Error fetching supplier:', error);
+        return null;
+      }
+    },
     enabled: !!supplierId,
   });
 
