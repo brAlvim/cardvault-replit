@@ -20,6 +20,9 @@ import {
   ShoppingCart,
   DollarSign,
   Ban,
+  CreditCard,
+  Wallet,
+  Info,
 } from 'lucide-react';
 
 import {
