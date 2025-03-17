@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLocation } from "wouter";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
+import { UserIcon } from "lucide-react";
 
 const loginSchema = z.object({
-  email: z.string().email({ message: "Por favor, informe um email válido" }),
+  username: z.string().min(1, { message: "Por favor, informe seu nome de usuário" }),
   password: z.string().min(1, { message: "Por favor, informe sua senha" }),
 });
 
@@ -20,69 +21,23 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const [isLoading, setIsLoading] = useState(false);
+  const { login, isLoading } = useAuth();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "",
+      username: "",
       password: "",
     },
   });
 
   const onSubmit = async (data: LoginFormValues) => {
-    setIsLoading(true);
     try {
-      // Usar a função apiRequest atualizada
-      const response = await apiRequest('POST', '/api/auth/login', {
-        email: data.email,
-        password: data.password,
-      });
-
-      // Verificar se a resposta deu certo
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorMessage = "Credenciais inválidas";
-        
-        try {
-          // Tentar converter para JSON se possível
-          const errorData = JSON.parse(errorText);
-          errorMessage = errorData.message || errorMessage;
-        } catch (e) {
-          // Se não for JSON, usar texto completo
-          console.error("Resposta de erro não é JSON:", errorText);
-        }
-        
-        throw new Error(errorMessage);
-      }
-
-      // Se chegou aqui, a resposta é ok
-      const userData = await response.json();
-      
-      // Armazenar dados do usuário e token no localStorage
-      localStorage.setItem("user", JSON.stringify(userData.user));
-      localStorage.setItem("token", userData.token);
-      localStorage.setItem("empresaId", userData.user.empresaId.toString());
-      
-      // Limpar e recarregar o cliente de consulta para refletir o novo estado de autenticação
-      queryClient.clear();
-      
-      toast({
-        title: "Login realizado com sucesso",
-        description: `Bem-vindo(a) ${userData.user.nome || userData.user.email.split('@')[0]}!`,
-      });
-      
-      // Redirecionar para o dashboard
-      setLocation("/dashboard");
+      await login(data);
+      // O redirecionamento será feito pelo hook useAuth
     } catch (error: any) {
       console.error("Erro durante login:", error);
-      toast({
-        variant: "destructive",
-        title: "Erro ao fazer login",
-        description: error.message || "Verifique suas credenciais e tente novamente",
-      });
-    } finally {
-      setIsLoading(false);
+      // O toast de erro será exibido pelo hook useAuth
     }
   };
 
@@ -103,12 +58,15 @@ export default function LoginPage() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
-                name="email"
+                name="username"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>Nome de Usuário</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="Digite seu email" {...field} />
+                      <div className="relative">
+                        <UserIcon className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                        <Input className="pl-9" placeholder="Digite seu nome de usuário" {...field} />
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -122,7 +80,16 @@ export default function LoginPage() {
                   <FormItem>
                     <FormLabel>Senha</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="Digite sua senha" {...field} />
+                      <div className="relative">
+                        <span className="absolute left-3 top-3 text-gray-400">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" 
+                               stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                          </svg>
+                        </span>
+                        <Input className="pl-9" type="password" placeholder="Digite sua senha" {...field} />
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -141,7 +108,7 @@ export default function LoginPage() {
           </p>
           <div className="text-xs p-2 bg-slate-100 rounded-md">
             <p className="font-semibold text-center mb-1">Credenciais de Teste</p>
-            <p>Email: <span className="font-mono">demo@example.com</span></p>
+            <p>Usuário: <span className="font-mono">demo</span></p>
             <p>Senha: <span className="font-mono">password123</span></p>
           </div>
         </CardFooter>
