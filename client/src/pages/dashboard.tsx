@@ -395,8 +395,8 @@ export default function Dashboard() {
                       {giftCards && giftCards.slice(0, 4).map((giftCard) => {
                         const fornecedor = fornecedores?.find(f => f.id === giftCard.fornecedorId);
                         return (
-                          <TableRow key={`giftcard-${giftCard.id}`} className="bg-blue-50">
-                            <TableCell>{formatDate(giftCard.dataCadastro)}</TableCell>
+                          <TableRow key={`giftcard-${giftCard.id}`}>
+                            <TableCell>{formatDate(giftCard.createdAt)}</TableCell>
                             <TableCell>
                               <div className="flex flex-col">
                                 <span className="font-medium">Novo Gift Card</span>

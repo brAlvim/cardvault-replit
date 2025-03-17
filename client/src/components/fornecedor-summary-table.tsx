@@ -96,17 +96,9 @@ export default function FornecedorSummaryTable({ giftCards, fornecedores }: Forn
         </TableHeader>
         <TableBody>
           {sortedSummaries.map((item) => {
-            // Define cores para diferentes faixas de desconto médio
+            // Define apenas texto em negrito para descontos
             const descontoValue = parseFloat(item.mediaDesconto.replace('%', ''));
-            const mediaClassName = descontoValue >= 15 
-              ? "bg-green-900 text-white font-medium" 
-              : descontoValue >= 10 
-                ? "bg-green-600 text-white font-medium" 
-                : descontoValue >= 5 
-                  ? "bg-green-300 text-green-900" 
-                  : descontoValue > 0 && descontoValue < 5
-                    ? "bg-red-100 text-red-700" 
-                    : "bg-red-50 text-red-800";
+            const mediaClassName = descontoValue > 0 ? "font-bold" : "";
             
             return (
               <TableRow key={item.fornecedor.id} className={item.disponivel === 0 ? "opacity-60" : ""}>
