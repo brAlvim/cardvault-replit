@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Transacao, GiftCard, Fornecedor } from '@shared/schema';
 import GiftCardSelector from '@/components/gift-card-selector';
+import RefundDialog from '@/components/refund-dialog';
 
 import {
   ArrowLeft,

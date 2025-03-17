@@ -1445,6 +1445,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // O servidor apenas confirma que a requisição foi recebida
     res.status(200).json({ message: "Logout realizado com sucesso" });
   });
+  
+  // Rota para buscar gift cards por código (completo ou últimos 4 dígitos)
+  router.get("/gift-cards/search/:codigo/:empresaId", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const { codigo, empresaId } = req.params;
+      
+      // Verificar se a empresa do parâmetro coincide com a empresa do usuário logado
+      const userEmpresaId = (req as any).user.empresaId || 0;
+      const parsedEmpresaId = parseInt(empresaId);
+      
+      if (userEmpresaId !== parsedEmpresaId) {
+        console.error(`Tentativa de acesso a dados de outra empresa: user ${userEmpresaId}, requested ${parsedEmpresaId}`);
+        return res.status(403).json({ error: "Acesso negado a dados de outra empresa" });
+      }
+      
+      console.log(`Buscando gift cards pelo código ${codigo} para empresa ${empresaId}`);
+      
+      // Obtém todos os gift cards da empresa
+      const allGiftCards = await storage.getGiftCardsByEmpresa(parsedEmpresaId);
+      
+      // Filtra os gift cards pelo código (exato ou últimos 4 dígitos)
+      const matchingGiftCards = allGiftCards.filter(card => {
+        // Busca por código exato
+        if (card.codigo === codigo) return true;
+        
+        // Busca pelos últimos 4 dígitos
+        if (codigo.length === 4 && card.codigo.endsWith(codigo)) return true;
+        
+        return false;
+      });
+      
+      // Adiciona dados de fornecedor para cada gift card
+      const enrichedGiftCards = await Promise.all(matchingGiftCards.map(async (card) => {
+        const fornecedor = await storage.getFornecedor(card.fornecedorId, parsedEmpresaId);
+        return {
+          ...card,
+          fornecedorNome: fornecedor?.nome || 'Fornecedor Desconhecido'
+        };
+      }));
+      
+      // Verifica se o usuário é convidado para filtrar dados confidenciais
+      const userPerfilId = (req as any).user.perfilId || 0;
+      const isGuest = await isGuestProfile(userPerfilId);
+      
+      // Filtra dados confidenciais se o usuário for convidado
+      const filteredGiftCards = filterGiftCardArray(enrichedGiftCards, isGuest);
+      
+      console.log(`Gift cards encontrados: ${filteredGiftCards.length}`);
+      return res.json(filteredGiftCards);
+    } catch (error) {
+      console.error("Erro ao buscar gift cards por código:", error);
+      return res.status(500).json({ error: "Erro ao buscar gift cards" });
+    }
+  });
 
   // Mount the API router
   app.use("/api", router);
