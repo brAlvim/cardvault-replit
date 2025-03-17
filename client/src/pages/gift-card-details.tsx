@@ -204,8 +204,9 @@ export default function GiftCardDetailsPage() {
                 <div className="flex flex-col">
                   <span className="text-sm text-muted-foreground">Fornecedor</span>
                   <span className="font-medium">
-                    {isLoadingFornecedor ? "Carregando..." : fornecedor?.nome || 
-                    (giftCard?.supplierId ? "Fornecedor #" + giftCard.supplierId : "Não definido")}
+                    {isLoadingFornecedor || isLoadingSupplier 
+                      ? "Carregando..." 
+                      : supplier?.nome || fornecedor?.nome || "Não definido"}
                   </span>
                 </div>
                 
@@ -218,11 +219,16 @@ export default function GiftCardDetailsPage() {
                   <span className="text-sm text-muted-foreground">Valor Pago</span>
                   <div className="flex items-center gap-2">
                     <span className="font-medium">
-                      {giftCard.valorPago !== null ? `R$ ${(giftCard.valorPago || 0).toFixed(2)}` : 'N/A'}
+                      {giftCard.valorPago !== null && giftCard.valorPago !== undefined 
+                        ? `R$ ${Number(giftCard.valorPago).toFixed(2)}` 
+                        : 'N/A'}
                     </span>
-                    {giftCard.valorPago !== null && giftCard.percentualDesconto && giftCard.percentualDesconto > 0 && (
+                    {giftCard.valorPago !== null && 
+                     giftCard.valorPago !== undefined && 
+                     giftCard.valorInicial > 0 && 
+                     giftCard.valorPago < giftCard.valorInicial && (
                       <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                        {giftCard.percentualDesconto.toFixed(2)}% de desconto
+                        {((1 - (giftCard.valorPago / giftCard.valorInicial)) * 100).toFixed(2)}% de desconto
                       </Badge>
                     )}
                   </div>
@@ -242,7 +248,9 @@ export default function GiftCardDetailsPage() {
                 <div className="flex flex-col">
                   <span className="text-sm text-muted-foreground">Valor Economizado</span>
                   <span className="font-medium text-green-600">
-                    {giftCard.valorPago !== null && giftCard.valorInicial > giftCard.valorPago 
+                    {giftCard.valorPago !== null && 
+                     giftCard.valorPago !== undefined && 
+                     giftCard.valorInicial > giftCard.valorPago
                       ? `R$ ${(giftCard.valorInicial - giftCard.valorPago).toFixed(2)}`
                       : `R$ 0,00`
                     }
@@ -252,7 +260,9 @@ export default function GiftCardDetailsPage() {
                 <div className="flex flex-col">
                   <span className="text-sm text-muted-foreground">Valor Pendente</span>
                   <span className="font-medium text-lg text-blue-600">
-                    R$ {(giftCard.valorPendente !== null ? giftCard.valorPendente || 0 : giftCard.valorInicial).toFixed(2)}
+                    R$ {(giftCard.valorPendente !== null && giftCard.valorPendente !== undefined 
+                      ? Number(giftCard.valorPendente)
+                      : giftCard.valorInicial).toFixed(2)}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     Calculado automaticamente com base nas transações
@@ -384,7 +394,7 @@ export default function GiftCardDetailsPage() {
               <Label htmlFor="gift-card">Gift Card</Label>
               <Input 
                 id="gift-card" 
-                value={`${giftCard.codigo} - ${fornecedor?.nome || "..."}`} 
+                value={`${giftCard.codigo} - ${supplier?.nome || fornecedor?.nome || "..."}`} 
                 disabled 
               />
             </div>
