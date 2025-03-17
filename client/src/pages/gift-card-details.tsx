@@ -26,7 +26,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { CreditCard, Calendar, Receipt, Edit, Share2, ArrowLeft, Plus } from 'lucide-react';
+import { CreditCard, Calendar, Receipt, Edit, Share2, ArrowLeft, Plus, Lock as LockIcon } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 
@@ -102,6 +102,12 @@ export default function GiftCardDetailsPage() {
     queryKey: [`/api/transacoes/${id}`],
     queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: !!id,
+  });
+  
+  // Fetch user data para verificação de permissões
+  const { data: userData } = useQuery({
+    queryKey: ['/api/auth/me'],
+    queryFn: getQueryFn({ on401: "returnNull" }),
   });
 
   // Format date from ISO to local format
@@ -276,20 +282,45 @@ export default function GiftCardDetailsPage() {
                   </div>
                 </div>
                 
-                {/* GC Number e GC Pass */}
-                {(giftCard.gcNumber || giftCard.gcPass) && (
+                {/* GC Number e GC Pass - Visíveis apenas para admin e gerente */}
+                {(giftCard.gcNumber || giftCard.gcPass || giftCard.comprador || giftCard.login) && (
                   <div className="flex flex-col space-y-2 mt-2 p-2 bg-primary-50 rounded-md border border-primary-100">
-                    {giftCard.gcNumber && (
+                    {/* Informações de compra */}
+                    {giftCard.comprador && (
                       <div className="flex flex-col">
-                        <span className="text-sm text-muted-foreground">GC Number</span>
-                        <span className="font-medium">{giftCard.gcNumber}</span>
+                        <span className="text-sm text-muted-foreground">Comprador</span>
+                        <span className="font-medium">{giftCard.comprador}</span>
                       </div>
                     )}
                     
-                    {giftCard.gcPass && (
+                    {giftCard.login && (
                       <div className="flex flex-col">
-                        <span className="text-sm text-muted-foreground">GC Pass</span>
-                        <span className="font-medium">{giftCard.gcPass}</span>
+                        <span className="text-sm text-muted-foreground">Login de Compra</span>
+                        <span className="font-medium">{giftCard.login}</span>
+                      </div>
+                    )}
+                    
+                    {/* Dados sensíveis - visíveis apenas para admin e gerente */}
+                    {userData && userData.perfilNome && ['admin', 'gerente'].includes(userData.perfilNome) ? (
+                      <>
+                        {giftCard.gcNumber && (
+                          <div className="flex flex-col">
+                            <span className="text-sm text-muted-foreground">GC Number</span>
+                            <span className="font-medium">{giftCard.gcNumber}</span>
+                          </div>
+                        )}
+                        
+                        {giftCard.gcPass && (
+                          <div className="flex flex-col">
+                            <span className="text-sm text-muted-foreground">GC Pass</span>
+                            <span className="font-medium">{giftCard.gcPass}</span>
+                          </div>
+                        )}
+                      </>
+                    ) : (giftCard.gcNumber || giftCard.gcPass) && (
+                      <div className="flex items-center text-amber-600 mt-1">
+                        <LockIcon className="h-4 w-4 mr-1" />
+                        <span className="text-xs">Dados de acesso disponíveis apenas para administradores e gerentes</span>
                       </div>
                     )}
                   </div>
