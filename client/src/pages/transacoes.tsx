@@ -1336,7 +1336,7 @@ export default function TransacoesPage() {
               </div>
             </CardContent>
           </Card>
-        )}
+        </div>
         
         {/* Tabela de transações */}
         <Card>
