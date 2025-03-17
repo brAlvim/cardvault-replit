@@ -105,7 +105,18 @@ export default function GiftCardDetailsPage() {
   });
   
   // Fetch user data para verificação de permissões
-  const { data: userData } = useQuery({
+  interface UserAuthData {
+    id: number;
+    username: string;
+    nome: string;
+    email: string;
+    empresaId: number;
+    empresaNome: string;
+    perfilId: number;
+    perfilNome: string;
+  }
+  
+  const { data: userData } = useQuery<UserAuthData>({
     queryKey: ['/api/auth/me'],
     queryFn: getQueryFn({ on401: "returnNull" }),
   });
