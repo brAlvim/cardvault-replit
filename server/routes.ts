@@ -877,9 +877,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Aplicar criptografia ou mascaramento conforme o perfil
         if (isGuest) {
-          filteredGiftCards = filterGiftCardArray(filteredGiftCards, true);
+          filteredGiftCards = filterGiftCardArray(filteredGiftCards, true, user.empresaId);
         } else {
-          filteredGiftCards = filteredGiftCards.map(card => decryptGiftCardData(card));
+          filteredGiftCards = filteredGiftCards.map(card => decryptGiftCardData(card, user.empresaId));
         }
         
         return res.json(filteredGiftCards);
@@ -891,9 +891,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Filtrar dados confidenciais conforme o perfil
       if (isGuest) {
-        giftCards = filterGiftCardArray(giftCards, true);
+        giftCards = filterGiftCardArray(giftCards, true, user.empresaId);
       } else {
-        giftCards = giftCards.map(card => decryptGiftCardData(card));
+        giftCards = giftCards.map(card => decryptGiftCardData(card, user.empresaId));
       }
       
       res.json(giftCards);
@@ -922,18 +922,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Criptografar dados sensíveis antes de salvar
       if (giftCardData.gcNumber) {
-        giftCardData.gcNumber = encrypt(giftCardData.gcNumber);
+        giftCardData.gcNumber = encrypt(giftCardData.gcNumber, user.empresaId);
       }
       
       if (giftCardData.gcPass) {
-        giftCardData.gcPass = encrypt(giftCardData.gcPass);
+        giftCardData.gcPass = encrypt(giftCardData.gcPass, user.empresaId);
       }
       
       // Criar o gift card com dados criptografados
       const giftCard = await storage.createGiftCard(giftCardData);
       
       // Descriptografar para a resposta
-      const decryptedGiftCard = decryptGiftCardData(giftCard);
+      const decryptedGiftCard = decryptGiftCardData(giftCard, user.empresaId);
       
       res.status(201).json(decryptedGiftCard);
     } catch (error) {
@@ -970,7 +970,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         processedGiftCard = filterConfidentialData(giftCard, true);
       } else {
         // Para usuários autorizados, descriptografar dados sensíveis
-        processedGiftCard = decryptGiftCardData(giftCard);
+        processedGiftCard = decryptGiftCardData(giftCard, user.empresaId);
       }
       
       res.json(processedGiftCard);
@@ -1000,11 +1000,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Criptografar dados sensíveis se forem modificados
       if (giftCardData.gcNumber) {
-        giftCardData.gcNumber = encrypt(giftCardData.gcNumber);
+        giftCardData.gcNumber = encrypt(giftCardData.gcNumber, user.empresaId);
       }
       
       if (giftCardData.gcPass) {
-        giftCardData.gcPass = encrypt(giftCardData.gcPass);
+        giftCardData.gcPass = encrypt(giftCardData.gcPass, user.empresaId);
       }
       
       // Garantir que empresaId e userId não sejam alterados
@@ -1123,10 +1123,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Processar os gift cards conforme o perfil do usuário
       if (isGuest) {
         // Para convidados, mascarar informações sensíveis
-        giftCards = filterGiftCardArray(giftCards, true);
+        giftCards = filterGiftCardArray(giftCards, true, user.empresaId);
       } else {
         // Para usuários autorizados, descriptografar dados sensíveis
-        giftCards = giftCards.map(card => decryptGiftCardData(card));
+        giftCards = giftCards.map(card => decryptGiftCardData(card, user.empresaId));
       }
       
       // Registrar evento para auditoria
@@ -1282,7 +1282,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Filtrar dados confidenciais se for perfil convidado
       if (isGuest) {
-        filteredGiftCards = filterGiftCardArray(filteredGiftCards, true);
+        filteredGiftCards = filterGiftCardArray(filteredGiftCards, true, user.empresaId);
       }
         
       res.json(filteredGiftCards);
