@@ -63,7 +63,20 @@ const SearchResults: React.FC<SearchResultsProps> = ({ searchTerm, isOpen, onClo
           count: { fornecedores: 0, giftCards: 0, transacoes: 0, total: 0 }
         };
       }
-      const res = await fetch(`/api/search?q=${encodeURIComponent(searchTerm)}`);
+      
+      // Obter o token de autenticação do localStorage
+      const token = localStorage.getItem('token');
+      
+      // Incluir o token no cabeçalho de autorização
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json'
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const res = await fetch(`/api/search?q=${encodeURIComponent(searchTerm)}`, { headers });
       if (!res.ok) {
         throw new Error('Erro ao realizar a busca');
       }

@@ -191,12 +191,16 @@ export default function TransacoesPage() {
   const { data: transacoes, isLoading: isLoadingTransacoes, refetch: refetchTransacoes } = useQuery<Transacao[]>({
     queryKey: isRouteMatch ? ['/api/transacoes', giftCardId] : ['/api/transacoes'],
     queryFn: () => {
+      // Obter o token de autenticação do localStorage
+      const token = localStorage.getItem('token');
+      const headers: HeadersInit = token ? { 'Authorization': `Bearer ${token}` } : {};
+      
       // Se estamos em uma rota específica de gift card, busca apenas as transações daquele card
       if (isRouteMatch && giftCardId > 0) {
-        return fetch(`/api/transacoes/${giftCardId}`).then(res => res.json());
+        return fetch(`/api/transacoes/${giftCardId}`, { headers }).then(res => res.json());
       } 
       // Caso contrário, busca todas as transações
-      return fetch('/api/transacoes').then(res => res.json());
+      return fetch('/api/transacoes', { headers }).then(res => res.json());
     },
     enabled: isRouteMatch ? giftCardId > 0 : true, // Só ativa se tivermos um ID válido em rota específica
   });
@@ -204,7 +208,11 @@ export default function TransacoesPage() {
   // Query para buscar todos os gift cards disponíveis (para seleção múltipla)
   const { data: allGiftCards = [] } = useQuery<GiftCard[]>({
     queryKey: ['/api/gift-cards'],
-    queryFn: () => fetch('/api/gift-cards').then(res => res.json()),
+    queryFn: () => fetch('/api/gift-cards', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    }).then(res => res.json()),
   });
   
   // Query para buscar todos os fornecedores (para mostrar informações dos gift cards)
@@ -215,6 +223,11 @@ export default function TransacoesPage() {
   
   // Função auxiliar para obter o nome do fornecedor a partir do gift card ID
   const getFornecedorNome = (giftCardId: number): string => {
+    // Garantir que allGiftCards é um array antes de chamar find
+    if (!Array.isArray(allGiftCards)) {
+      return "Desconhecido";
+    }
+    
     const giftCard = allGiftCards.find(gc => gc.id === giftCardId);
     if (!giftCard) return "Desconhecido";
     
