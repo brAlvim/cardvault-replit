@@ -35,12 +35,22 @@ export default function TopNavigation({ onMenuClick, onSearch }: TopNavigationPr
           <div className="relative max-w-md">
             <Input
               type="text"
-              placeholder="Search your collection..."
+              placeholder="Buscar gift cards, fornecedores ou transações..."
               className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleSearch(e);
+                }
+              }}
             />
-            <i className="fas fa-search absolute left-3 top-3 text-slate-400"></i>
+            <div className="absolute left-3 top-3 text-slate-400">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-search">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.3-4.3"></path>
+              </svg>
+            </div>
           </div>
         </form>
         
@@ -49,7 +59,7 @@ export default function TopNavigation({ onMenuClick, onSearch }: TopNavigationPr
           <Button variant="ghost" size="icon" title="Notifications">
             <Bell className="h-5 w-5 text-slate-600" />
           </Button>
-          <Link href="/user-profiles">
+          <Link to="/user-profiles">
             <Button variant="ghost" size="icon" title="Perfis e Usuários">
               <Cog className="h-5 w-5 text-slate-600" />
             </Button>

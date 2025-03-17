@@ -104,6 +104,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rota para busca global
+  router.get("/search", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const searchTerm = req.query.q as string;
+      const userId = (req as any).user?.id || 1; // Usuário atual
+      const empresaId = (req as any).user?.empresaId || 1;
+
+      if (!searchTerm) {
+        return res.status(400).json({ message: "Search term is required" });
+      }
+
+      // Buscar em fornecedores
+      const fornecedores = await storage.getFornecedores(userId, empresaId);
+      const matchingFornecedores = fornecedores.filter(f => 
+        f.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        (f.descricao && f.descricao.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (f.website && f.website.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+
+      // Buscar em gift cards
+      const giftCards = await storage.getGiftCards(userId, undefined, empresaId);
+      const matchingGiftCards = giftCards.filter(gc => 
+        gc.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (gc.observacoes && gc.observacoes.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (gc.ordemCompra && gc.ordemCompra.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (gc.gcNumber && gc.gcNumber.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+
+      // Buscar em transações
+      const transacoes = await storage.getTransacoesByEmpresa(empresaId);
+      const matchingTransacoes = transacoes.filter(t => 
+        t.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (t.ordemCompra && t.ordemCompra.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (t.ordemInterna && t.ordemInterna.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (t.motivoCancelamento && t.motivoCancelamento.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (t.motivoRefund && t.motivoRefund.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+
+      // Verificar permissões do usuário para filtrar informações sensíveis
+      const userPerfil = await storage.getPerfil((req as any).user?.perfilId || 1);
+      const isGuest = userPerfil ? await isGuestProfile(userPerfil.id) : false;
+
+      // Filtrar dados confidenciais dos gift cards se for perfil convidado
+      const filteredGiftCards = isGuest ? filterGiftCardArray(matchingGiftCards, true) : matchingGiftCards;
+
+      // Estruturar resultados por categoria
+      const results = {
+        fornecedores: matchingFornecedores,
+        giftCards: filteredGiftCards,
+        transacoes: matchingTransacoes,
+        count: {
+          fornecedores: matchingFornecedores.length,
+          giftCards: matchingGiftCards.length,
+          transacoes: matchingTransacoes.length,
+          total: matchingFornecedores.length + matchingGiftCards.length + matchingTransacoes.length
+        }
+      };
+
+      res.json(results);
+    } catch (error) {
+      console.error("Search error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Fornecedor routes (antigo Collection)
   router.get("/fornecedores", async (req: Request, res: Response) => {
     try {

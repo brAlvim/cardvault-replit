@@ -4,6 +4,7 @@ import { useLocation } from 'wouter';
 import Sidebar from '@/components/sidebar';
 import TopNavigation from '@/components/top-navigation';
 import MobileSidebar from '@/components/mobile-sidebar';
+import SearchResults from '@/components/search-results';
 import { Fornecedor } from '@shared/schema';
 
 interface MainLayoutProps {
@@ -13,6 +14,7 @@ interface MainLayoutProps {
 export default function MainLayout({ children }: MainLayoutProps) {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [location] = useLocation();
   
   // Verificar se estamos na página de login
@@ -49,7 +51,15 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
   const handleSearch = (term: string) => {
     setSearchTerm(term);
-    // Search functionality would be implemented in the specific page components
+    
+    // Apenas exibe o modal de pesquisa se o termo tiver pelo menos 3 caracteres
+    if (term.length >= 3) {
+      setIsSearchOpen(true);
+    }
+  };
+
+  const closeSearch = () => {
+    setIsSearchOpen(false);
   };
 
   // Layout simplificado para a página de login
@@ -84,6 +94,13 @@ export default function MainLayout({ children }: MainLayoutProps) {
         <TopNavigation 
           onMenuClick={() => setIsMobileSidebarOpen(true)}
           onSearch={handleSearch}
+        />
+        
+        {/* Modal de resultados de pesquisa */}
+        <SearchResults
+          searchTerm={searchTerm}
+          isOpen={isSearchOpen}
+          onClose={closeSearch}
         />
         
         {/* Main Content Area */}
