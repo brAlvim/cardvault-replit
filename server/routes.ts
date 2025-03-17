@@ -112,7 +112,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // User routes - Registro de novos usuários
+  // Função para inicializar fornecedores padrão para um usuário
+  async function initializeDefaultSuppliersForUser(userId: number, empresaId: number) {
+    const defaultSuppliers = [
+      "CARDCOOKIE",
+      "CARD CASH",
+      "CARD DEPOT",
+      "GCX / RAISE",
+      "ARBITRAGE CARD",
+      "FLUZ",
+      "EGIFTER",
+      "GIFTCARD OUTLET"
+    ];
+    
+    for (const supplierName of defaultSuppliers) {
+      await storage.createSupplier({
+        nome: supplierName,
+        status: "ativo",
+        userId: userId,
+        empresaId: empresaId
+      });
+    }
+  }
+  
+  // Função para inicializar fornecedores de giftcards padrão para um usuário
+  async function initializeDefaultFornecedoresForUser(userId: number, empresaId: number) {
+    const defaultFornecedores = [
+      "TARGET",
+      "BESTBUY",
+      "WALMART",
+      "HOMEDEPOT",
+      "LOWES",
+      "BOSCOVS",
+      "WALGREENS",
+      "SEPHORA",
+      "NORDSTROM",
+      "BARNES NOBLES",
+      "ULTA",
+      "WAYFAIR",
+      "AMAZON",
+      "MACYS",
+      "DICKS SPORTING GOODS",
+      "ACADEMY SPORTS",
+      "GAME STOP"
+    ];
+    
+    for (const fornecedorName of defaultFornecedores) {
+      await storage.createFornecedor({
+        nome: fornecedorName,
+        status: "ativo",
+        userId: userId,
+        empresaId: empresaId
+      });
+    }
+  }
+
+// User routes - Registro de novos usuários
   router.post("/users", async (req: Request, res: Response) => {
     try {
       const userData = insertUserSchema.parse(req.body);
@@ -146,6 +201,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Criar o usuário no banco de dados
       const newUser = await storage.createUser(userDataWithHashedPassword);
+      
+      // Inicializar fornecedores e fornecedores de gift card padrão para o novo usuário
+      if (newUser) {
+        await initializeDefaultFornecedoresForUser(newUser.id, newUser.empresaId);
+        await initializeDefaultSuppliersForUser(newUser.id, newUser.empresaId);
+      }
       
       // Remover a senha da resposta por segurança
       const { password, ...userWithoutPassword } = newUser;
@@ -328,9 +389,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Fornecedor routes (antigo Collection)
   router.get("/fornecedores", async (req: Request, res: Response) => {
     try {
-      // Se userId não for fornecido, retorna todos os fornecedores (userId 1 é demo)
-      let userId = 1;
+      // Usar o ID do usuário autenticado quando disponível
+      let userId = req.user?.id || 1;
       
+      // Se userId for explicitamente fornecido na query string, usar esse
       if (req.query.userId) {
         userId = parseInt(req.query.userId as string);
         if (isNaN(userId)) {
@@ -338,9 +400,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Filtrar por empresa se especificado
-      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      // Filtrar por empresa se especificado ou usar a empresa do usuário autenticado
+      const empresaId = req.user?.empresaId || 
+        (req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined);
       
+      // Buscar fornecedores do usuário especificado
       const fornecedores = await storage.getFornecedores(userId, empresaId);
       res.json(fornecedores);
     } catch (error) {
@@ -353,6 +417,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Garantir que empresaId seja incluído se vier como query parameter mas não no body
       if (!req.body.empresaId && req.query.empresaId) {
         req.body.empresaId = parseInt(req.query.empresaId as string);
+      } else if (!req.body.empresaId && req.user?.empresaId) {
+        // Usar empresaId do usuário autenticado se disponível
+        req.body.empresaId = req.user.empresaId;
+      }
+      
+      // Garantir que userId seja do usuário autenticado se disponível
+      if (!req.body.userId && req.user?.id) {
+        req.body.userId = req.user.id;
       }
       
       const fornecedorData = insertFornecedorSchema.parse(req.body);
