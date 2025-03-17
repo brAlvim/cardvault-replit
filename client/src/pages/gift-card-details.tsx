@@ -225,7 +225,7 @@ export default function GiftCardDetailsPage() {
                 <div className="flex flex-col">
                   <span className="text-sm text-muted-foreground">Saldo Atual</span>
                   <span className="font-medium text-lg text-primary">
-                    R$ {giftCard.saldoAtual.toFixed(2)}
+                    R$ {(giftCard.saldoAtual || 0).toFixed(2)}
                   </span>
                 </div>
                 
@@ -373,7 +373,7 @@ export default function GiftCardDetailsPage() {
               <Label htmlFor="saldo">Saldo Disponível</Label>
               <Input 
                 id="saldo" 
-                value={`R$ ${giftCard.saldoAtual.toFixed(2)}`} 
+                value={`R$ ${(giftCard.saldoAtual || 0).toFixed(2)}`} 
                 disabled 
               />
             </div>
