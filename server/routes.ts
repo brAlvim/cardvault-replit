@@ -1809,8 +1809,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.send(csvData);
       }
       
-      // Padrão: retornar JSON
-      res.json(giftCards);
+      // Padrão: retornar JSON com dados enriquecidos para exportação
+      const enrichedGiftCards = await Promise.all(giftCards.map(async (card) => {
+        const fornecedor = await storage.getFornecedor(card.fornecedorId, empresaId);
+        // Adiciona campos calculados e informações do fornecedor
+        const valorEconomizado = (card.valorInicial - (card.valorPago || 0));
+        return {
+          ...card,
+          fornecedorNome: fornecedor?.nome || '',
+          valorEconomizado: valorEconomizado
+        };
+      }));
+      
+      res.json(enrichedGiftCards);
     } catch (error) {
       console.error("Erro ao exportar gift cards:", error);
       res.status(500).json({ message: "Internal server error" });
