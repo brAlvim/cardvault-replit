@@ -1992,15 +1992,83 @@ class DatabaseStorage implements IStorage {
   }
   
   // Gift Card Tag methods
-  async addTagToGiftCard(giftCardId: number, tagId: number): Promise<GiftCardTag> {
+  async addTagToGiftCard(giftCardId: number, tagId: number, empresaId?: number, userId?: number, perfilId?: number): Promise<GiftCardTag> {
+    // PATCH DE SEGURANÇA: Verificar acesso ao gift card e tag antes de associar
+    if (empresaId || userId) {
+      console.log(`[SEGURANÇA CRÍTICA] Verificando permissões em addTagToGiftCard - empresaId: ${empresaId}, userId: ${userId}, perfilId: ${perfilId}`);
+      
+      // Verificar se o gift card pertence ao usuário e empresa corretos
+      let giftCardQuery = db.select()
+        .from(giftCards)
+        .where(eq(giftCards.id, giftCardId));
+      
+      if (empresaId) {
+        giftCardQuery = giftCardQuery.where(eq(giftCards.empresaId, empresaId));
+      }
+      
+      // Aplicar isolamento por usuário para perfis não privilegiados (3=usuario, 4=convidado)
+      if (userId && (perfilId === 3 || perfilId === 4)) {
+        giftCardQuery = giftCardQuery.where(eq(giftCards.userId, userId));
+      }
+      
+      const giftCardExists = await giftCardQuery;
+      if (giftCardExists.length === 0) {
+        console.log(`[SEGURANÇA] Tentativa bloqueada: Gift card ID ${giftCardId} não pertence ao usuário ID ${userId} ou empresa ID ${empresaId}`);
+        throw new Error("Gift card não encontrado ou sem permissão de acesso");
+      }
+      
+      // Verificar se a tag pertence à empresa correta
+      if (empresaId) {
+        const tagExists = await db.select()
+          .from(tags)
+          .where(and(
+            eq(tags.id, tagId),
+            eq(tags.empresaId, empresaId)
+          ));
+          
+        if (tagExists.length === 0) {
+          console.log(`[SEGURANÇA] Tentativa bloqueada: Tag ID ${tagId} não pertence à empresa ID ${empresaId}`);
+          throw new Error("Tag não encontrada ou sem permissão de acesso");
+        }
+      }
+    }
+    
+    // Se passou pelas verificações de segurança, associar a tag ao gift card
     const [giftCardTag] = await db.insert(giftCardTags).values({
       giftCardId: giftCardId,
       tagId: tagId
     }).returning();
+    
     return giftCardTag;
   }
 
-  async removeTagFromGiftCard(giftCardId: number, tagId: number): Promise<boolean> {
+  async removeTagFromGiftCard(giftCardId: number, tagId: number, empresaId?: number, userId?: number, perfilId?: number): Promise<boolean> {
+    // PATCH DE SEGURANÇA: Verificar acesso ao gift card antes de remover a tag
+    if (empresaId || userId) {
+      console.log(`[SEGURANÇA CRÍTICA] Verificando permissões em removeTagFromGiftCard - empresaId: ${empresaId}, userId: ${userId}, perfilId: ${perfilId}`);
+      
+      // Verificar se o gift card pertence ao usuário e empresa corretos
+      let giftCardQuery = db.select()
+        .from(giftCards)
+        .where(eq(giftCards.id, giftCardId));
+      
+      if (empresaId) {
+        giftCardQuery = giftCardQuery.where(eq(giftCards.empresaId, empresaId));
+      }
+      
+      // Aplicar isolamento por usuário para perfis não privilegiados (3=usuario, 4=convidado)
+      if (userId && (perfilId === 3 || perfilId === 4)) {
+        giftCardQuery = giftCardQuery.where(eq(giftCards.userId, userId));
+      }
+      
+      const giftCardExists = await giftCardQuery;
+      if (giftCardExists.length === 0) {
+        console.log(`[SEGURANÇA] Tentativa bloqueada: Gift card ID ${giftCardId} não pertence ao usuário ID ${userId} ou empresa ID ${empresaId}`);
+        throw new Error("Gift card não encontrado ou sem permissão de acesso");
+      }
+    }
+    
+    // Se passou pelas verificações de segurança, remover a associação
     const result = await db.delete(giftCardTags)
       .where(and(
         eq(giftCardTags.giftCardId, giftCardId),
