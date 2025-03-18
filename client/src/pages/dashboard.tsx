@@ -161,11 +161,11 @@ export default function Dashboard() {
   });
 
   // Verificar status e tipo de usuário (admin da empresa ou usuário comum)
-  const isAdmin = users?.find(u => u.id === 1)?.perfilId === 1; // Assumindo 1 = admin
+  const isAdmin = Array.isArray(users) && users.find(u => u.id === 1)?.perfilId === 1; // Assumindo 1 = admin
   
   // Usuários da mesma empresa (para administradores mostrarem)
   const empresaId = 1; // Placeholder, precisaria vir da autenticação real
-  const usuariosMesmaEmpresa = users?.filter(u => u.empresaId === empresaId) || [];
+  const usuariosMesmaEmpresa = Array.isArray(users) ? users.filter(u => u.empresaId === empresaId) : [];
   
   // Cálculo estatísticas de usuários
   const totalUsuarios = usuariosMesmaEmpresa.length || 0;
