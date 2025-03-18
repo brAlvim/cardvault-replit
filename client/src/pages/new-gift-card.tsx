@@ -118,8 +118,8 @@ export default function NewGiftCardPage() {
     queryKey: ['/api/fornecedores'],
     queryFn: async () => {
       try {
-        // Obter token JWT do localStorage
-        const token = localStorage.getItem('auth_token');
+        // Obter token JWT do localStorage - corrigido para usar 'token' (padrão do sistema)
+        const token = localStorage.getItem('token');
         
         // Configurar headers com token de autenticação
         const headers: HeadersInit = token ? { 'Authorization': `Bearer ${token}` } : {};
@@ -144,8 +144,8 @@ export default function NewGiftCardPage() {
     queryKey: ['/api/suppliers'],
     queryFn: async () => {
       try {
-        // Obter token JWT do localStorage
-        const token = localStorage.getItem('auth_token');
+        // Obter token JWT do localStorage - corrigido para usar 'token' (padrão do sistema)
+        const token = localStorage.getItem('token');
         
         // Configurar headers com token de autenticação
         const headers: HeadersInit = token ? { 'Authorization': `Bearer ${token}` } : {};
