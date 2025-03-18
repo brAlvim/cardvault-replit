@@ -365,23 +365,26 @@ class MemStorage implements IStorage {
   
   // Fornecedor methods (anteriormente collections)
   async getFornecedores(userId: number, empresaId?: number): Promise<Fornecedor[]> {
-    // Aplicar filtro rigoroso para garantir que o usuário só veja fornecedores
-    // que ele criou ou da mesma empresa
+    // FILTRO DE SEGURANÇA - ISOLAMENTO ESTRITO DE DADOS POR USUÁRIO
+    // Aplicar filtro rigoroso para garantir que o usuário só veja fornecedores QUE ELE CRIOU
     let fornecedores = Array.from(this.fornecedores.values());
     
-    // Filtro primário: o fornecedor DEVE ter sido criado pelo usuário
-    // Isso garante isolamento por usuário para contas não-admin
+    console.log(`[SEGURANÇA ESTRITA] Filtrando fornecedores para userId: ${userId}`);
+    console.log(`[SEGURANÇA ESTRITA] Total de fornecedores antes do filtro: ${fornecedores.length}`);
+    
+    // IMPORTANTE: SOMENTE retornar os fornecedores que o próprio usuário criou
     fornecedores = fornecedores.filter(
       (fornecedor) => fornecedor.userId === userId
     );
+    
+    console.log(`[SEGURANÇA ESTRITA] Fornecedores após filtro de userId: ${fornecedores.length}`);
     
     // Se for especificado um empresaId, filtramos adicionalmente por ele
     if (empresaId) {
       fornecedores = fornecedores.filter(
         (fornecedor) => fornecedor.empresaId === empresaId
       );
-      console.log("[SEGURANÇA] Filtrando fornecedores por empresaId:", empresaId);
-      console.log("[SEGURANÇA] Fornecedores encontrados após filtro:", fornecedores.length);
+      console.log(`[SEGURANÇA ESTRITA] Após filtro adicional de empresaId ${empresaId}: ${fornecedores.length}`);
     }
     
     return fornecedores;
@@ -398,16 +401,26 @@ class MemStorage implements IStorage {
     return fornecedor;
   }
 
-  async getFornecedoresByEmpresa(empresaId: number): Promise<Fornecedor[]> {
-    console.log("Buscando fornecedores para empresaId:", empresaId);
+  async getFornecedoresByEmpresa(empresaId: number, userId?: number): Promise<Fornecedor[]> {
+    console.log(`[SEGURANÇA] Buscando fornecedores para empresaId: ${empresaId}, userId: ${userId || 'não especificado'}`);
     const fornecedores = Array.from(this.fornecedores.values());
-    console.log("Total de fornecedores no sistema:", fornecedores.length);
-    console.log("Detalhes dos fornecedores:", fornecedores.map(f => ({ id: f.id, nome: f.nome, empresaId: f.empresaId })));
+    console.log(`[SEGURANÇA] Total de fornecedores no sistema: ${fornecedores.length}`);
     
-    const result = fornecedores.filter(
+    // Aplicar filtro rigoroso de segurança
+    let result = fornecedores.filter(
       (fornecedor) => fornecedor.empresaId === empresaId
     );
-    console.log("Fornecedores encontrados após filtro:", result.length);
+    
+    // Se um userId for especificado, aplicamos filtro adicional
+    // para garantir isolamento estrito por usuário
+    if (userId) {
+      result = result.filter(
+        (fornecedor) => fornecedor.userId === userId
+      );
+      console.log(`[SEGURANÇA ESTRITA] Aplicando filtro adicional por userId: ${userId}`);
+    }
+    
+    console.log(`[SEGURANÇA] Fornecedores encontrados após filtros: ${result.length}`);
     return result;
   }
 
