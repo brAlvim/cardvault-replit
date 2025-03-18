@@ -558,25 +558,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Usuário não autenticado" });
       }
       
-      // Usar apenas o ID do usuário autenticado - isolamento estrito de dados
+      // ISOLAMENTO ESTRITO DE DADOS - VERSÃO 2.0
+      // NENHUM usuário pode ver os fornecedores de outros usuários, nem mesmo administradores
       const userId = user.id;
       
-      // Usar apenas a empresa do usuário autenticado para garantir isolamento
+      // Usar apenas a empresa do usuário autenticado para garantir isolamento 
       const empresaId = user.empresaId;
       
-      // Carregar os fornecedores com isolamento de dados
-      let fornecedores: Fornecedor[] = [];
+      console.log(`[SEGURANÇA] Requisição /fornecedores de usuário ${user.username} (ID: ${userId})`);
+      console.log(`[SEGURANÇA - ISOLAMENTO TOTAL] Aplicando isolamento estrito para ${user.username} (ID: ${userId})`);
       
-      if (user.perfilId === 1) {
-        // Administradores podem ver todos os fornecedores da empresa
-        fornecedores = await storage.getFornecedoresByEmpresa(empresaId);
-      } else if (user.perfilId === 2) {
-        // Gerentes podem ver todos os fornecedores da empresa deles
-        fornecedores = await storage.getFornecedoresByEmpresa(empresaId);
-      } else {
-        // Usuários normais e convidados só veem os fornecedores que eles criaram
-        fornecedores = await storage.getFornecedores(userId, empresaId);
-      }
+      // Carregar APENAS os fornecedores criados pelo próprio usuário
+      // NINGUÉM pode ver dados criados por outros usuários
+      let fornecedores: Fornecedor[] = await storage.getFornecedores(userId, empresaId);
+      
+      // DUPLA VERIFICAÇÃO: filtrar explicitamente pelo userId para garantir isolamento
+      fornecedores = fornecedores.filter(f => f.userId === userId);
       
       console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${user.id}) consultou a lista de fornecedores (${fornecedores.length} resultados)`);
       
@@ -615,71 +612,157 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   router.get("/fornecedores/:id", requireAuth, async (req: Request, res: Response) => {
     try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
+      
+      // ISOLAMENTO ESTRITO DE DADOS - VERSÃO 2.0
+      // NENHUM usuário pode ver os fornecedores de outros usuários, nem mesmo administradores
+      const userId = user.id;
+      
+      console.log(`[SEGURANÇA] Requisição /fornecedores/${req.params.id} de usuário ${user.username} (ID: ${userId})`);
+      console.log(`[SEGURANÇA - ISOLAMENTO TOTAL] Aplicando isolamento estrito para ${user.username} (ID: ${userId})`);
+      
       const fornecedorId = parseInt(req.params.id);
-      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      if (isNaN(fornecedorId)) {
+        return res.status(400).json({ message: "ID de fornecedor inválido" });
+      }
+      
+      const empresaId = user.empresaId;
       const fornecedor = await storage.getFornecedor(fornecedorId, empresaId);
       
       if (!fornecedor) {
-        return res.status(404).json({ message: "Fornecedor not found" });
+        return res.status(404).json({ message: "Fornecedor não encontrado" });
       }
       
+      // ISOLAMENTO ESTRITO - verificar se o fornecedor pertence ao usuário
+      if (fornecedor.userId !== userId) {
+        console.log(`[SEGURANÇA - TENTATIVA NEGADA] Usuário ${user.username} (ID: ${userId}) tentou acessar fornecedor ID: ${fornecedorId} que pertence ao usuário ID: ${fornecedor.userId}`);
+        return res.status(403).json({ 
+          message: "Você não tem permissão para acessar este fornecedor" 
+        });
+      }
+      
+      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${userId}) consultou o fornecedor ID: ${fornecedorId}`);
       res.json(fornecedor);
     } catch (error) {
+      console.error("[ERRO CRÍTICO] Falha ao buscar fornecedor:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
 
   router.put("/fornecedores/:id", requireAuth, async (req: Request, res: Response) => {
     try {
-      const fornecedorId = parseInt(req.params.id);
-      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
-      
-      // Verificar se o fornecedor pertence à empresa especificada
-      if (empresaId) {
-        const fornecedor = await storage.getFornecedor(fornecedorId, empresaId);
-        if (!fornecedor) {
-          return res.status(404).json({ message: "Fornecedor not found for this company" });
-        }
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
       }
       
-      const fornecedorData = insertFornecedorSchema.partial().parse(req.body);
+      // ISOLAMENTO ESTRITO DE DADOS - VERSÃO 2.0
+      // NENHUM usuário pode modificar os fornecedores de outros usuários, nem mesmo administradores
+      const userId = user.id;
+      
+      console.log(`[SEGURANÇA] Requisição PUT /fornecedores/${req.params.id} de usuário ${user.username} (ID: ${userId})`);
+      
+      const fornecedorId = parseInt(req.params.id);
+      if (isNaN(fornecedorId)) {
+        return res.status(400).json({ message: "ID de fornecedor inválido" });
+      }
+      
+      const empresaId = user.empresaId;
+      
+      // Buscar o fornecedor antes para verificar permissão
+      const fornecedor = await storage.getFornecedor(fornecedorId, empresaId);
+      
+      if (!fornecedor) {
+        return res.status(404).json({ message: "Fornecedor não encontrado" });
+      }
+      
+      // ISOLAMENTO ESTRITO - verificar se o fornecedor pertence ao usuário
+      if (fornecedor.userId !== userId) {
+        console.log(`[SEGURANÇA - TENTATIVA NEGADA] Usuário ${user.username} (ID: ${userId}) tentou modificar fornecedor ID: ${fornecedorId} que pertence ao usuário ID: ${fornecedor.userId}`);
+        return res.status(403).json({ 
+          message: "Você não tem permissão para modificar este fornecedor" 
+        });
+      }
+      
+      // Passar adiante somente se o fornecedor pertencer ao usuário
+      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${userId}) está modificando seu fornecedor ID: ${fornecedorId}`);
+      
+      // Garantindo que userId não será alterado
+      const fornecedorData = insertFornecedorSchema.partial().parse({
+        ...req.body,
+        userId: userId // Forçar userId do usuário autenticado
+      });
       
       const updatedFornecedor = await storage.updateFornecedor(fornecedorId, fornecedorData);
       
       if (!updatedFornecedor) {
-        return res.status(404).json({ message: "Fornecedor not found" });
+        return res.status(404).json({ message: "Erro ao atualizar fornecedor" });
       }
+      
+      console.log(`[AUDITORIA] Fornecedor ID: ${fornecedorId} atualizado com sucesso pelo usuário ${user.username} (ID: ${userId})`);
       
       res.json(updatedFornecedor);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: fromZodError(error).message });
       }
+      console.error("[ERRO CRÍTICO] Falha ao atualizar fornecedor:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
 
   router.delete("/fornecedores/:id", requireAuth, async (req: Request, res: Response) => {
     try {
-      const fornecedorId = parseInt(req.params.id);
-      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
-      
-      // Verificar se o fornecedor pertence à empresa especificada
-      if (empresaId) {
-        const fornecedor = await storage.getFornecedor(fornecedorId, empresaId);
-        if (!fornecedor) {
-          return res.status(404).json({ message: "Fornecedor not found for this company" });
-        }
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
       }
+      
+      // ISOLAMENTO ESTRITO DE DADOS - VERSÃO 2.0
+      // NENHUM usuário pode excluir os fornecedores de outros usuários
+      const userId = user.id;
+      
+      console.log(`[SEGURANÇA] Requisição DELETE /fornecedores/${req.params.id} de usuário ${user.username} (ID: ${userId})`);
+      
+      const fornecedorId = parseInt(req.params.id);
+      if (isNaN(fornecedorId)) {
+        return res.status(400).json({ message: "ID de fornecedor inválido" });
+      }
+      
+      const empresaId = user.empresaId;
+      
+      // Buscar o fornecedor antes para verificar permissão de exclusão
+      const fornecedor = await storage.getFornecedor(fornecedorId, empresaId);
+      
+      if (!fornecedor) {
+        return res.status(404).json({ message: "Fornecedor não encontrado" });
+      }
+      
+      // ISOLAMENTO ESTRITO - verificar se o fornecedor pertence ao usuário
+      if (fornecedor.userId !== userId) {
+        console.log(`[SEGURANÇA - TENTATIVA NEGADA] Usuário ${user.username} (ID: ${userId}) tentou excluir fornecedor ID: ${fornecedorId} que pertence ao usuário ID: ${fornecedor.userId}`);
+        return res.status(403).json({ 
+          message: "Você não tem permissão para excluir este fornecedor" 
+        });
+      }
+      
+      // Passar adiante somente se o fornecedor pertencer ao usuário
+      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${userId}) está excluindo seu fornecedor ID: ${fornecedorId}`);
       
       const success = await storage.deleteFornecedor(fornecedorId);
       
       if (!success) {
-        return res.status(404).json({ message: "Fornecedor not found" });
+        return res.status(404).json({ message: "Erro ao excluir fornecedor" });
       }
+      
+      console.log(`[AUDITORIA] Fornecedor ID: ${fornecedorId} excluído com sucesso pelo usuário ${user.username} (ID: ${userId})`);
       
       res.status(204).send();
     } catch (error) {
+      console.error("[ERRO CRÍTICO] Falha ao excluir fornecedor:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
@@ -720,93 +803,205 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   router.post("/suppliers", requireAuth, async (req: Request, res: Response) => {
     try {
-      // Garantir que empresaId e userId sejam incluídos
-      if (!req.body.empresaId && req.user?.empresaId) {
-        req.body.empresaId = req.user.empresaId;
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
       }
       
-      if (!req.body.userId && req.user?.id) {
-        req.body.userId = req.user.id;
-      }
+      // ISOLAMENTO ESTRITO DE DADOS - VERSÃO 2.0
+      console.log(`[SEGURANÇA] Requisição POST /suppliers de usuário ${user.username} (ID: ${user.id})`);
       
-      const supplierData = insertSupplierSchema.parse(req.body);
+      // FORÇAR dados do usuário autenticado para evitar spoofing
+      // Um usuário não pode criar suppliers associados a outros usuários
+      const supplierData = insertSupplierSchema.parse({
+        ...req.body,
+        empresaId: user.empresaId, // Sempre usar a empresa do usuário atual
+        userId: user.id            // Sempre usar o ID do usuário atual
+      });
+      
+      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${user.id}) está criando um novo supplier`);
+      
       const supplier = await storage.createSupplier(supplierData);
+      
+      console.log(`[AUDITORIA] Supplier ID: ${supplier.id} criado com sucesso pelo usuário ${user.username} (ID: ${user.id})`);
+      
       res.status(201).json(supplier);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: fromZodError(error).message });
       }
+      console.error("[ERRO CRÍTICO] Falha ao criar supplier:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
 
   router.get("/suppliers/:id", requireAuth, async (req: Request, res: Response) => {
     try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
+      
+      // ISOLAMENTO ESTRITO DE DADOS - VERSÃO 2.0
+      // NENHUM usuário pode ver os suppliers de outros usuários, nem mesmo administradores
+      const userId = user.id;
+      
+      console.log(`[SEGURANÇA] Requisição /suppliers/${req.params.id} de usuário ${user.username} (ID: ${userId})`);
+      console.log(`[SEGURANÇA - ISOLAMENTO TOTAL] Aplicando isolamento estrito para ${user.username} (ID: ${userId})`);
+      
       const supplierId = parseInt(req.params.id);
-      const empresaId = req.user?.empresaId || (req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined);
+      if (isNaN(supplierId)) {
+        return res.status(400).json({ message: "ID de supplier inválido" });
+      }
+      
+      const empresaId = user.empresaId;
       const supplier = await storage.getSupplier(supplierId, empresaId);
       
       if (!supplier) {
-        return res.status(404).json({ message: "Supplier not found" });
+        return res.status(404).json({ message: "Supplier não encontrado" });
       }
       
+      // ISOLAMENTO ESTRITO - verificar se o supplier pertence ao usuário
+      if (supplier.userId !== userId) {
+        console.log(`[SEGURANÇA - TENTATIVA NEGADA] Usuário ${user.username} (ID: ${userId}) tentou acessar supplier ID: ${supplierId} que pertence ao usuário ID: ${supplier.userId}`);
+        return res.status(403).json({ 
+          message: "Você não tem permissão para acessar este supplier" 
+        });
+      }
+      
+      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${userId}) consultou o supplier ID: ${supplierId}`);
       res.json(supplier);
     } catch (error) {
+      console.error("[ERRO CRÍTICO] Falha ao buscar supplier:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
 
   router.put("/suppliers/:id", requireAuth, async (req: Request, res: Response) => {
     try {
-      const supplierId = parseInt(req.params.id);
-      const empresaId = req.user?.empresaId || (req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined);
-      
-      // Verificar se o supplier pertence à empresa especificada
-      if (empresaId) {
-        const supplier = await storage.getSupplier(supplierId, empresaId);
-        if (!supplier) {
-          return res.status(404).json({ message: "Supplier not found for this company" });
-        }
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
       }
       
-      const supplierData = insertSupplierSchema.partial().parse(req.body);
+      // ISOLAMENTO ESTRITO DE DADOS - VERSÃO 2.0
+      // NENHUM usuário pode modificar os suppliers de outros usuários, nem mesmo administradores
+      const userId = user.id;
+      
+      console.log(`[SEGURANÇA] Requisição PUT /suppliers/${req.params.id} de usuário ${user.username} (ID: ${userId})`);
+      
+      const supplierId = parseInt(req.params.id);
+      if (isNaN(supplierId)) {
+        return res.status(400).json({ message: "ID de supplier inválido" });
+      }
+      
+      const empresaId = user.empresaId;
+      
+      // Buscar o supplier antes para verificar permissão
+      const supplier = await storage.getSupplier(supplierId, empresaId);
+      
+      if (!supplier) {
+        return res.status(404).json({ message: "Supplier não encontrado" });
+      }
+      
+      // ISOLAMENTO ESTRITO - verificar se o supplier pertence ao usuário
+      if (supplier.userId !== userId) {
+        console.log(`[SEGURANÇA - TENTATIVA NEGADA] Usuário ${user.username} (ID: ${userId}) tentou modificar supplier ID: ${supplierId} que pertence ao usuário ID: ${supplier.userId}`);
+        return res.status(403).json({ 
+          message: "Você não tem permissão para modificar este supplier" 
+        });
+      }
+      
+      // Passar adiante somente se o supplier pertencer ao usuário
+      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${userId}) está modificando seu supplier ID: ${supplierId}`);
+      
+      // Garantindo que userId não será alterado
+      const supplierData = insertSupplierSchema.partial().parse({
+        ...req.body,
+        userId: userId // Forçar userId do usuário autenticado
+      });
       
       const updatedSupplier = await storage.updateSupplier(supplierId, supplierData);
       
       if (!updatedSupplier) {
-        return res.status(404).json({ message: "Supplier not found" });
+        return res.status(404).json({ message: "Erro ao atualizar supplier" });
       }
+      
+      console.log(`[AUDITORIA] Supplier ID: ${supplierId} atualizado com sucesso pelo usuário ${user.username} (ID: ${userId})`);
       
       res.json(updatedSupplier);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: fromZodError(error).message });
       }
+      console.error("[ERRO CRÍTICO] Falha ao atualizar supplier:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
 
   router.delete("/suppliers/:id", requireAuth, async (req: Request, res: Response) => {
     try {
-      const supplierId = parseInt(req.params.id);
-      const empresaId = req.user?.empresaId || (req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined);
-      
-      // Verificar se o supplier pertence à empresa especificada
-      if (empresaId) {
-        const supplier = await storage.getSupplier(supplierId, empresaId);
-        if (!supplier) {
-          return res.status(404).json({ message: "Supplier not found for this company" });
-        }
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
       }
+      
+      // ISOLAMENTO ESTRITO DE DADOS - VERSÃO 2.0
+      // NENHUM usuário pode excluir os suppliers de outros usuários
+      const userId = user.id;
+      
+      console.log(`[SEGURANÇA] Requisição DELETE /suppliers/${req.params.id} de usuário ${user.username} (ID: ${userId})`);
+      
+      const supplierId = parseInt(req.params.id);
+      if (isNaN(supplierId)) {
+        return res.status(400).json({ message: "ID de supplier inválido" });
+      }
+      
+      const empresaId = user.empresaId;
+      
+      // Buscar o supplier antes para verificar permissão de exclusão
+      const supplier = await storage.getSupplier(supplierId, empresaId);
+      
+      if (!supplier) {
+        return res.status(404).json({ message: "Supplier não encontrado" });
+      }
+      
+      // ISOLAMENTO ESTRITO - verificar se o supplier pertence ao usuário
+      if (supplier.userId !== userId) {
+        console.log(`[SEGURANÇA - TENTATIVA NEGADA] Usuário ${user.username} (ID: ${userId}) tentou excluir supplier ID: ${supplierId} que pertence ao usuário ID: ${supplier.userId}`);
+        return res.status(403).json({ 
+          message: "Você não tem permissão para excluir este supplier" 
+        });
+      }
+      
+      // Verificar se existem gift cards associados a este supplier
+      // Buscar todos os gift cards do usuário para este supplier
+      let giftCards = await storage.getGiftCards(userId, undefined, empresaId);
+      giftCards = giftCards.filter(card => card.supplierId === supplierId);
+      
+      if (giftCards.length > 0) {
+        console.log(`[SEGURANÇA - DEPENDÊNCIA] Supplier ID: ${supplierId} possui ${giftCards.length} gift cards associados`);
+        return res.status(409).json({ 
+          message: "Este supplier não pode ser excluído pois possui gift cards associados",
+          giftCardsCount: giftCards.length,
+          giftCardIds: giftCards.map(card => card.id)
+        });
+      }
+      
+      // Passar adiante somente se o supplier pertencer ao usuário
+      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${userId}) está excluindo seu supplier ID: ${supplierId}`);
       
       const success = await storage.deleteSupplier(supplierId);
       
       if (!success) {
-        return res.status(404).json({ message: "Supplier not found" });
+        return res.status(404).json({ message: "Erro ao excluir supplier" });
       }
+      
+      console.log(`[AUDITORIA] Supplier ID: ${supplierId} excluído com sucesso pelo usuário ${user.username} (ID: ${userId})`);
       
       res.status(204).send();
     } catch (error) {
+      console.error("[ERRO CRÍTICO] Falha ao excluir supplier:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
