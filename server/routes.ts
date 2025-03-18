@@ -956,11 +956,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Usuário não autenticado" });
       }
       
-      // ISOLAMENTO ESTRITO DE DADOS - VERSÃO 2.0
-      // NENHUM usuário pode modificar os fornecedores de outros usuários, nem mesmo administradores
+      // SEGURANÇA V3: IDENTIDADE DO PROPRIETÁRIO + PERMISSÃO DO PERFIL
       const userId = user.id;
+      const perfilId = user.perfilId;
       
-      console.log(`[SEGURANÇA] Requisição PUT /fornecedores/${req.params.id} de usuário ${user.username} (ID: ${userId})`);
+      console.log(`[SEGURANÇA] Requisição PUT /fornecedores/${req.params.id} de usuário ${user.username} (ID: ${userId}), perfil: ${perfilId}`);
       
       const fornecedorId = parseInt(req.params.id);
       if (isNaN(fornecedorId)) {
@@ -969,15 +969,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const empresaId = user.empresaId;
       
-      // Buscar o fornecedor antes para verificar permissão
+      // Buscar o fornecedor para verificar propriedade
       const fornecedor = await storage.getFornecedor(fornecedorId, empresaId);
       
       if (!fornecedor) {
         return res.status(404).json({ message: "Fornecedor não encontrado" });
       }
       
-      // ISOLAMENTO ESTRITO - verificar se o fornecedor pertence ao usuário
-      if (fornecedor.userId !== userId) {
+      // Obter informações do perfil do usuário
+      const perfil = await storage.getPerfil(perfilId);
+      if (!perfil) {
+        console.error(`[SEGURANÇA] Perfil ${perfilId} não encontrado para usuário ${userId}`);
+        return res.status(500).json({ message: "Erro ao verificar permissões" });
+      }
+      
+      const permissoes = perfil.permissoes || [];
+      const isAdmin = permissoes.includes('*') || permissoes.includes('fornecedor.*') || permissoes.includes('fornecedor.editar');
+      
+      // REGRA DE PERMISSÃO:
+      // 1. Administradores ou perfis com permissão "fornecedor.editar" podem editar qualquer fornecedor na mesma empresa
+      // 2. Usuários regulares só podem editar fornecedores que eles mesmos criaram
+      const canEdit = isAdmin || fornecedor.userId === userId;
+      
+      if (!canEdit) {
         console.log(`[SEGURANÇA - TENTATIVA NEGADA] Usuário ${user.username} (ID: ${userId}) tentou modificar fornecedor ID: ${fornecedorId} que pertence ao usuário ID: ${fornecedor.userId}`);
         return res.status(403).json({ 
           message: "Você não tem permissão para modificar este fornecedor" 
@@ -1018,11 +1032,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Usuário não autenticado" });
       }
       
-      // ISOLAMENTO ESTRITO DE DADOS - VERSÃO 2.0
-      // NENHUM usuário pode excluir os fornecedores de outros usuários
+      // SEGURANÇA V3: IDENTIDADE DO PROPRIETÁRIO + PERMISSÃO DO PERFIL
       const userId = user.id;
+      const perfilId = user.perfilId;
       
-      console.log(`[SEGURANÇA] Requisição DELETE /fornecedores/${req.params.id} de usuário ${user.username} (ID: ${userId})`);
+      console.log(`[SEGURANÇA] Requisição DELETE /fornecedores/${req.params.id} de usuário ${user.username} (ID: ${userId}), perfil: ${perfilId}`);
       
       const fornecedorId = parseInt(req.params.id);
       if (isNaN(fornecedorId)) {
@@ -1031,15 +1045,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const empresaId = user.empresaId;
       
-      // Buscar o fornecedor antes para verificar permissão de exclusão
+      // Buscar o fornecedor para verificar propriedade
       const fornecedor = await storage.getFornecedor(fornecedorId, empresaId);
       
       if (!fornecedor) {
         return res.status(404).json({ message: "Fornecedor não encontrado" });
       }
       
-      // ISOLAMENTO ESTRITO - verificar se o fornecedor pertence ao usuário
-      if (fornecedor.userId !== userId) {
+      // Obter informações do perfil do usuário
+      const perfil = await storage.getPerfil(perfilId);
+      if (!perfil) {
+        console.error(`[SEGURANÇA] Perfil ${perfilId} não encontrado para usuário ${userId}`);
+        return res.status(500).json({ message: "Erro ao verificar permissões" });
+      }
+      
+      const permissoes = perfil.permissoes || [];
+      const isAdmin = permissoes.includes('*') || permissoes.includes('fornecedor.*') || permissoes.includes('fornecedor.excluir');
+      
+      // REGRA DE PERMISSÃO:
+      // 1. Administradores ou perfis com permissão "fornecedor.excluir" podem excluir qualquer fornecedor na mesma empresa
+      // 2. Usuários regulares só podem excluir fornecedores que eles mesmos criaram
+      const canDelete = isAdmin || fornecedor.userId === userId;
+      
+      if (!canDelete) {
         console.log(`[SEGURANÇA - TENTATIVA NEGADA] Usuário ${user.username} (ID: ${userId}) tentou excluir fornecedor ID: ${fornecedorId} que pertence ao usuário ID: ${fornecedor.userId}`);
         return res.status(403).json({ 
           message: "Você não tem permissão para excluir este fornecedor" 
@@ -1207,11 +1235,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Usuário não autenticado" });
       }
       
-      // ISOLAMENTO ESTRITO DE DADOS - VERSÃO 2.0
-      // NENHUM usuário pode modificar os suppliers de outros usuários, nem mesmo administradores
+      // SEGURANÇA V3: IDENTIDADE DO PROPRIETÁRIO + PERMISSÃO DO PERFIL
       const userId = user.id;
+      const perfilId = user.perfilId;
       
-      console.log(`[SEGURANÇA] Requisição PUT /suppliers/${req.params.id} de usuário ${user.username} (ID: ${userId})`);
+      console.log(`[SEGURANÇA] Requisição PUT /suppliers/${req.params.id} de usuário ${user.username} (ID: ${userId}), perfil: ${perfilId}`);
       
       const supplierId = parseInt(req.params.id);
       if (isNaN(supplierId)) {
@@ -1227,8 +1255,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Supplier não encontrado" });
       }
       
-      // ISOLAMENTO ESTRITO - verificar se o supplier pertence ao usuário
-      if (supplier.userId !== userId) {
+      // Obter informações do perfil do usuário
+      const perfil = await storage.getPerfil(perfilId);
+      if (!perfil) {
+        console.error(`[SEGURANÇA] Perfil ${perfilId} não encontrado para usuário ${userId}`);
+        return res.status(500).json({ message: "Erro ao verificar permissões" });
+      }
+      
+      const permissoes = perfil.permissoes || [];
+      const isAdmin = permissoes.includes('*') || permissoes.includes('fornecedor.*') || permissoes.includes('fornecedor.editar');
+      
+      // REGRA DE PERMISSÃO:
+      // 1. Administradores ou perfis com permissão "fornecedor.editar" podem editar qualquer supplier na mesma empresa
+      // 2. Usuários regulares só podem editar suppliers que eles mesmos criaram
+      const canEdit = isAdmin || supplier.userId === userId;
+      
+      if (!canEdit) {
         console.log(`[SEGURANÇA - TENTATIVA NEGADA] Usuário ${user.username} (ID: ${userId}) tentou modificar supplier ID: ${supplierId} que pertence ao usuário ID: ${supplier.userId}`);
         return res.status(403).json({ 
           message: "Você não tem permissão para modificar este supplier" 
@@ -1269,11 +1311,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Usuário não autenticado" });
       }
       
-      // ISOLAMENTO ESTRITO DE DADOS - VERSÃO 2.0
-      // NENHUM usuário pode excluir os suppliers de outros usuários
+      // SEGURANÇA V3: IDENTIDADE DO PROPRIETÁRIO + PERMISSÃO DO PERFIL
       const userId = user.id;
+      const perfilId = user.perfilId;
       
-      console.log(`[SEGURANÇA] Requisição DELETE /suppliers/${req.params.id} de usuário ${user.username} (ID: ${userId})`);
+      console.log(`[SEGURANÇA] Requisição DELETE /suppliers/${req.params.id} de usuário ${user.username} (ID: ${userId}), perfil: ${perfilId}`);
       
       const supplierId = parseInt(req.params.id);
       if (isNaN(supplierId)) {
@@ -1282,15 +1324,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const empresaId = user.empresaId;
       
-      // Buscar o supplier antes para verificar permissão de exclusão
+      // Buscar o supplier para verificar propriedade
       const supplier = await storage.getSupplier(supplierId, empresaId);
       
       if (!supplier) {
         return res.status(404).json({ message: "Supplier não encontrado" });
       }
       
-      // ISOLAMENTO ESTRITO - verificar se o supplier pertence ao usuário
-      if (supplier.userId !== userId) {
+      // Obter informações do perfil do usuário
+      const perfil = await storage.getPerfil(perfilId);
+      if (!perfil) {
+        console.error(`[SEGURANÇA] Perfil ${perfilId} não encontrado para usuário ${userId}`);
+        return res.status(500).json({ message: "Erro ao verificar permissões" });
+      }
+      
+      const permissoes = perfil.permissoes || [];
+      const isAdmin = permissoes.includes('*') || permissoes.includes('fornecedor.*') || permissoes.includes('fornecedor.excluir');
+      
+      // REGRA DE PERMISSÃO:
+      // 1. Administradores ou perfis com permissão "fornecedor.excluir" podem excluir qualquer supplier na mesma empresa
+      // 2. Usuários regulares só podem excluir suppliers que eles mesmos criaram
+      const canDelete = isAdmin || supplier.userId === userId;
+      
+      if (!canDelete) {
         console.log(`[SEGURANÇA - TENTATIVA NEGADA] Usuário ${user.username} (ID: ${userId}) tentou excluir supplier ID: ${supplierId} que pertence ao usuário ID: ${supplier.userId}`);
         return res.status(403).json({ 
           message: "Você não tem permissão para excluir este supplier" 
