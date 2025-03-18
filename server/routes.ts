@@ -698,19 +698,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Usar apenas a empresa do usuário autenticado para garantir isolamento
       const empresaId = user.empresaId;
       
-      // Carregar os suppliers com isolamento de dados
-      let suppliers: Supplier[] = [];
+      // PATCH DE SEGURANÇA CRÍTICA: ISOLAMENTO ESTRITO DE DADOS POR USUÁRIO
+      // Todos os usuários SÓ PODEM VER OS SUPPLIERS QUE ELES MESMOS CRIARAM
+      // Independentemente do tipo de perfil, só mostrar dados criados pelo próprio usuário
+      console.log(`[SEGURANÇA CRÍTICA] Aplicando isolamento estrito de dados para o usuário ${user.username} (ID: ${userId})`);
       
-      if (user.perfilId === 1) {
-        // Administradores podem ver todos os suppliers da empresa
-        suppliers = await storage.getSuppliersByEmpresa(empresaId);
-      } else if (user.perfilId === 2) {
-        // Gerentes podem ver todos os suppliers da empresa deles
-        suppliers = await storage.getSuppliersByEmpresa(empresaId);
-      } else {
-        // Usuários normais e convidados só veem os suppliers que eles criaram
-        suppliers = await storage.getSuppliers(userId, empresaId);
-      }
+      // Forçar sempre usar apenas o ID do usuário autenticado para buscar suppliers
+      let suppliers: Supplier[] = await storage.getSuppliers(userId, empresaId);
+      
+      console.log(`[SEGURANÇA CRÍTICA] Suppliers encontrados após isolamento de segurança: ${suppliers.length}`);
+      console.log(`[SEGURANÇA CRÍTICA] IDs de suppliers acessíveis para o usuário: ${suppliers.map(s => s.id).join(', ')}`);
       
       console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${user.id}) consultou a lista de suppliers (${suppliers.length} resultados)`);
       
@@ -2040,19 +2037,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[SEGURANÇA] Requisição /collections de usuário ${user.username} (ID: ${userId}) da empresa ID: ${empresaId}`);
       
-      // Carregar os fornecedores com isolamento de dados
-      let fornecedores: Fornecedor[] = [];
+      // PATCH DE SEGURANÇA CRÍTICA: ISOLAMENTO ESTRITO DE DADOS POR USUÁRIO
+      // Todos os usuários SÓ PODEM VER OS FORNECEDORES QUE ELES MESMOS CRIARAM
+      // Independentemente do tipo de perfil, só mostrar dados criados pelo próprio usuário
+      console.log(`[SEGURANÇA CRÍTICA] Aplicando isolamento estrito de dados para o usuário ${user.username} (ID: ${userId})`);
       
-      if (user.perfilId === 1) {
-        // Administradores podem ver todos os fornecedores da empresa
-        fornecedores = await storage.getFornecedoresByEmpresa(empresaId);
-      } else if (user.perfilId === 2) {
-        // Gerentes podem ver todos os fornecedores da empresa deles
-        fornecedores = await storage.getFornecedoresByEmpresa(empresaId);
-      } else {
-        // Usuários normais e convidados só veem os fornecedores que eles criaram
-        fornecedores = await storage.getFornecedores(userId, empresaId);
-      }
+      // Forçar sempre usar apenas o ID do usuário autenticado para buscar fornecedores
+      let fornecedores: Fornecedor[] = await storage.getFornecedores(userId, empresaId);
+      
+      console.log(`[SEGURANÇA CRÍTICA] Fornecedores encontrados após isolamento de segurança: ${fornecedores.length}`);
+      console.log(`[SEGURANÇA CRÍTICA] IDs de fornecedores acessíveis para o usuário: ${fornecedores.map(f => f.id).join(', ')}`);
+      
       
       // Filtrar para retornar apenas fornecedores ativos
       const fornecedoresAtivos = fornecedores.filter(f => f.status === "ativo");
