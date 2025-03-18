@@ -181,8 +181,18 @@ export default function FornecedoresPage() {
 
   // Mutation para atualizar fornecedor
   const updateFornecedorMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<FornecedorFormValues> }) => {
-      return apiRequest("PUT", `/api/fornecedores/${id}`, data);
+    mutationFn: async ({ id, data }: { id: number; data: Partial<FornecedorFormValues> }) => {
+      const res = await apiRequest("PUT", `/api/fornecedores/${id}`, data);
+      
+      // Verificar explicitamente códigos de resposta
+      if (res.status === 403) {
+        throw new Error("Você não tem permissão para modificar este fornecedor");
+      } else if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "Falha ao atualizar o fornecedor");
+      }
+      
+      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/fornecedores`] });
@@ -228,8 +238,18 @@ export default function FornecedoresPage() {
 
   // Mutation para alternar status do fornecedor
   const toggleStatusMutation = useMutation({
-    mutationFn: ({ id, novoStatus }: { id: number; novoStatus: string }) => {
-      return apiRequest("PUT", `/api/fornecedores/${id}`, { status: novoStatus });
+    mutationFn: async ({ id, novoStatus }: { id: number; novoStatus: string }) => {
+      const res = await apiRequest("PUT", `/api/fornecedores/${id}`, { status: novoStatus });
+      
+      // Verificar explicitamente códigos de resposta
+      if (res.status === 403) {
+        throw new Error("Você não tem permissão para modificar este fornecedor");
+      } else if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || `Falha ao ${novoStatus === 'ativo' ? 'ativar' : 'desativar'} o fornecedor`);
+      }
+      
+      return res.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [`/api/fornecedores`] });

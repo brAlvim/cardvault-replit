@@ -195,14 +195,18 @@ export default function SuppliersPage() {
 
   // Mutação para mudar o status de suppliers (ativo/inativo)
   const updateStatusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: number; status: string }) => {
-      return apiRequest("PUT", `/api/suppliers/${id}`, { status })
-        .then(res => {
-          if (!res.ok) {
-            throw new Error(`Falha ao ${status === 'ativo' ? 'ativar' : 'desativar'} o supplier`);
-          }
-          return res.json();
-        });
+    mutationFn: async ({ id, status }: { id: number; status: string }) => {
+      const res = await apiRequest("PUT", `/api/suppliers/${id}`, { status });
+      
+      // Verificar explicitamente códigos de resposta
+      if (res.status === 403) {
+        throw new Error("Você não tem permissão para modificar este fornecedor");
+      } else if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || `Falha ao ${status === 'ativo' ? 'ativar' : 'desativar'} o fornecedor`);
+      }
+      
+      return res.json();
     },
     onSuccess: () => {
       toast({
