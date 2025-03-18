@@ -1738,28 +1738,77 @@ class DatabaseStorage implements IStorage {
 
   async getGiftCardsByEmpresa(empresaId: number, userId?: number): Promise<GiftCard[]> {
     // PATCH DE SEGURANÇA: Adicionar filtro rigoroso por userId
-    let query = db.select()
-      .from(giftCards)
-      .where(eq(giftCards.empresaId, empresaId));
+    console.log(`[AUDITORIA - STORAGE] getGiftCardsByEmpresa chamado com empresaId: ${empresaId}, userId: ${userId || 'não informado'}`);
     
-    // Se um userId for fornecido, aplicar isolamento estrito para mostrar apenas dados do próprio usuário
-    if (userId) {
-      console.log(`[SEGURANÇA CRÍTICA] Aplicando filtro de userId: ${userId} em getGiftCardsByEmpresa`);
-      query = query.where(eq(giftCards.userId, userId));
+    try {
+      // Preparar as condições de filtro
+      let conditions = [eq(giftCards.empresaId, empresaId)];
+      
+      // Se um userId for fornecido, aplicar isolamento estrito para mostrar apenas dados do próprio usuário
+      if (userId) {
+        console.log(`[SEGURANÇA CRÍTICA] Aplicando filtro de userId: ${userId} em getGiftCardsByEmpresa`);
+        conditions.push(eq(giftCards.userId, userId));
+      }
+      
+      // Aplicar todas as condições com and()
+      const query = db.select()
+        .from(giftCards)
+        .where(and(...conditions))
+        .orderBy(desc(giftCards.createdAt));
+      
+      const results = await query;
+      console.log(`[AUDITORIA - STORAGE] getGiftCardsByEmpresa retornou ${results.length} registros para empresa ${empresaId}${userId ? ` e usuário ${userId}` : ''}`);
+      
+      // SEGURANÇA: Verificação dupla para garantir isolamento quando userId especificado
+      if (userId) {
+        const filteredResults = results.filter(card => card.userId === userId);
+        
+        // Se houver discrepância, emitir alerta de segurança
+        if (filteredResults.length !== results.length) {
+          console.error(`[ALERTA DE SEGURANÇA] Detectada discrepância! Filtro SQL retornou ${results.length} cards, mas apenas ${filteredResults.length} pertencem ao usuário ${userId}`);
+          return filteredResults; // Retornar apenas dados que pertencem ao usuário autenticado
+        }
+      }
+      
+      return results;
+    } catch (error) {
+      console.error(`[ERRO CRÍTICO] Falha ao buscar gift cards por empresa: ${error}`);
+      return []; // Em caso de erro, retornar array vazio para evitar vazamento de dados
     }
-    
-    return await query.orderBy(desc(giftCards.createdAt));
   }
 
   async getGiftCard(id: number, empresaId?: number): Promise<GiftCard | undefined> {
-    let query = db.select().from(giftCards).where(eq(giftCards.id, id));
+    console.log(`[AUDITORIA - STORAGE] getGiftCard chamado com id: ${id}, empresaId: ${empresaId || 'não informado'}`);
     
-    if (empresaId) {
-      query = query.where(eq(giftCards.empresaId, empresaId));
+    try {
+      // Preparar as condições de filtro
+      let conditions = [eq(giftCards.id, id)];
+      
+      // Se um empresaId for fornecido, adicionar ao filtro
+      if (empresaId) {
+        console.log(`[SEGURANÇA] Aplicando filtro de empresaId: ${empresaId} em getGiftCard`);
+        conditions.push(eq(giftCards.empresaId, empresaId));
+      }
+      
+      // Aplicar todas as condições com and()
+      const query = db.select()
+        .from(giftCards)
+        .where(and(...conditions));
+      
+      const [giftCard] = await query;
+      
+      // Registrar resultado da consulta para auditoria
+      if (giftCard) {
+        console.log(`[AUDITORIA - STORAGE] getGiftCard encontrou gift card id=${id}, empresaId=${giftCard.empresaId}, userId=${giftCard.userId}`);
+      } else {
+        console.log(`[AUDITORIA - STORAGE] getGiftCard não encontrou gift card com id=${id}${empresaId ? ` e empresaId=${empresaId}` : ''}`);
+      }
+      
+      return giftCard;
+    } catch (error) {
+      console.error(`[ERRO CRÍTICO] Falha ao buscar gift card: ${error}`);
+      return undefined;
     }
-    
-    const [giftCard] = await query;
-    return giftCard;
   }
 
   async createGiftCard(giftCard: InsertGiftCard): Promise<GiftCard> {
@@ -1804,18 +1853,42 @@ class DatabaseStorage implements IStorage {
     return result.rowCount > 0;
   }
 
-  async getGiftCardsVencimento(userId: number, dias: number): Promise<GiftCard[]> {
-    const hoje = new Date();
-    const limite = new Date();
-    limite.setDate(hoje.getDate() + dias);
+  async getGiftCardsVencimento(userId: number, dias: number, empresaId?: number): Promise<GiftCard[]> {
+    console.log(`[AUDITORIA - STORAGE] getGiftCardsVencimento chamado com userId: ${userId}, dias: ${dias}, empresaId: ${empresaId || 'não informado'}`);
     
-    return await db.select()
-      .from(giftCards)
-      .where(eq(giftCards.userId, userId))
-      .where(eq(giftCards.status, "ativo"))
-      .where(sql`${giftCards.dataValidade} IS NOT NULL`)
-      .where(lte(giftCards.dataValidade, limite))
-      .orderBy(giftCards.dataValidade);
+    try {
+      const hoje = new Date();
+      const limite = new Date();
+      limite.setDate(hoje.getDate() + dias);
+      
+      // Preparar as condições de filtro
+      let conditions = [
+        eq(giftCards.userId, userId),
+        eq(giftCards.status, "ativo"),
+        sql`${giftCards.dataValidade} IS NOT NULL`,
+        lte(giftCards.dataValidade, limite)
+      ];
+      
+      // Se um empresaId for fornecido, adicionar ao filtro
+      if (empresaId) {
+        console.log(`[SEGURANÇA] Aplicando filtro de empresaId: ${empresaId} em getGiftCardsVencimento`);
+        conditions.push(eq(giftCards.empresaId, empresaId));
+      }
+      
+      // Aplicar todas as condições com and()
+      const query = db.select()
+        .from(giftCards)
+        .where(and(...conditions))
+        .orderBy(giftCards.dataValidade);
+      
+      const results = await query;
+      console.log(`[AUDITORIA - STORAGE] getGiftCardsVencimento retornou ${results.length} registros para usuário ${userId}`);
+      
+      return results;
+    } catch (error) {
+      console.error(`[ERRO CRÍTICO] Falha ao buscar gift cards a vencer: ${error}`);
+      return []; // Em caso de erro, retornar array vazio para evitar vazamento de dados
+    }
   }
 
   async getGiftCardsByTag(tagId: number, empresaId?: number, userId?: number): Promise<GiftCard[]> {
@@ -1843,56 +1916,146 @@ class DatabaseStorage implements IStorage {
       .then(rows => rows.map(row => row.giftCard));
   }
 
-  async searchGiftCards(userId: number, searchTerm: string): Promise<GiftCard[]> {
-    const term = `%${searchTerm}%`;
+  async searchGiftCards(userId: number, searchTerm: string, empresaId?: number): Promise<GiftCard[]> {
+    console.log(`[AUDITORIA - STORAGE] searchGiftCards chamado com userId: ${userId}, searchTerm: ${searchTerm}, empresaId: ${empresaId || 'não informado'}`);
     
-    return await db.select()
-      .from(giftCards)
-      .where(eq(giftCards.userId, userId))
-      .where(
+    try {
+      const term = `%${searchTerm}%`;
+      
+      // Preparar as condições de filtro
+      let conditions = [
+        eq(giftCards.userId, userId),
         or(
           like(giftCards.codigo, term),
           like(giftCards.observacoes, term)
         )
-      )
-      .orderBy(desc(giftCards.createdAt));
+      ];
+      
+      // Se um empresaId for fornecido, adicionar ao filtro
+      if (empresaId) {
+        console.log(`[SEGURANÇA] Aplicando filtro de empresaId: ${empresaId} em searchGiftCards`);
+        conditions.push(eq(giftCards.empresaId, empresaId));
+      }
+      
+      // Aplicar todas as condições com and()
+      const query = db.select()
+        .from(giftCards)
+        .where(and(...conditions))
+        .orderBy(desc(giftCards.createdAt));
+      
+      const results = await query;
+      console.log(`[AUDITORIA - STORAGE] searchGiftCards retornou ${results.length} registros para usuário ${userId}`);
+      
+      return results;
+    } catch (error) {
+      console.error(`[ERRO CRÍTICO] Falha ao pesquisar gift cards: ${error}`);
+      return []; // Em caso de erro, retornar array vazio para evitar vazamento de dados
+    }
   }
 
   // Transação methods (novo)
   async getTransacoes(giftCardId: number, empresaId?: number): Promise<Transacao[]> {
-    let query = db.select().from(transacoes).where(eq(transacoes.giftCardId, giftCardId));
+    console.log(`[AUDITORIA - STORAGE] getTransacoes chamado com giftCardId: ${giftCardId}, empresaId: ${empresaId || 'não informado'}`);
     
-    if (empresaId) {
-      query = query.where(eq(transacoes.empresaId, empresaId));
+    try {
+      // Preparar as condições de filtro
+      let conditions = [eq(transacoes.giftCardId, giftCardId)];
+      
+      // Se um empresaId for fornecido, adicionar ao filtro
+      if (empresaId) {
+        console.log(`[SEGURANÇA] Aplicando filtro de empresaId: ${empresaId} em getTransacoes`);
+        conditions.push(eq(transacoes.empresaId, empresaId));
+      }
+      
+      // Aplicar todas as condições com and()
+      const query = db.select()
+        .from(transacoes)
+        .where(and(...conditions))
+        .orderBy(desc(transacoes.dataTransacao));
+      
+      const results = await query;
+      console.log(`[AUDITORIA - STORAGE] getTransacoes retornou ${results.length} registros para giftCardId ${giftCardId}`);
+      
+      return results;
+    } catch (error) {
+      console.error(`[ERRO CRÍTICO] Falha ao buscar transações: ${error}`);
+      return []; // Em caso de erro, retornar array vazio para evitar vazamento de dados
     }
-    
-    return await query.orderBy(desc(transacoes.dataTransacao));
   }
 
   async getTransacoesByEmpresa(empresaId: number, userId?: number): Promise<Transacao[]> {
     // PATCH DE SEGURANÇA: Adicionar filtro rigoroso por userId
-    let query = db.select()
-      .from(transacoes)
-      .where(eq(transacoes.empresaId, empresaId));
+    console.log(`[AUDITORIA - STORAGE] getTransacoesByEmpresa chamado com empresaId: ${empresaId}, userId: ${userId || 'não informado'}`);
     
-    // Se um userId for fornecido, aplicar isolamento estrito para mostrar apenas dados do próprio usuário
-    if (userId) {
-      console.log(`[SEGURANÇA CRÍTICA] Aplicando filtro de userId: ${userId} em getTransacoesByEmpresa`);
-      query = query.where(eq(transacoes.userId, userId));
+    try {
+      // Preparar as condições de filtro
+      let conditions = [eq(transacoes.empresaId, empresaId)];
+      
+      // Se um userId for fornecido, aplicar isolamento estrito para mostrar apenas dados do próprio usuário
+      if (userId) {
+        console.log(`[SEGURANÇA CRÍTICA] Aplicando filtro de userId: ${userId} em getTransacoesByEmpresa`);
+        conditions.push(eq(transacoes.userId, userId));
+      }
+      
+      // Aplicar todas as condições com and()
+      const query = db.select()
+        .from(transacoes)
+        .where(and(...conditions))
+        .orderBy(desc(transacoes.dataTransacao));
+      
+      const results = await query;
+      console.log(`[AUDITORIA - STORAGE] getTransacoesByEmpresa retornou ${results.length} registros para empresa ${empresaId}${userId ? ` e usuário ${userId}` : ''}`);
+      
+      // SEGURANÇA: Verificação dupla para garantir isolamento quando userId especificado
+      if (userId) {
+        const filteredResults = results.filter(transacao => transacao.userId === userId);
+        
+        // Se houver discrepância, emitir alerta de segurança
+        if (filteredResults.length !== results.length) {
+          console.error(`[ALERTA DE SEGURANÇA] Detectada discrepância! Filtro SQL retornou ${results.length} transações, mas apenas ${filteredResults.length} pertencem ao usuário ${userId}`);
+          return filteredResults; // Retornar apenas dados que pertencem ao usuário autenticado
+        }
+      }
+      
+      return results;
+    } catch (error) {
+      console.error(`[ERRO CRÍTICO] Falha ao buscar transações por empresa: ${error}`);
+      return []; // Em caso de erro, retornar array vazio para evitar vazamento de dados
     }
-    
-    return await query.orderBy(desc(transacoes.dataTransacao));
   }
 
   async getTransacao(id: number, empresaId?: number): Promise<Transacao | undefined> {
-    let query = db.select().from(transacoes).where(eq(transacoes.id, id));
+    console.log(`[AUDITORIA - STORAGE] getTransacao chamado com id: ${id}, empresaId: ${empresaId || 'não informado'}`);
     
-    if (empresaId) {
-      query = query.where(eq(transacoes.empresaId, empresaId));
+    try {
+      // Preparar as condições de filtro
+      let conditions = [eq(transacoes.id, id)];
+      
+      // Se um empresaId for fornecido, adicionar ao filtro
+      if (empresaId) {
+        console.log(`[SEGURANÇA] Aplicando filtro de empresaId: ${empresaId} em getTransacao`);
+        conditions.push(eq(transacoes.empresaId, empresaId));
+      }
+      
+      // Aplicar todas as condições com and()
+      const query = db.select()
+        .from(transacoes)
+        .where(and(...conditions));
+      
+      const [transacao] = await query;
+      
+      // Registrar resultado da consulta para auditoria
+      if (transacao) {
+        console.log(`[AUDITORIA - STORAGE] getTransacao encontrou transação id=${id}, empresaId=${transacao.empresaId}, userId=${transacao.userId}`);
+      } else {
+        console.log(`[AUDITORIA - STORAGE] getTransacao não encontrou transação com id=${id}${empresaId ? ` e empresaId=${empresaId}` : ''}`);
+      }
+      
+      return transacao;
+    } catch (error) {
+      console.error(`[ERRO CRÍTICO] Falha ao buscar transação: ${error}`);
+      return undefined;
     }
-    
-    const [transacao] = await query;
-    return transacao;
   }
 
   async createTransacao(transacao: InsertTransacao): Promise<Transacao> {
@@ -2010,28 +2173,86 @@ class DatabaseStorage implements IStorage {
 
   // Tag methods
   async getTags(empresaId?: number): Promise<Tag[]> {
-    let query = db.select().from(tags);
+    console.log(`[AUDITORIA - STORAGE] getTags chamado com empresaId: ${empresaId || 'não informado'}`);
     
-    if (empresaId) {
-      query = query.where(eq(tags.empresaId, empresaId));
+    try {
+      // Preparar as condições de filtro
+      let conditions = [];
+      
+      // Se um empresaId for fornecido, adicionar ao filtro
+      if (empresaId) {
+        console.log(`[SEGURANÇA] Aplicando filtro de empresaId: ${empresaId} em getTags`);
+        conditions.push(eq(tags.empresaId, empresaId));
+      }
+      
+      // Aplicar consulta com ou sem condições
+      let query = db.select().from(tags);
+      
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions));
+      }
+      
+      const results = await query;
+      console.log(`[AUDITORIA - STORAGE] getTags retornou ${results.length} registros${empresaId ? ` para empresa ${empresaId}` : ''}`);
+      
+      return results;
+    } catch (error) {
+      console.error(`[ERRO CRÍTICO] Falha ao buscar tags: ${error}`);
+      return []; // Em caso de erro, retornar array vazio para evitar vazamento de dados
     }
-    
-    return await query;
   }
 
   async getTag(id: number, empresaId?: number): Promise<Tag | undefined> {
-    let query = db.select().from(tags).where(eq(tags.id, id));
+    console.log(`[AUDITORIA - STORAGE] getTag chamado com id: ${id}, empresaId: ${empresaId || 'não informado'}`);
     
-    if (empresaId) {
-      query = query.where(eq(tags.empresaId, empresaId));
+    try {
+      // Preparar as condições de filtro
+      let conditions = [eq(tags.id, id)];
+      
+      // Se um empresaId for fornecido, adicionar ao filtro
+      if (empresaId) {
+        console.log(`[SEGURANÇA] Aplicando filtro de empresaId: ${empresaId} em getTag`);
+        conditions.push(eq(tags.empresaId, empresaId));
+      }
+      
+      // Aplicar todas as condições com and()
+      const query = db.select()
+        .from(tags)
+        .where(and(...conditions));
+      
+      const [tag] = await query;
+      
+      // Registrar resultado da consulta para auditoria
+      if (tag) {
+        console.log(`[AUDITORIA - STORAGE] getTag encontrou tag id=${id}, empresaId=${tag.empresaId}`);
+      } else {
+        console.log(`[AUDITORIA - STORAGE] getTag não encontrou tag com id=${id}${empresaId ? ` e empresaId=${empresaId}` : ''}`);
+      }
+      
+      return tag;
+    } catch (error) {
+      console.error(`[ERRO CRÍTICO] Falha ao buscar tag: ${error}`);
+      return undefined;
     }
-    
-    const [tag] = await query;
-    return tag;
   }
 
   async getTagsByEmpresa(empresaId: number): Promise<Tag[]> {
-    return await db.select().from(tags).where(eq(tags.empresaId, empresaId));
+    console.log(`[AUDITORIA - STORAGE] getTagsByEmpresa chamado com empresaId: ${empresaId}`);
+    
+    try {
+      // Aplicar filtro de empresaId usando and() para manter a consistência
+      const query = db.select()
+        .from(tags)
+        .where(and(eq(tags.empresaId, empresaId)));
+      
+      const results = await query;
+      console.log(`[AUDITORIA - STORAGE] getTagsByEmpresa retornou ${results.length} registros para empresa ${empresaId}`);
+      
+      return results;
+    } catch (error) {
+      console.error(`[ERRO CRÍTICO] Falha ao buscar tags por empresa: ${error}`);
+      return []; // Em caso de erro, retornar array vazio para evitar vazamento de dados
+    }
   }
 
   async createTag(tag: InsertTag): Promise<Tag> {
@@ -2129,30 +2350,43 @@ class DatabaseStorage implements IStorage {
   }
 
   async getGiftCardTags(giftCardId: number, empresaId?: number, userId?: number, perfilId?: number): Promise<Tag[]> {
-    // PATCH DE SEGURANÇA: Adicionar filtro por userId e verificação de permissões
-    let query = db
-      .select({
-        tag: tags
-      })
-      .from(tags)
-      .innerJoin(giftCardTags, eq(tags.id, giftCardTags.tagId))
-      .innerJoin(giftCards, eq(giftCards.id, giftCardTags.giftCardId))
-      .where(eq(giftCardTags.giftCardId, giftCardId));
+    console.log(`[AUDITORIA - STORAGE] getGiftCardTags chamado com giftCardId: ${giftCardId}, empresaId: ${empresaId || 'não informado'}, userId: ${userId || 'não informado'}, perfilId: ${perfilId || 'não informado'}`);
     
-    // Filtro por empresaId
-    if (empresaId) {
-      query = query.where(eq(tags.empresaId, empresaId));
+    try {
+      // Preparar as condições de filtro
+      let conditions = [eq(giftCardTags.giftCardId, giftCardId)];
+      
+      // Filtro por empresaId
+      if (empresaId) {
+        console.log(`[SEGURANÇA] Aplicando filtro de empresaId: ${empresaId} em getGiftCardTags`);
+        conditions.push(eq(tags.empresaId, empresaId));
+      }
+      
+      // Se um userId for fornecido, aplicar isolamento estrito para mostrar apenas dados do próprio usuário
+      // A menos que o usuário tenha um perfil privilegiado
+      if (userId && (perfilId === 3 || perfilId === 4)) { // Considerando 3 = "usuario" e 4 = "convidado"
+        console.log(`[SEGURANÇA CRÍTICA] Aplicando filtro de userId: ${userId} em getGiftCardTags para perfil: ${perfilId}`);
+        conditions.push(eq(giftCards.userId, userId));
+      }
+      
+      // Executar a consulta com todas as condições aplicadas usando and()
+      const query = db
+        .select({
+          tag: tags
+        })
+        .from(tags)
+        .innerJoin(giftCardTags, eq(tags.id, giftCardTags.tagId))
+        .innerJoin(giftCards, eq(giftCards.id, giftCardTags.giftCardId))
+        .where(and(...conditions));
+      
+      const results = await query;
+      console.log(`[AUDITORIA - STORAGE] getGiftCardTags retornou ${results.length} tags para giftCardId ${giftCardId}`);
+      
+      return results.map(r => r.tag);
+    } catch (error) {
+      console.error(`[ERRO CRÍTICO] Falha ao buscar tags do gift card: ${error}`);
+      return []; // Em caso de erro, retornar array vazio para evitar vazamento de dados
     }
-    
-    // Se um userId for fornecido, aplicar isolamento estrito para mostrar apenas dados do próprio usuário
-    // A menos que o usuário tenha um perfil privilegiado
-    if (userId && (perfilId === 3 || perfilId === 4)) { // Considerando 3 = "usuario" e 4 = "convidado"
-      console.log(`[SEGURANÇA CRÍTICA] Aplicando filtro de userId: ${userId} em getGiftCardTags para perfil: ${perfilId}`);
-      query = query.where(eq(giftCards.userId, userId));
-    }
-    
-    const results = await query;
-    return results.map(r => r.tag);
   }
 
   // Método para inicializar os dados de demonstração
