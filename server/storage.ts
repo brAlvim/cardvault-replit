@@ -1556,8 +1556,17 @@ class DatabaseStorage implements IStorage {
     return fornecedor;
   }
 
-  async getFornecedoresByEmpresa(empresaId: number): Promise<Fornecedor[]> {
-    return await db.select().from(fornecedores).where(eq(fornecedores.empresaId, empresaId));
+  async getFornecedoresByEmpresa(empresaId: number, userId?: number): Promise<Fornecedor[]> {
+    // PATCH DE SEGURANÇA: Implementar filtragem rigorosa por userId
+    let query = db.select().from(fornecedores).where(eq(fornecedores.empresaId, empresaId));
+    
+    // Se um userId for fornecido, aplicar isolamento estrito para mostrar apenas dados do próprio usuário
+    if (userId) {
+      console.log(`[SEGURANÇA CRÍTICA] Aplicando filtro de userId: ${userId} em getFornecedoresByEmpresa`);
+      query = query.where(eq(fornecedores.userId, userId));
+    }
+    
+    return await query;
   }
 
   async createFornecedor(fornecedor: InsertFornecedor): Promise<Fornecedor> {
@@ -1608,8 +1617,17 @@ class DatabaseStorage implements IStorage {
     return supplier;
   }
 
-  async getSuppliersByEmpresa(empresaId: number): Promise<Supplier[]> {
-    return await db.select().from(suppliers).where(eq(suppliers.empresaId, empresaId));
+  async getSuppliersByEmpresa(empresaId: number, userId?: number): Promise<Supplier[]> {
+    // PATCH DE SEGURANÇA: Adicionar filtro rigoroso por userId
+    let query = db.select().from(suppliers).where(eq(suppliers.empresaId, empresaId));
+    
+    // Se um userId for fornecido, aplicar isolamento estrito para mostrar apenas dados do próprio usuário
+    if (userId) {
+      console.log(`[SEGURANÇA CRÍTICA] Aplicando filtro de userId: ${userId} em getSuppliersByEmpresa`);
+      query = query.where(eq(suppliers.userId, userId));
+    }
+    
+    return await query;
   }
 
   async createSupplier(supplier: InsertSupplier): Promise<Supplier> {
@@ -1667,11 +1685,19 @@ class DatabaseStorage implements IStorage {
     return await query;
   }
 
-  async getGiftCardsByEmpresa(empresaId: number): Promise<GiftCard[]> {
-    return await db.select()
+  async getGiftCardsByEmpresa(empresaId: number, userId?: number): Promise<GiftCard[]> {
+    // PATCH DE SEGURANÇA: Adicionar filtro rigoroso por userId
+    let query = db.select()
       .from(giftCards)
-      .where(eq(giftCards.empresaId, empresaId))
-      .orderBy(desc(giftCards.createdAt));
+      .where(eq(giftCards.empresaId, empresaId));
+    
+    // Se um userId for fornecido, aplicar isolamento estrito para mostrar apenas dados do próprio usuário
+    if (userId) {
+      console.log(`[SEGURANÇA CRÍTICA] Aplicando filtro de userId: ${userId} em getGiftCardsByEmpresa`);
+      query = query.where(eq(giftCards.userId, userId));
+    }
+    
+    return await query.orderBy(desc(giftCards.createdAt));
   }
 
   async getGiftCard(id: number, empresaId?: number): Promise<GiftCard | undefined> {
@@ -1741,15 +1767,29 @@ class DatabaseStorage implements IStorage {
       .orderBy(giftCards.dataValidade);
   }
 
-  async getGiftCardsByTag(tagId: number): Promise<GiftCard[]> {
-    return await db.select({
+  async getGiftCardsByTag(tagId: number, empresaId?: number, userId?: number): Promise<GiftCard[]> {
+    // PATCH DE SEGURANÇA: Adicionar filtro rigoroso por userId
+    let query = db.select({
       giftCard: giftCards
     })
     .from(giftCards)
     .innerJoin(giftCardTags, eq(giftCards.id, giftCardTags.giftCardId))
-    .where(eq(giftCardTags.tagId, tagId))
-    .orderBy(desc(giftCards.createdAt))
-    .then(rows => rows.map(row => row.giftCard));
+    .where(eq(giftCardTags.tagId, tagId));
+    
+    // Adicionar filtros condicionais para empresaId e userId
+    if (empresaId) {
+      query = query.where(eq(giftCards.empresaId, empresaId));
+    }
+    
+    // Se um userId for fornecido, aplicar isolamento estrito para mostrar apenas dados do próprio usuário
+    if (userId) {
+      console.log(`[SEGURANÇA CRÍTICA] Aplicando filtro de userId: ${userId} em getGiftCardsByTag`);
+      query = query.where(eq(giftCards.userId, userId));
+    }
+    
+    return await query
+      .orderBy(desc(giftCards.createdAt))
+      .then(rows => rows.map(row => row.giftCard));
   }
 
   async searchGiftCards(userId: number, searchTerm: string): Promise<GiftCard[]> {
@@ -1778,11 +1818,19 @@ class DatabaseStorage implements IStorage {
     return await query.orderBy(desc(transacoes.dataTransacao));
   }
 
-  async getTransacoesByEmpresa(empresaId: number): Promise<Transacao[]> {
-    return await db.select()
+  async getTransacoesByEmpresa(empresaId: number, userId?: number): Promise<Transacao[]> {
+    // PATCH DE SEGURANÇA: Adicionar filtro rigoroso por userId
+    let query = db.select()
       .from(transacoes)
-      .where(eq(transacoes.empresaId, empresaId))
-      .orderBy(desc(transacoes.dataTransacao));
+      .where(eq(transacoes.empresaId, empresaId));
+    
+    // Se um userId for fornecido, aplicar isolamento estrito para mostrar apenas dados do próprio usuário
+    if (userId) {
+      console.log(`[SEGURANÇA CRÍTICA] Aplicando filtro de userId: ${userId} em getTransacoesByEmpresa`);
+      query = query.where(eq(transacoes.userId, userId));
+    }
+    
+    return await query.orderBy(desc(transacoes.dataTransacao));
   }
 
   async getTransacao(id: number, empresaId?: number): Promise<Transacao | undefined> {
@@ -1961,17 +2009,27 @@ class DatabaseStorage implements IStorage {
     return result.rowCount > 0;
   }
 
-  async getGiftCardTags(giftCardId: number, empresaId?: number): Promise<Tag[]> {
+  async getGiftCardTags(giftCardId: number, empresaId?: number, userId?: number, perfilId?: number): Promise<Tag[]> {
+    // PATCH DE SEGURANÇA: Adicionar filtro por userId e verificação de permissões
     let query = db
       .select({
         tag: tags
       })
       .from(tags)
       .innerJoin(giftCardTags, eq(tags.id, giftCardTags.tagId))
+      .innerJoin(giftCards, eq(giftCards.id, giftCardTags.giftCardId))
       .where(eq(giftCardTags.giftCardId, giftCardId));
     
+    // Filtro por empresaId
     if (empresaId) {
       query = query.where(eq(tags.empresaId, empresaId));
+    }
+    
+    // Se um userId for fornecido, aplicar isolamento estrito para mostrar apenas dados do próprio usuário
+    // A menos que o usuário tenha um perfil privilegiado
+    if (userId && (perfilId === 3 || perfilId === 4)) { // Considerando 3 = "usuario" e 4 = "convidado"
+      console.log(`[SEGURANÇA CRÍTICA] Aplicando filtro de userId: ${userId} em getGiftCardTags para perfil: ${perfilId}`);
+      query = query.where(eq(giftCards.userId, userId));
     }
     
     const results = await query;
