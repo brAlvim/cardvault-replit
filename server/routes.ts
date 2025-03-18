@@ -414,70 +414,333 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  router.get("/users/:id", async (req: Request, res: Response) => {
+  router.get("/users/:id", requireAuth, async (req: Request, res: Response) => {
     try {
-      const userId = parseInt(req.params.id);
-      const user = await storage.getUser(userId);
+      const requestedUserId = parseInt(req.params.id);
+      const loggedUser = req.user;
       
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      if (!loggedUser) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
       }
       
-      res.json(user);
+      // Obter informações do perfil do usuário logado
+      const userPerfil = await storage.getPerfil(loggedUser.perfilId);
+      if (!userPerfil) {
+        console.error(`[SEGURANÇA] Perfil ${loggedUser.perfilId} não encontrado para usuário ${loggedUser.id}`);
+        return res.status(403).json({ message: "Perfil do usuário não encontrado" });
+      }
+      
+      // Buscar o usuário solicitado
+      const requestedUser = await storage.getUser(requestedUserId);
+      if (!requestedUser) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+      
+      // Verificar permissão de acesso:
+      // 1. Se for o próprio usuário, permite acesso
+      // 2. Se for admin ou tiver permissão '*', permite acesso
+      // 3. Caso contrário, verifica hierarquia
+      if (
+        requestedUserId === loggedUser.id || 
+        userPerfil.nome === 'admin' || 
+        userPerfil.permissoes.includes('*')
+      ) {
+        // Remover informações sensíveis antes de retornar
+        const { password, ...userWithoutPassword } = requestedUser;
+        return res.json(userWithoutPassword);
+      }
+      
+      // Para usuários não-admin, verificar hierarquia
+      const requestedUserPerfil = await storage.getPerfil(requestedUser.perfilId);
+      if (!requestedUserPerfil) {
+        return res.status(404).json({ message: "Perfil do usuário solicitado não encontrado" });
+      }
+      
+      // Ordenar perfis por hierarquia (assumindo: admin > gerente > usuario > convidado)
+      const perfilHierarquia = ['admin', 'gerente', 'usuario', 'convidado'];
+      
+      const loggedUserLevel = perfilHierarquia.indexOf(userPerfil.nome);
+      const requestedUserLevel = perfilHierarquia.indexOf(requestedUserPerfil.nome);
+      
+      if (loggedUserLevel === -1 || requestedUserLevel === -1) {
+        console.error(`[SEGURANÇA] Perfil não encontrado na hierarquia: ${userPerfil.nome} ou ${requestedUserPerfil.nome}`);
+        return res.status(403).json({ message: "Erro ao determinar nível de acesso" });
+      }
+      
+      // Usuário só pode ver detalhes de outros usuários de nível inferior
+      if (requestedUserLevel > loggedUserLevel) {
+        // Remover informações sensíveis antes de retornar
+        const { password, ...userWithoutPassword } = requestedUser;
+        return res.json(userWithoutPassword);
+      }
+      
+      // Acesso negado a usuários de mesmo nível ou superior
+      console.log(`[SEGURANÇA] Usuário ${loggedUser.username} (nível ${loggedUserLevel}) tentou acessar detalhes do usuário ${requestedUser.username} (nível ${requestedUserLevel})`);
+      return res.status(403).json({ message: "Você não tem permissão para acessar este usuário" });
+      
     } catch (error) {
-      res.status(500).json({ message: "Internal server error" });
+      console.error("Erro ao obter detalhes do usuário:", error);
+      res.status(500).json({ message: "Erro interno do servidor" });
     }
   });
   
   // Obter todos os usuários
-  router.get("/users", async (req: Request, res: Response) => {
+  router.get("/users", requireAuth, async (req: Request, res: Response) => {
     try {
-      // Obter o empresaId do query string ou usar um padrão (empresa demo)
       const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : 1;
-      const users = await storage.getUsersByEmpresa(empresaId);
-      console.log("Enviando usuários:", users);
-      res.json(users);
+      
+      // Obter usuário autenticado e seu perfil
+      const loggedUser = req.user;
+      if (!loggedUser) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
+      
+      const userPerfil = await storage.getPerfil(loggedUser.perfilId);
+      if (!userPerfil) {
+        console.error(`[SEGURANÇA] Perfil ${loggedUser.perfilId} não encontrado para usuário ${loggedUser.id}`);
+        return res.status(403).json({ message: "Perfil do usuário não encontrado" });
+      }
+      
+      console.log(`[AUDITORIA] Usuário ${loggedUser.username} (ID: ${loggedUser.id}) com perfil ${userPerfil.nome} solicitando lista de usuários`);
+      
+      // Buscar todos os usuários da empresa
+      const allUsers = await storage.getUsersByEmpresa(empresaId);
+      let filteredUsers = [];
+      
+      // Se for admin ou tiver permissão '*', retorna todos os usuários
+      if (userPerfil.nome === 'admin' || userPerfil.permissoes.includes('*')) {
+        console.log(`[AUDITORIA] Usuário ${loggedUser.username} com perfil admin ou permissão total - retornando todos os usuários`);
+        filteredUsers = allUsers;
+      } else {
+        // Para usuários não-admin, buscar todos os perfis para verificar hierarquia
+        const allPerfis = await storage.getPerfis();
+        
+        // Ordenar perfis por hierarquia (assumindo: admin > gerente > usuario > convidado)
+        const perfilHierarquia = ['admin', 'gerente', 'usuario', 'convidado'];
+        
+        // Determinar nível hierárquico do usuário logado
+        const userPerfilLevel = perfilHierarquia.indexOf(userPerfil.nome);
+        
+        if (userPerfilLevel === -1) {
+          console.error(`[SEGURANÇA] Perfil ${userPerfil.nome} não encontrado na hierarquia`);
+          return res.status(403).json({ message: "Erro ao determinar nível de acesso" });
+        }
+        
+        // Filtrar usuários que estão em níveis hierárquicos inferiores ou iguais
+        filteredUsers = allUsers.filter(user => {
+          // Sempre inclui o próprio usuário
+          if (user.id === loggedUser.id) return true;
+          
+          const userPerfil = allPerfis.find(p => p.id === user.perfilId);
+          if (!userPerfil) return false;
+          
+          const userLevel = perfilHierarquia.indexOf(userPerfil.nome);
+          
+          // Só permite visualizar usuários abaixo na hierarquia
+          return userLevel > userPerfilLevel;
+        });
+        
+        console.log(`[AUDITORIA] Usuário ${loggedUser.username} com perfil ${userPerfil.nome} - retornando ${filteredUsers.length} usuários visíveis`);
+      }
+      
+      // Remover informações sensíveis como senhas
+      const sanitizedUsers = filteredUsers.map(user => ({
+        ...user,
+        password: undefined
+      }));
+      
+      res.json(sanitizedUsers);
     } catch (error) {
       console.error("Erro ao buscar usuários:", error);
-      res.status(500).json({ message: "Internal server error" });
+      res.status(500).json({ message: "Erro interno do servidor" });
     }
   });
   
   // Atualizar um usuário
-  router.put("/users/:id", async (req: Request, res: Response) => {
+  router.put("/users/:id", requireAuth, async (req: Request, res: Response) => {
     try {
-      const userId = parseInt(req.params.id);
+      const targetUserId = parseInt(req.params.id);
       const userData = req.body;
+      const loggedUser = req.user;
       
-      console.log("Atualizando usuário:", userId, userData);
+      if (!loggedUser) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
       
-      const user = await storage.updateUser(userId, userData);
+      // Obter informações do perfil do usuário logado
+      const userPerfil = await storage.getPerfil(loggedUser.perfilId);
+      if (!userPerfil) {
+        console.error(`[SEGURANÇA] Perfil ${loggedUser.perfilId} não encontrado para usuário ${loggedUser.id}`);
+        return res.status(403).json({ message: "Perfil do usuário não encontrado" });
+      }
       
-      if (!user) {
+      // Buscar o usuário a ser atualizado
+      const targetUser = await storage.getUser(targetUserId);
+      if (!targetUser) {
         return res.status(404).json({ message: "Usuário não encontrado" });
       }
       
-      res.json(user);
+      // Verificar permissão de atualização:
+      // 1. Se for o próprio usuário, permite editar seus próprios dados
+      // 2. Se for admin ou tiver permissão '*', permite editar qualquer usuário
+      // 3. Caso contrário, verifica hierarquia
+      let canUpdate = false;
+      
+      if (targetUserId === loggedUser.id) {
+        // Usuário pode editar a si mesmo, mas não pode alterar seu próprio perfilId
+        if (userData.perfilId && userData.perfilId !== loggedUser.perfilId) {
+          console.log(`[SEGURANÇA] Usuário ${loggedUser.username} tentou alterar seu próprio perfil de ${loggedUser.perfilId} para ${userData.perfilId}`);
+          return res.status(403).json({ message: "Você não pode alterar seu próprio nível de perfil" });
+        }
+        canUpdate = true;
+      } else if (userPerfil.nome === 'admin' || userPerfil.permissoes.includes('*')) {
+        // Admins podem editar qualquer usuário
+        canUpdate = true;
+      } else {
+        // Para usuários não-admin, verificar hierarquia
+        const targetUserPerfil = await storage.getPerfil(targetUser.perfilId);
+        if (!targetUserPerfil) {
+          return res.status(404).json({ message: "Perfil do usuário alvo não encontrado" });
+        }
+        
+        // Ordenar perfis por hierarquia
+        const perfilHierarquia = ['admin', 'gerente', 'usuario', 'convidado'];
+        
+        const loggedUserLevel = perfilHierarquia.indexOf(userPerfil.nome);
+        const targetUserLevel = perfilHierarquia.indexOf(targetUserPerfil.nome);
+        
+        if (loggedUserLevel === -1 || targetUserLevel === -1) {
+          console.error(`[SEGURANÇA] Perfil não encontrado na hierarquia: ${userPerfil.nome} ou ${targetUserPerfil.nome}`);
+          return res.status(403).json({ message: "Erro ao determinar nível de acesso" });
+        }
+        
+        // Usuário só pode atualizar usuários de nível inferior
+        if (targetUserLevel > loggedUserLevel) {
+          canUpdate = true;
+          
+          // Verificar se está tentando elevar o perfil do usuário alvo para um nível igual ou superior ao seu
+          if (userData.perfilId) {
+            const newPerfilId = userData.perfilId;
+            const newPerfil = await storage.getPerfil(newPerfilId);
+            
+            if (newPerfil) {
+              const newPerfilLevel = perfilHierarquia.indexOf(newPerfil.nome);
+              
+              if (newPerfilLevel !== -1 && newPerfilLevel <= loggedUserLevel) {
+                console.log(`[SEGURANÇA] Usuário ${loggedUser.username} (nível ${loggedUserLevel}) tentou elevar o perfil do usuário ${targetUser.username} para um nível igual ou superior ao seu (${newPerfilLevel})`);
+                return res.status(403).json({ message: "Você não pode promover um usuário para um nível igual ou superior ao seu" });
+              }
+            }
+          }
+        }
+      }
+      
+      if (!canUpdate) {
+        console.log(`[SEGURANÇA] Usuário ${loggedUser.username} tentou atualizar o usuário ${targetUser.username} sem permissão`);
+        return res.status(403).json({ message: "Você não tem permissão para atualizar este usuário" });
+      }
+      
+      console.log(`[AUDITORIA] Usuário ${loggedUser.username} atualizando o usuário ${targetUser.username}`);
+      
+      // Proteção adicional: garantir que a empresaId do usuário não seja alterada
+      userData.empresaId = targetUser.empresaId;
+      
+      const updatedUser = await storage.updateUser(targetUserId, userData);
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: "Erro ao atualizar usuário" });
+      }
+      
+      // Remover senha antes de retornar
+      const { password, ...userWithoutPassword } = updatedUser;
+      res.json(userWithoutPassword);
     } catch (error) {
       console.error("Erro ao atualizar usuário:", error);
-      res.status(500).json({ message: "Internal server error" });
+      res.status(500).json({ message: "Erro interno do servidor" });
     }
   });
   
   // Excluir um usuário
-  router.delete("/users/:id", async (req: Request, res: Response) => {
+  router.delete("/users/:id", requireAuth, async (req: Request, res: Response) => {
     try {
-      const userId = parseInt(req.params.id);
-      const success = await storage.deleteUser(userId);
+      const targetUserId = parseInt(req.params.id);
+      const loggedUser = req.user;
       
-      if (!success) {
+      if (!loggedUser) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
+      
+      // Usuários não podem se auto-excluir
+      if (targetUserId === loggedUser.id) {
+        console.log(`[SEGURANÇA] Usuário ${loggedUser.username} (ID: ${loggedUser.id}) tentou excluir a si mesmo`);
+        return res.status(403).json({ message: "Você não pode excluir sua própria conta" });
+      }
+      
+      // Obter informações do perfil do usuário logado
+      const userPerfil = await storage.getPerfil(loggedUser.perfilId);
+      if (!userPerfil) {
+        console.error(`[SEGURANÇA] Perfil ${loggedUser.perfilId} não encontrado para usuário ${loggedUser.id}`);
+        return res.status(403).json({ message: "Perfil do usuário não encontrado" });
+      }
+      
+      // Verificar se o usuário a ser excluído existe
+      const targetUser = await storage.getUser(targetUserId);
+      if (!targetUser) {
         return res.status(404).json({ message: "Usuário não encontrado" });
       }
       
-      res.status(200).json({ success: true });
+      // Verificar permissão para exclusão:
+      // 1. Se for admin ou tiver permissão '*', permite excluir qualquer usuário
+      // 2. Caso contrário, verifica hierarquia
+      let canDelete = false;
+      
+      if (userPerfil.nome === 'admin' || userPerfil.permissoes.includes('*')) {
+        // Admins podem excluir qualquer usuário (exceto a si mesmos)
+        canDelete = true;
+      } else {
+        // Para usuários não-admin, verificar hierarquia
+        const targetUserPerfil = await storage.getPerfil(targetUser.perfilId);
+        if (!targetUserPerfil) {
+          return res.status(404).json({ message: "Perfil do usuário alvo não encontrado" });
+        }
+        
+        // Ordenar perfis por hierarquia
+        const perfilHierarquia = ['admin', 'gerente', 'usuario', 'convidado'];
+        
+        const loggedUserLevel = perfilHierarquia.indexOf(userPerfil.nome);
+        const targetUserLevel = perfilHierarquia.indexOf(targetUserPerfil.nome);
+        
+        if (loggedUserLevel === -1 || targetUserLevel === -1) {
+          console.error(`[SEGURANÇA] Perfil não encontrado na hierarquia: ${userPerfil.nome} ou ${targetUserPerfil.nome}`);
+          return res.status(403).json({ message: "Erro ao determinar nível de acesso" });
+        }
+        
+        // Usuário só pode excluir usuários de nível inferior
+        if (targetUserLevel > loggedUserLevel) {
+          canDelete = true;
+        }
+      }
+      
+      if (!canDelete) {
+        console.log(`[SEGURANÇA] Usuário ${loggedUser.username} tentou excluir o usuário ${targetUser.username} sem permissão`);
+        return res.status(403).json({ message: "Você não tem permissão para excluir este usuário" });
+      }
+      
+      console.log(`[AUDITORIA] Usuário ${loggedUser.username} excluindo o usuário ${targetUser.username}`);
+      
+      const success = await storage.deleteUser(targetUserId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Erro ao excluir usuário" });
+      }
+      
+      res.status(200).json({ 
+        success: true,
+        message: `Usuário ${targetUser.username} excluído com sucesso` 
+      });
     } catch (error) {
       console.error("Erro ao excluir usuário:", error);
-      res.status(500).json({ message: "Internal server error" });
+      res.status(500).json({ message: "Erro interno do servidor" });
     }
   });
 
