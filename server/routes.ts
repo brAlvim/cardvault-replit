@@ -1969,80 +1969,285 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  router.get("/transacoes/detalhes/:id", async (req: Request, res: Response) => {
+  router.get("/transacoes/detalhes/:id", requireAuth, async (req: Request, res: Response) => {
     try {
-      const transacaoId = parseInt(req.params.id);
-      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      // Obter o usuário autenticado
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
       
-      // Busca a transação com possível filtro por empresa
+      // ISOLAMENTO ESTRITO DE DADOS - VERSÃO 2.0
+      // NENHUM usuário pode ver transações de outros usuários, nem mesmo administradores
+      const userId = user.id;
+      const empresaId = user.empresaId;
+      
+      console.log(`[SEGURANÇA] Requisição GET /transacoes/detalhes/${req.params.id} de usuário ${user.username} (ID: ${userId})`);
+      
+      // Verificar se param ID é válido
+      const transacaoId = parseInt(req.params.id);
+      if (isNaN(transacaoId)) {
+        return res.status(400).json({ message: "ID de transação inválido" });
+      }
+      
+      // Verificar requisição para empresaId diferente da empresa do usuário
+      if (req.query.empresaId) {
+        const requestedEmpresaId = parseInt(req.query.empresaId as string);
+        
+        // Verificar se é um empresaId válido
+        if (isNaN(requestedEmpresaId)) {
+          console.log(`[SEGURANÇA - ERRO] ID de empresa inválido na consulta: ${req.query.empresaId}`);
+          return res.status(400).json({ message: "ID de empresa inválido" });
+        }
+        
+        // Forçar uso apenas da empresa do usuário
+        if (requestedEmpresaId !== empresaId) {
+          console.log(`[SEGURANÇA - TENTATIVA NEGADA] Usuário ${user.username} (ID: ${userId}) tentou acessar dados da empresa ID: ${requestedEmpresaId}`);
+          return res.status(403).json({ 
+            message: "Você não tem permissão para acessar dados de outras empresas" 
+          });
+        }
+      }
+      
+      console.log(`[SEGURANÇA] Buscando transação ${transacaoId} para o usuário ${userId}`);
+      
+      // Busca a transação usando apenas a empresa do usuário autenticado
       const transacao = await storage.getTransacao(transacaoId, empresaId);
       
       if (!transacao) {
-        return res.status(404).json({ message: "Transação not found" });
+        return res.status(404).json({ message: "Transação não encontrada" });
       }
+      
+      // ISOLAMENTO ESTRITO - verificar proprietário da transação
+      // Fase 1: Verificar se a transação pertence diretamente ao usuário
+      if (transacao.userId !== userId) {
+        console.log(`[SEGURANÇA] Transação ${transacaoId} não pertence diretamente ao usuário ${userId}`);
+        
+        // Fase 2: Verificar se a transação está associada a um gift card do usuário
+        const giftCardId = transacao.giftCardId;
+        if (giftCardId) {
+          const giftCard = await storage.getGiftCard(giftCardId, empresaId);
+          
+          if (!giftCard || giftCard.userId !== userId) {
+            console.log(`[SEGURANÇA - TENTATIVA NEGADA] Usuário ${user.username} (ID: ${userId}) tentou acessar transação ID: ${transacaoId} que não lhe pertence`);
+            return res.status(403).json({ 
+              message: "Você não tem permissão para acessar esta transação" 
+            });
+          }
+          
+          console.log(`[SEGURANÇA - VALIDADO] Transação pertence ao gift card ${giftCardId} do usuário ${userId}`);
+        } else {
+          // Se não tem giftCardId e não pertence ao usuário, negar acesso
+          console.log(`[SEGURANÇA - TENTATIVA NEGADA] Usuário ${user.username} (ID: ${userId}) tentou acessar transação ID: ${transacaoId} que não lhe pertence`);
+          return res.status(403).json({ 
+            message: "Você não tem permissão para acessar esta transação" 
+          });
+        }
+      } else {
+        console.log(`[SEGURANÇA - VALIDADO] Transação pertence diretamente ao usuário ${userId}`);
+      }
+      
+      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${userId}) consultou detalhes da transação ID: ${transacaoId}`);
       
       res.json(transacao);
     } catch (error) {
+      console.error("[ERRO CRÍTICO] Falha ao buscar detalhes da transação:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
   
-  router.put("/transacoes/:id", async (req: Request, res: Response) => {
+  router.put("/transacoes/:id", requireAuth, async (req: Request, res: Response) => {
     try {
-      const transacaoId = parseInt(req.params.id);
-      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      // Obter o usuário autenticado
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
       
-      // Verificar se a transação pertence à empresa especificada
-      if (empresaId) {
-        const transacao = await storage.getTransacao(transacaoId, empresaId);
-        if (!transacao) {
-          return res.status(404).json({ message: "Transação not found for this company" });
+      // ISOLAMENTO ESTRITO DE DADOS - VERSÃO 2.0
+      // NENHUM usuário pode modificar transações de outros usuários, nem mesmo administradores
+      const userId = user.id;
+      const empresaId = user.empresaId;
+      
+      console.log(`[SEGURANÇA] Requisição PUT /transacoes/${req.params.id} de usuário ${user.username} (ID: ${userId})`);
+      
+      // Verificar se param ID é válido
+      const transacaoId = parseInt(req.params.id);
+      if (isNaN(transacaoId)) {
+        return res.status(400).json({ message: "ID de transação inválido" });
+      }
+      
+      // Verificar requisição para empresaId diferente da empresa do usuário
+      if (req.query.empresaId) {
+        const requestedEmpresaId = parseInt(req.query.empresaId as string);
+        
+        // Verificar se é um empresaId válido
+        if (isNaN(requestedEmpresaId)) {
+          console.log(`[SEGURANÇA - ERRO] ID de empresa inválido na consulta: ${req.query.empresaId}`);
+          return res.status(400).json({ message: "ID de empresa inválido" });
+        }
+        
+        // Forçar uso apenas da empresa do usuário
+        if (requestedEmpresaId !== empresaId) {
+          console.log(`[SEGURANÇA - TENTATIVA NEGADA] Usuário ${user.username} (ID: ${userId}) tentou acessar dados da empresa ID: ${requestedEmpresaId}`);
+          return res.status(403).json({ 
+            message: "Você não tem permissão para acessar dados de outras empresas" 
+          });
         }
       }
       
-      // Garantir que empresaId seja incluído se vier como query parameter mas não no body
-      if (!req.body.empresaId && req.query.empresaId) {
-        req.body.empresaId = parseInt(req.query.empresaId as string);
+      // Buscar a transação usando apenas a empresa do usuário autenticado
+      const transacao = await storage.getTransacao(transacaoId, empresaId);
+      
+      if (!transacao) {
+        return res.status(404).json({ message: "Transação não encontrada" });
+      }
+      
+      // ISOLAMENTO ESTRITO - verificar proprietário da transação
+      // Fase 1: Verificar se a transação pertence diretamente ao usuário
+      if (transacao.userId !== userId) {
+        console.log(`[SEGURANÇA] Transação ${transacaoId} não pertence diretamente ao usuário ${userId}`);
+        
+        // Fase 2: Verificar se a transação está associada a um gift card do usuário
+        const giftCardId = transacao.giftCardId;
+        if (giftCardId) {
+          const giftCard = await storage.getGiftCard(giftCardId, empresaId);
+          
+          if (!giftCard || giftCard.userId !== userId) {
+            console.log(`[SEGURANÇA - TENTATIVA NEGADA] Usuário ${user.username} (ID: ${userId}) tentou modificar transação ID: ${transacaoId} que não lhe pertence`);
+            return res.status(403).json({ 
+              message: "Você não tem permissão para modificar esta transação" 
+            });
+          }
+          
+          console.log(`[SEGURANÇA - VALIDADO] Transação pertence ao gift card ${giftCardId} do usuário ${userId}`);
+        } else {
+          // Se não tem giftCardId e não pertence ao usuário, negar acesso
+          console.log(`[SEGURANÇA - TENTATIVA NEGADA] Usuário ${user.username} (ID: ${userId}) tentou modificar transação ID: ${transacaoId} que não lhe pertence`);
+          return res.status(403).json({ 
+            message: "Você não tem permissão para modificar esta transação" 
+          });
+        }
+      } else {
+        console.log(`[SEGURANÇA - VALIDADO] Transação pertence diretamente ao usuário ${userId}`);
+      }
+      
+      // Garantir que empresaId seja o do usuário autenticado (nunca o de outro usuário)
+      req.body.empresaId = empresaId;
+      
+      // Impedir modificação do userId para outro usuário (garantia extra)
+      if (req.body.userId && req.body.userId !== userId) {
+        console.log(`[SEGURANÇA - TENTATIVA NEGADA] Usuário ${user.username} (ID: ${userId}) tentou modificar userId de transação para: ${req.body.userId}`);
+        req.body.userId = userId; // Forçar userId como o do usuário atual
       }
       
       const transacaoData = insertTransacaoSchema.partial().parse(req.body);
       
+      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${userId}) editando transação ID: ${transacaoId}`);
       const updatedTransacao = await storage.updateTransacao(transacaoId, transacaoData);
       
       if (!updatedTransacao) {
-        return res.status(404).json({ message: "Transação not found" });
+        return res.status(404).json({ message: "Falha ao atualizar transação" });
       }
       
+      console.log(`[SEGURANÇA] Transação ${transacaoId} atualizada com sucesso pelo usuário ${userId}`);
       res.json(updatedTransacao);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: fromZodError(error).message });
       }
+      console.error("[ERRO CRÍTICO] Falha ao atualizar transação:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
   
-  router.delete("/transacoes/:id", async (req: Request, res: Response) => {
+  router.delete("/transacoes/:id", requireAuth, async (req: Request, res: Response) => {
     try {
-      const transacaoId = parseInt(req.params.id);
-      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      // Obter o usuário autenticado
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
       
-      // Verificar se a transação pertence à empresa especificada
-      if (empresaId) {
-        const transacao = await storage.getTransacao(transacaoId, empresaId);
-        if (!transacao) {
-          return res.status(404).json({ message: "Transação not found for this company" });
+      // ISOLAMENTO ESTRITO DE DADOS - VERSÃO 2.0
+      // NENHUM usuário pode excluir transações de outros usuários, nem mesmo administradores
+      const userId = user.id;
+      const empresaId = user.empresaId;
+      
+      console.log(`[SEGURANÇA] Requisição DELETE /transacoes/${req.params.id} de usuário ${user.username} (ID: ${userId})`);
+      
+      // Verificar se param ID é válido
+      const transacaoId = parseInt(req.params.id);
+      if (isNaN(transacaoId)) {
+        return res.status(400).json({ message: "ID de transação inválido" });
+      }
+      
+      // Verificar requisição para empresaId diferente da empresa do usuário
+      if (req.query.empresaId) {
+        const requestedEmpresaId = parseInt(req.query.empresaId as string);
+        
+        // Verificar se é um empresaId válido
+        if (isNaN(requestedEmpresaId)) {
+          console.log(`[SEGURANÇA - ERRO] ID de empresa inválido na consulta: ${req.query.empresaId}`);
+          return res.status(400).json({ message: "ID de empresa inválido" });
+        }
+        
+        // Forçar uso apenas da empresa do usuário
+        if (requestedEmpresaId !== empresaId) {
+          console.log(`[SEGURANÇA - TENTATIVA NEGADA] Usuário ${user.username} (ID: ${userId}) tentou acessar dados da empresa ID: ${requestedEmpresaId}`);
+          return res.status(403).json({ 
+            message: "Você não tem permissão para acessar dados de outras empresas" 
+          });
         }
       }
       
+      // Buscar a transação usando apenas a empresa do usuário autenticado
+      const transacao = await storage.getTransacao(transacaoId, empresaId);
+      
+      if (!transacao) {
+        return res.status(404).json({ message: "Transação não encontrada" });
+      }
+      
+      // ISOLAMENTO ESTRITO - verificar proprietário da transação
+      // Fase 1: Verificar se a transação pertence diretamente ao usuário
+      if (transacao.userId !== userId) {
+        console.log(`[SEGURANÇA] Transação ${transacaoId} não pertence diretamente ao usuário ${userId}`);
+        
+        // Fase 2: Verificar se a transação está associada a um gift card do usuário
+        const giftCardId = transacao.giftCardId;
+        if (giftCardId) {
+          const giftCard = await storage.getGiftCard(giftCardId, empresaId);
+          
+          if (!giftCard || giftCard.userId !== userId) {
+            console.log(`[SEGURANÇA - TENTATIVA NEGADA] Usuário ${user.username} (ID: ${userId}) tentou excluir transação ID: ${transacaoId} que não lhe pertence`);
+            return res.status(403).json({ 
+              message: "Você não tem permissão para excluir esta transação" 
+            });
+          }
+          
+          console.log(`[SEGURANÇA - VALIDADO] Transação pertence ao gift card ${giftCardId} do usuário ${userId}`);
+        } else {
+          // Se não tem giftCardId e não pertence ao usuário, negar acesso
+          console.log(`[SEGURANÇA - TENTATIVA NEGADA] Usuário ${user.username} (ID: ${userId}) tentou excluir transação ID: ${transacaoId} que não lhe pertence`);
+          return res.status(403).json({ 
+            message: "Você não tem permissão para excluir esta transação" 
+          });
+        }
+      } else {
+        console.log(`[SEGURANÇA - VALIDADO] Transação pertence diretamente ao usuário ${userId}`);
+      }
+      
+      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${userId}) excluindo transação ID: ${transacaoId}`);
       const success = await storage.deleteTransacao(transacaoId);
       
       if (!success) {
-        return res.status(404).json({ message: "Transação not found" });
+        return res.status(404).json({ message: "Falha ao excluir transação" });
       }
       
+      console.log(`[SEGURANÇA] Transação ${transacaoId} excluída com sucesso pelo usuário ${userId}`);
       res.status(204).send();
     } catch (error) {
+      console.error("[ERRO CRÍTICO] Falha ao excluir transação:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });

@@ -69,15 +69,53 @@ export default function GiftCardSelector({ onGiftCardSelected, initialSelectedCa
   const { toast } = useToast(); // Para mensagens de feedback ao usuário
 
   // Carregar fornecedores
-  const { data: fornecedores = [] } = useQuery<Fornecedor[]>({
+  const { data: fornecedores = [], isError: isFornecedoresError } = useQuery<Fornecedor[]>({
     queryKey: ['/api/fornecedores'],
-    queryFn: () => fetch('/api/fornecedores').then(res => res.json()),
+    queryFn: async () => {
+      try {
+        const res = await fetch('/api/fornecedores', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (!res.ok) {
+          console.error("Falha ao buscar fornecedores:", res.status, res.statusText);
+          return [];
+        }
+        
+        const data = await res.json();
+        return Array.isArray(data) ? data : [];
+      } catch (error) {
+        console.error("Erro ao buscar fornecedores:", error);
+        return [];
+      }
+    },
   });
 
   // Carregar gift cards
-  const { data: giftCards = [] } = useQuery<GiftCard[]>({
+  const { data: giftCards = [], isError: isGiftCardsError } = useQuery<GiftCard[]>({
     queryKey: ['/api/gift-cards'],
-    queryFn: () => fetch('/api/gift-cards').then(res => res.json()),
+    queryFn: async () => {
+      try {
+        const res = await fetch('/api/gift-cards', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (!res.ok) {
+          console.error("Falha ao buscar gift cards:", res.status, res.statusText);
+          return [];
+        }
+        
+        const data = await res.json();
+        return Array.isArray(data) ? data : [];
+      } catch (error) {
+        console.error("Erro ao buscar gift cards:", error);
+        return [];
+      }
+    },
   });
   
   // Limite de gift cards que podem ser selecionados
@@ -111,10 +149,20 @@ export default function GiftCardSelector({ onGiftCardSelected, initialSelectedCa
   const filteredGiftCards = selectedFornecedorId
     ? giftCards.filter(
         card => card.fornecedorId === selectedFornecedorId && 
-        card.status === 'Ativo' && 
+        (card.status?.toLowerCase() === 'ativo' || card.status?.toUpperCase() === 'ATIVO' || card.status === 'Ativo') && 
         card.saldoAtual > 0
       )
     : [];
+    
+  // Verificação de debugging
+  useEffect(() => {
+    if (selectedFornecedorId && giftCards.length > 0) {
+      const cardsFromSelectedFornecedor = giftCards.filter(card => card.fornecedorId === selectedFornecedorId);
+      console.log(`Encontrados ${cardsFromSelectedFornecedor.length} cards do fornecedor ${selectedFornecedorId}`);
+      console.log(`Status dos cards: ${cardsFromSelectedFornecedor.map(c => c.status).join(', ')}`);
+      console.log(`Filtrados para exibição: ${filteredGiftCards.length} cards`);
+    }
+  }, [selectedFornecedorId, giftCards, filteredGiftCards]);
   
   return (
     <div className="space-y-4">
