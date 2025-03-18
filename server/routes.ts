@@ -927,13 +927,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const empresaId = user.empresaId;
-      const fornecedor = await storage.getFornecedor(fornecedorId, empresaId);
+      
+      // CORREÇÃO CRÍTICA DE SEGURANÇA: Passar o userId diretamente para o método de busca
+      console.log(`[SEGURANÇA ESTRITA] Verificando se fornecedor ID ${fornecedorId} pertence ao usuário ${userId}`);
+      const fornecedor = await storage.getFornecedor(fornecedorId, empresaId, userId);
       
       if (!fornecedor) {
+        console.log(`[SEGURANÇA] Fornecedor ID: ${fornecedorId} não encontrado ou não pertence ao usuário ${userId}`);
         return res.status(404).json({ message: "Fornecedor não encontrado" });
       }
       
-      // ISOLAMENTO ESTRITO - verificar se o fornecedor pertence ao usuário
+      // Verificação redundante para garantir segurança absoluta
       if (fornecedor.userId !== userId) {
         console.log(`[SEGURANÇA - TENTATIVA NEGADA] Usuário ${user.username} (ID: ${userId}) tentou acessar fornecedor ID: ${fornecedorId} que pertence ao usuário ID: ${fornecedor.userId}`);
         return res.status(403).json({ 
@@ -1206,13 +1210,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const empresaId = user.empresaId;
-      const supplier = await storage.getSupplier(supplierId, empresaId);
+      
+      // CORREÇÃO CRÍTICA DE SEGURANÇA: Passar o userId diretamente para o método de busca
+      console.log(`[SEGURANÇA ESTRITA] Verificando se supplier ID ${supplierId} pertence ao usuário ${userId}`);
+      const supplier = await storage.getSupplier(supplierId, empresaId, userId);
       
       if (!supplier) {
+        console.log(`[SEGURANÇA] Supplier ID: ${supplierId} não encontrado ou não pertence ao usuário ${userId}`);
         return res.status(404).json({ message: "Supplier não encontrado" });
       }
       
-      // ISOLAMENTO ESTRITO - verificar se o supplier pertence ao usuário
+      // Verificação redundante para garantir segurança absoluta
       if (supplier.userId !== userId) {
         console.log(`[SEGURANÇA - TENTATIVA NEGADA] Usuário ${user.username} (ID: ${userId}) tentou acessar supplier ID: ${supplierId} que pertence ao usuário ID: ${supplier.userId}`);
         return res.status(403).json({ 

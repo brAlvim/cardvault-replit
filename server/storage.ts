@@ -1556,14 +1556,29 @@ class DatabaseStorage implements IStorage {
     return results;
   }
 
-  async getFornecedor(id: number, empresaId?: number): Promise<Fornecedor | undefined> {
+  async getFornecedor(id: number, empresaId?: number, userId?: number): Promise<Fornecedor | undefined> {
+    console.log(`[SEGURANÇA CRÍTICA] getFornecedor chamado com ID: ${id}, empresaId: ${empresaId}, userId: ${userId || 'não especificado'}`);
+    
     let query = db.select().from(fornecedores).where(eq(fornecedores.id, id));
+    
+    // CORREÇÃO CRÍTICA DE SEGURANÇA: Aplicar isolamento de dados por usuário
+    if (userId) {
+      console.log(`[ISOLAMENTO ESTRITO] Aplicando filtro de isolamento por userId: ${userId}`);
+      query = query.where(eq(fornecedores.userId, userId));
+    }
     
     if (empresaId) {
       query = query.where(eq(fornecedores.empresaId, empresaId));
     }
     
     const [fornecedor] = await query;
+    
+    if (fornecedor) {
+      console.log(`[AUDITORIA - STORAGE] Fornecedor ID: ${id} encontrado, pertence ao usuário ${fornecedor.userId}`);
+    } else {
+      console.log(`[AUDITORIA - STORAGE] Fornecedor ID: ${id} não encontrado com os filtros aplicados`);
+    }
+    
     return fornecedor;
   }
 
@@ -1617,14 +1632,29 @@ class DatabaseStorage implements IStorage {
     return await query;
   }
 
-  async getSupplier(id: number, empresaId?: number): Promise<Supplier | undefined> {
+  async getSupplier(id: number, empresaId?: number, userId?: number): Promise<Supplier | undefined> {
+    console.log(`[SEGURANÇA CRÍTICA] getSupplier chamado com ID: ${id}, empresaId: ${empresaId}, userId: ${userId || 'não especificado'}`);
+    
     let query = db.select().from(suppliers).where(eq(suppliers.id, id));
+    
+    // CORREÇÃO CRÍTICA DE SEGURANÇA: Aplicar isolamento de dados por usuário
+    if (userId) {
+      console.log(`[ISOLAMENTO ESTRITO] Aplicando filtro de isolamento por userId: ${userId} em getSupplier`);
+      query = query.where(eq(suppliers.userId, userId));
+    }
     
     if (empresaId) {
       query = query.where(eq(suppliers.empresaId, empresaId));
     }
     
     const [supplier] = await query;
+    
+    if (supplier) {
+      console.log(`[AUDITORIA - STORAGE] Supplier ID: ${id} encontrado, pertence ao usuário ${supplier.userId}`);
+    } else {
+      console.log(`[AUDITORIA - STORAGE] Supplier ID: ${id} não encontrado com os filtros aplicados`);
+    }
+    
     return supplier;
   }
 
