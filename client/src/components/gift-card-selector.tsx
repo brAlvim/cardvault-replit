@@ -138,20 +138,29 @@ export default function GiftCardSelector({ onGiftCardSelected, initialSelectedCa
         // Define o fornecedor deste card como selecionado
         setSelectedFornecedorId(card.fornecedorId);
         
-        // Seleciona o card
-        const fornecedor = fornecedores.find(f => f.id === card.fornecedorId);
-        const newGiftCard: SelectedGiftCard = {
-          id: card.id,
-          codigo: card.codigo,
-          saldoAtual: card.saldoAtual,
-          fornecedorNome: fornecedor?.nome
-        };
-        
-        setSelectedGiftCards([newGiftCard]);
-        onGiftCardSelected([newGiftCard]);
+        try {
+          // Seleciona o card
+          const fornecedor = fornecedores.find(f => f.id === card.fornecedorId);
+          const newGiftCard: SelectedGiftCard = {
+            id: card.id,
+            codigo: card.codigo,
+            saldoAtual: card.saldoAtual,
+            fornecedorNome: fornecedor?.nome || 'Fornecedor não identificado'
+          };
+          
+          setSelectedGiftCards([newGiftCard]);
+          onGiftCardSelected([newGiftCard]);
+        } catch (error) {
+          console.error("Erro ao selecionar gift card inicial:", error);
+          toast({
+            title: "Erro ao selecionar gift card",
+            description: "Não foi possível carregar os dados do gift card selecionado",
+            variant: "destructive",
+          });
+        }
       }
     }
-  }, [initialSelectedCard, giftCards, fornecedores, selectedGiftCards, onGiftCardSelected]);
+  }, [initialSelectedCard, giftCards, fornecedores, selectedGiftCards, onGiftCardSelected, toast]);
 
   // Filtrar cards pelo fornecedor selecionado
   const filteredGiftCards = selectedFornecedorId
@@ -353,7 +362,7 @@ export default function GiftCardSelector({ onGiftCardSelected, initialSelectedCa
                           id: card.id,
                           codigo: card.codigo,
                           saldoAtual: card.saldoAtual,
-                          fornecedorNome: fornecedor?.nome
+                          fornecedorNome: fornecedor?.nome || 'Fornecedor não identificado'
                         };
                         
                         const updatedCards = [...selectedGiftCards, newCard];

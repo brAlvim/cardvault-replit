@@ -271,9 +271,18 @@ export default function FornecedoresPage() {
       });
     },
     onError: (error: any) => {
+      // Mensagens mais amigáveis para erros comuns
+      let description = error.message || "Ocorreu um erro ao alterar o status do fornecedor.";
+      
+      if (description.includes("permissão")) {
+        description = "Seu perfil atual não tem permissão para ativar ou desativar fornecedores. Entre em contato com um administrador.";
+      } else if (description.includes("401") || description.includes("autenticação")) {
+        description = "Sua sessão expirou. Por favor, faça login novamente para continuar.";
+      }
+      
       toast({
         title: "Erro ao alterar status do fornecedor",
-        description: error.message || "Ocorreu um erro ao alterar o status do fornecedor.",
+        description: description,
         variant: "destructive",
       });
     },
