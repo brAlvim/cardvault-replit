@@ -107,14 +107,18 @@ export default function SuppliersPage() {
 
   // Mutação para criar novos suppliers
   const createSupplierMutation = useMutation({
-    mutationFn: (newSupplier: SupplierFormValues) => {
-      return apiRequest("POST", "/api/suppliers", newSupplier)
-        .then(res => {
-          if (!res.ok) {
-            throw new Error("Falha ao criar o supplier");
-          }
-          return res.json();
-        });
+    mutationFn: async (newSupplier: SupplierFormValues) => {
+      const res = await apiRequest("POST", "/api/suppliers", newSupplier);
+      
+      // Verificar explicitamente códigos de resposta
+      if (res.status === 403) {
+        throw new Error("Você não tem permissão para criar fornecedores");
+      } else if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "Falha ao criar o fornecedor");
+      }
+      
+      return res.json();
     },
     onSuccess: () => {
       toast({
@@ -136,14 +140,18 @@ export default function SuppliersPage() {
 
   // Mutação para atualizar suppliers
   const updateSupplierMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: SupplierFormValues }) => {
-      return apiRequest("PUT", `/api/suppliers/${id}`, data)
-        .then(res => {
-          if (!res.ok) {
-            throw new Error("Falha ao atualizar o supplier");
-          }
-          return res.json();
-        });
+    mutationFn: async ({ id, data }: { id: number; data: SupplierFormValues }) => {
+      const res = await apiRequest("PUT", `/api/suppliers/${id}`, data);
+      
+      // Verificar explicitamente códigos de resposta
+      if (res.status === 403) {
+        throw new Error("Você não tem permissão para modificar este fornecedor");
+      } else if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "Falha ao atualizar o fornecedor");
+      }
+      
+      return res.json();
     },
     onSuccess: () => {
       toast({
@@ -166,14 +174,18 @@ export default function SuppliersPage() {
 
   // Mutação para excluir suppliers
   const deleteSupplierMutation = useMutation({
-    mutationFn: (id: number) => {
-      return apiRequest("DELETE", `/api/suppliers/${id}`)
-        .then(res => {
-          if (!res.ok) {
-            throw new Error("Falha ao excluir o supplier");
-          }
-          return res;
-        });
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("DELETE", `/api/suppliers/${id}`);
+      
+      // Verificar explicitamente códigos de resposta
+      if (res.status === 403) {
+        throw new Error("Você não tem permissão para excluir este fornecedor");
+      } else if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "Falha ao excluir o fornecedor");
+      }
+      
+      return res.json();
     },
     onSuccess: () => {
       toast({

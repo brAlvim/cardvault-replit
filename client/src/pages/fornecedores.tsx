@@ -215,8 +215,18 @@ export default function FornecedoresPage() {
 
   // Mutation para excluir fornecedor
   const deleteFornecedorMutation = useMutation({
-    mutationFn: (id: number) => {
-      return apiRequest("DELETE", `/api/fornecedores/${id}`);
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("DELETE", `/api/fornecedores/${id}`);
+      
+      // Verificar explicitamente códigos de resposta
+      if (res.status === 403) {
+        throw new Error("Você não tem permissão para excluir este fornecedor");
+      } else if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "Falha ao excluir o fornecedor");
+      }
+      
+      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/fornecedores`] });
