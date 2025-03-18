@@ -69,7 +69,7 @@ export default function GiftCardSelector({ onGiftCardSelected, initialSelectedCa
   const { toast } = useToast(); // Para mensagens de feedback ao usuário
 
   // Carregar fornecedores
-  const { data: fornecedores = [], isError: isFornecedoresError } = useQuery<Fornecedor[]>({
+  const { data: fornecedoresData = [], isError: isFornecedoresError } = useQuery<Fornecedor[]>({
     queryKey: ['/api/fornecedores'],
     queryFn: async () => {
       try {
@@ -97,6 +97,9 @@ export default function GiftCardSelector({ onGiftCardSelected, initialSelectedCa
       }
     },
   });
+  
+  // Garantir que fornecedores é sempre um array
+  const fornecedores = Array.isArray(fornecedoresData) ? fornecedoresData : [];
 
   // Carregar gift cards
   const { data: giftCards = [], isError: isGiftCardsError } = useQuery<GiftCard[]>({
