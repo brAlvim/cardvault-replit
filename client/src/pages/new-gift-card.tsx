@@ -113,12 +113,18 @@ export default function NewGiftCardPage() {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch fornecedores for dropdown
+  // Fetch fornecedores for dropdown - usando o token diretamente do localStorage
   const { data: fornecedores = [], isLoading: isLoadingFornecedores } = useQuery<Fornecedor[]>({
     queryKey: ['/api/fornecedores'],
     queryFn: async () => {
       try {
-        const response = await apiRequest('GET', '/api/fornecedores');
+        // Obter token JWT do localStorage
+        const token = localStorage.getItem('auth_token');
+        
+        // Configurar headers com token de autenticação
+        const headers: HeadersInit = token ? { 'Authorization': `Bearer ${token}` } : {};
+        
+        const response = await fetch('/api/fornecedores', { headers });
         
         if (!response.ok) {
           console.error('Failed to fetch fornecedores:', response.statusText);
@@ -133,12 +139,18 @@ export default function NewGiftCardPage() {
     },
   });
   
-  // Fetch suppliers (fornecedores de gift cards)
+  // Fetch suppliers (fornecedores de gift cards) - usando o token diretamente do localStorage
   const { data: suppliers = [], isLoading: isLoadingSuppliers } = useQuery<Supplier[]>({
     queryKey: ['/api/suppliers'],
     queryFn: async () => {
       try {
-        const response = await apiRequest('GET', '/api/suppliers');
+        // Obter token JWT do localStorage
+        const token = localStorage.getItem('auth_token');
+        
+        // Configurar headers com token de autenticação
+        const headers: HeadersInit = token ? { 'Authorization': `Bearer ${token}` } : {};
+        
+        const response = await fetch('/api/suppliers', { headers });
         
         if (!response.ok) {
           console.error('Failed to fetch suppliers:', response.statusText);
