@@ -393,10 +393,6 @@ export default function GiftCardDetailsPage() {
                 <Receipt className="h-4 w-4 mr-1" />
                 Ver Detalhes
               </Button>
-              <Button onClick={() => setShowTransactionDialog(true)} size="sm">
-                <Plus className="h-4 w-4 mr-1" />
-                Nova Transação
-              </Button>
             </div>
           </div>
         </CardHeader>
@@ -437,13 +433,7 @@ export default function GiftCardDetailsPage() {
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <Receipt className="h-12 w-12 text-muted-foreground/50 mb-3" />
               <p className="text-muted-foreground">Nenhuma transação registrada para este gift card</p>
-              <Button 
-                onClick={() => setShowTransactionDialog(true)} 
-                variant="outline" 
-                className="mt-4"
-              >
-                Registrar primeira transação
-              </Button>
+              {/* Botão removido */}
             </div>
           )}
         </CardContent>
@@ -457,11 +447,6 @@ export default function GiftCardDetailsPage() {
         >
           <Edit className="h-4 w-4 mr-1" />
           Editar Gift Card
-        </Button>
-        
-        <Button variant="outline">
-          <Share2 className="h-4 w-4 mr-1" />
-          Compartilhar
         </Button>
       </div>
       
