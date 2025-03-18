@@ -1688,34 +1688,52 @@ class DatabaseStorage implements IStorage {
       return []; // Retornar array vazio se não houver userId - bloqueio de segurança
     }
     
-    // Aplicar filtro primário obrigatório por userId para evitar vazamento de dados
-    let query = db.select().from(giftCards).where(eq(giftCards.userId, userId));
-    
-    if (fornecedorId) {
-      console.log(`[AUDITORIA - STORAGE] Aplicando filtro adicional por fornecedorId: ${fornecedorId}`);
-      query = query.where(eq(giftCards.fornecedorId, fornecedorId));
+    try {
+      // Preparar as condições de filtro
+      let conditions = [eq(giftCards.userId, userId)];
+      
+      // Adicionar filtro de fornecedor se especificado
+      if (fornecedorId) {
+        console.log(`[AUDITORIA - STORAGE] Aplicando filtro adicional por fornecedorId: ${fornecedorId}`);
+        conditions.push(eq(giftCards.fornecedorId, fornecedorId));
+      }
+      
+      // Adicionar filtro de empresa se especificado
+      if (empresaId) {
+        console.log(`[AUDITORIA - STORAGE] Aplicando filtro adicional por empresaId: ${empresaId}`);
+        conditions.push(eq(giftCards.empresaId, empresaId));
+      }
+      
+      // Aplicar todas as condições de uma vez usando and()
+      const query = db.select()
+        .from(giftCards)
+        .where(and(...conditions))
+        .orderBy(desc(giftCards.createdAt));
+      
+      const results = await query;
+      console.log(`[AUDITORIA - STORAGE] getGiftCards retornou ${results.length} registros para o usuário ${userId}`);
+      
+      // SEGURANÇA: Verificação dupla para garantir que todos os registros pertencem ao usuário
+      const filteredResults = results.filter(card => card.userId === userId);
+      
+      // Se houver discrepância, emitir alerta de segurança
+      if (filteredResults.length !== results.length) {
+        console.error(`[ALERTA DE SEGURANÇA] Detectada discrepância! Filtro SQL retornou ${results.length} cards, mas apenas ${filteredResults.length} pertencem ao usuário ${userId}`);
+        console.error(`[SEGURANÇA] IDs dos gift cards na discrepância: ${results.filter(card => card.userId !== userId).map(card => card.id).join(', ')}`);
+      }
+      
+      console.log(`[SEGURANÇA] Encontrados ${filteredResults.length} gift cards do usuário ${userId}`);
+      if (filteredResults.length > 0) {
+        console.log(`[SEGURANÇA] IDs dos gift cards: ${filteredResults.map(card => card.id).join(', ')}`);
+      } else {
+        console.log(`[SEGURANÇA] IDs dos gift cards: nenhum`);
+      }
+      
+      return filteredResults; // Retornar apenas dados que pertencem ao usuário autenticado
+    } catch (error) {
+      console.error(`[ERRO CRÍTICO] Falha ao buscar gift cards: ${error}`);
+      return []; // Em caso de erro, retornar array vazio para evitar vazamento de dados
     }
-    
-    if (empresaId) {
-      console.log(`[AUDITORIA - STORAGE] Aplicando filtro adicional por empresaId: ${empresaId}`);
-      query = query.where(eq(giftCards.empresaId, empresaId));
-    }
-    
-    // Ordenar por data de cadastro (mais recentes primeiro)
-    query = query.orderBy(desc(giftCards.createdAt));
-    
-    const results = await query;
-    console.log(`[AUDITORIA - STORAGE] getGiftCards retornou ${results.length} registros para o usuário ${userId}`);
-    
-    // Verificação ADICIONAL de segurança: filtrar explicitamente pelo userId novamente
-    const filteredResults = results.filter(card => card.userId === userId);
-    
-    // Se houver discrepância, emitir alerta de segurança
-    if (filteredResults.length !== results.length) {
-      console.error(`[ALERTA DE SEGURANÇA] Detectada discrepância! Filtro SQL retornou ${results.length} cards, mas apenas ${filteredResults.length} pertencem ao usuário ${userId}`);
-    }
-    
-    return filteredResults; // Retornar apenas dados que pertencem ao usuário autenticado
   }
 
   async getGiftCardsByEmpresa(empresaId: number, userId?: number): Promise<GiftCard[]> {
