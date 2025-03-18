@@ -130,9 +130,22 @@ export default function SuppliersPage() {
       form.reset();
     },
     onError: (error: any) => {
+      // Mensagens mais amigáveis para erros de criação
+      let description = error.message || "Ocorreu um erro ao criar o fornecedor.";
+      
+      if (description.includes("permissão")) {
+        description = "Seu perfil atual não tem permissão para criar fornecedores. Entre em contato com um administrador.";
+      } else if (description.includes("já existe")) {
+        description = "Já existe um fornecedor com este nome. Por favor, use um nome diferente.";
+      } else if (description.includes("campos obrigatórios")) {
+        description = "Por favor, preencha todos os campos obrigatórios antes de salvar.";
+      } else if (description.includes("401") || description.includes("autenticação")) {
+        description = "Sua sessão expirou. Por favor, faça login novamente para continuar.";
+      }
+      
       toast({
-        title: "Erro ao criar supplier",
-        description: error.message,
+        title: "Erro ao criar fornecedor",
+        description: description,
         variant: "destructive",
       });
     },
@@ -164,9 +177,24 @@ export default function SuppliersPage() {
       form.reset();
     },
     onError: (error: any) => {
+      // Mensagens mais amigáveis para erros de atualização
+      let description = error.message || "Ocorreu um erro ao atualizar o fornecedor.";
+      
+      if (description.includes("permissão")) {
+        description = "Seu perfil atual não tem permissão para editar fornecedores. Entre em contato com um administrador.";
+      } else if (description.includes("já existe")) {
+        description = "Já existe um fornecedor com este nome. Por favor, use um nome diferente.";
+      } else if (description.includes("campos obrigatórios")) {
+        description = "Por favor, preencha todos os campos obrigatórios antes de salvar.";
+      } else if (description.includes("401") || description.includes("autenticação")) {
+        description = "Sua sessão expirou. Por favor, faça login novamente para continuar.";
+      } else if (description.includes("403")) {
+        description = "Acesso negado. Você não tem permissão para esta ação.";
+      }
+      
       toast({
-        title: "Erro ao atualizar supplier",
-        description: error.message,
+        title: "Erro ao atualizar fornecedor",
+        description: description,
         variant: "destructive",
       });
     },
@@ -197,9 +225,20 @@ export default function SuppliersPage() {
       setSupplierToDelete(null);
     },
     onError: (error: any) => {
+      // Mensagens mais amigáveis para erros de exclusão
+      let description = error.message || "Ocorreu um erro ao excluir o fornecedor.";
+      
+      if (description.includes("permissão")) {
+        description = "Seu perfil atual não tem permissão para excluir fornecedores. Entre em contato com um administrador.";
+      } else if (description.includes("gift card") || description.includes("associado")) {
+        description = "Este fornecedor possui gift cards associados e não pode ser excluído. Remova os gift cards primeiro.";
+      } else if (description.includes("403")) {
+        description = "Acesso negado. Você não tem permissão para esta ação.";
+      }
+      
       toast({
-        title: "Erro ao excluir supplier",
-        description: error.message,
+        title: "Erro ao excluir fornecedor",
+        description: description,
         variant: "destructive",
       });
     },
@@ -228,9 +267,22 @@ export default function SuppliersPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/suppliers"] });
     },
     onError: (error: any) => {
+      // Mensagens mais amigáveis para erros comuns
+      let description = error.message || "Ocorreu um erro ao atualizar o status do fornecedor.";
+      
+      if (description.includes("permissão")) {
+        description = "Seu perfil atual não tem permissão para ativar ou desativar fornecedores. Entre em contato com um administrador.";
+      } else if (description.includes("401") || description.includes("autenticação")) {
+        description = "Sua sessão expirou. Por favor, faça login novamente para continuar.";
+      } else if (description.includes("403")) {
+        description = "Acesso negado. Você não tem permissão para esta ação.";
+      } else if (description.includes("404")) {
+        description = "Fornecedor não encontrado. A página pode ter sido atualizada.";
+      }
+      
       toast({
         title: "Erro ao atualizar status",
-        description: error.message,
+        description: description,
         variant: "destructive",
       });
     },
