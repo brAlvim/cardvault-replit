@@ -1880,9 +1880,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      if (req.body.empresaId) {
-        transacaoObj.empresaId = parseInt(req.body.empresaId);
-      }
+      // SEGURANÇA: Nunca usar empresaId enviado pelo cliente, sempre usar do token JWT
+      // Isso evita manipulação do ID da empresa na criação de transações
+      // if (req.body.empresaId) {
+      //   transacaoObj.empresaId = parseInt(req.body.empresaId);
+      // }
+      
+      // CRÍTICO: Garante que a transação sempre pertence à empresa do usuário logado
+      transacaoObj.empresaId = user.empresaId;
       
       // Inclui campos opcionais se presentes
       if (req.body.comprovante) transacaoObj.comprovante = req.body.comprovante;
