@@ -2023,22 +2023,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Rota para collections (usado pelo sidebar)
   // Esta rota retorna apenas os fornecedores ativos
-  router.get("/collections", async (req: Request, res: Response) => {
+  // Adicionado middleware requireAuth para garantir autenticação
+  router.get("/collections", requireAuth, async (req: Request, res: Response) => {
     try {
-      // Se userId não for fornecido, retorna todos os fornecedores (userId 1 é demo)
-      let userId = 1;
-      
-      if (req.query.userId) {
-        userId = parseInt(req.query.userId as string);
-        if (isNaN(userId)) {
-          return res.status(400).json({ message: "Invalid user ID format" });
-        }
+      // Verificar se o usuário está autenticado
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
       }
       
-      // Filtra por empresa se especificada
-      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      // Usar sempre o ID do usuário autenticado - isolamento estrito de dados
+      const userId = user.id;
       
-      const fornecedores = await storage.getFornecedores(userId, empresaId);
+      // Usar sempre a empresa do usuário autenticado para garantir isolamento
+      const empresaId = user.empresaId;
+      
+      console.log(`[SEGURANÇA] Requisição /collections de usuário ${user.username} (ID: ${userId}) da empresa ID: ${empresaId}`);
+      
+      // Carregar os fornecedores com isolamento de dados
+      let fornecedores: Fornecedor[] = [];
+      
+      if (user.perfilId === 1) {
+        // Administradores podem ver todos os fornecedores da empresa
+        fornecedores = await storage.getFornecedoresByEmpresa(empresaId);
+      } else if (user.perfilId === 2) {
+        // Gerentes podem ver todos os fornecedores da empresa deles
+        fornecedores = await storage.getFornecedoresByEmpresa(empresaId);
+      } else {
+        // Usuários normais e convidados só veem os fornecedores que eles criaram
+        fornecedores = await storage.getFornecedores(userId, empresaId);
+      }
       
       // Filtrar para retornar apenas fornecedores ativos
       const fornecedoresAtivos = fornecedores.filter(f => f.status === "ativo");
@@ -2050,6 +2064,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logo: f.logo,
         empresaId: f.empresaId // Inclui o empresaId para facilitar futuras filtragens
       }));
+      
+      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${userId}) consultou collections (${collections.length} resultados)`);
       
       res.json(collections);
     } catch (error) {
