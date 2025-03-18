@@ -502,10 +502,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // CORREÇÃO CRÍTICA: Buscar APENAS fornecedores do próprio usuário
-      // Chamada direta ao banco para garantir isolamento total
-      const fornecedores = await db.select().from(schema.fornecedores)
-        .where(eq(schema.fornecedores.userId, userId))
-        .where(eq(schema.fornecedores.empresaId, empresaId));
+      // Utilizando o método de storage que já implementa o isolamento
+      const fornecedores = await storage.getFornecedores(userId, empresaId);
       
       console.log(`[SEGURANÇA] Fornecedores do usuário ${userId} encontrados: ${fornecedores.length}`);
       
@@ -525,8 +523,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         (gc.gcNumber && gc.gcNumber.toLowerCase().includes(searchTerm.toLowerCase()))
       );
 
-      // Buscar em transações
-      const transacoes = await storage.getTransacoesByEmpresa(empresaId);
+      // Buscar em transações - RESTRITO aos gift cards do usuário
+      // Em vez de buscar todas as transações da empresa, primeiro obtemos os gift cards do usuário
+      // e depois buscamos apenas as transações relacionadas a esses gift cards
+      const userGiftCards = await storage.getGiftCards(userId, undefined, empresaId);
+      const userGiftCardIds = userGiftCards.map(gc => gc.id);
+      
+      // Buscar APENAS transações relacionadas aos gift cards do próprio usuário
+      // Se não houver gift cards, retorna array vazio
+      let transacoes: Transacao[] = [];
+      if (userGiftCardIds.length > 0) {
+        // Para cada gift card do usuário, buscar suas transações
+        const transacoesPromises = userGiftCardIds.map(gcId => 
+          storage.getTransacoes(gcId, empresaId)
+        );
+        
+        // Combinar os resultados
+        const transacoesArrays = await Promise.all(transacoesPromises);
+        transacoes = transacoesArrays.flat();
+        
+        // Adicionar log de segurança
+        console.log(`[SEGURANÇA] Buscando transações APENAS para os gift cards do usuário ${userId}. Gift cards encontrados: ${userGiftCardIds.length}, transações encontradas: ${transacoes.length}`);
+      } else {
+        console.log(`[SEGURANÇA] Usuário ${userId} não possui gift cards, nenhuma transação será mostrada.`);
+      }
+      
+      // Filtrar as transações pelo termo de busca
       const matchingTransacoes = transacoes.filter(t => 
         t.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (t.ordemCompra && t.ordemCompra.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -2544,7 +2566,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // IMPLEMENTAÇÃO DE SEGURANÇA RIGOROSA:
       // 1. Chamar diretamente getFornecedores que já tem filtro por userId e empresaId
-      const fornecedores = await storage.getFornecedores(userId, empresaId);
+      let fornecedores = await storage.getFornecedores(userId, empresaId);
+      
+      // TRIPLA VERIFICAÇÃO DE SEGURANÇA: Filtrar explicitamente para garantir que apenas
+      // dados do usuário logado sejam retornados, mesmo se houver falha em outro nível
+      fornecedores = fornecedores.filter(f => f.userId === userId);
       
       console.log(`[SEGURANÇA CRÍTICA] Fornecedores encontrados para userId=${userId}: ${fornecedores.length}`);
       console.log(`[SEGURANÇA CRÍTICA] IDs de fornecedores acessíveis: ${fornecedores.map(f => f.id).join(', ')}`);

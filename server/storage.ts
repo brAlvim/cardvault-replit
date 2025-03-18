@@ -1536,13 +1536,24 @@ class DatabaseStorage implements IStorage {
   
   // Fornecedor methods (substitui Collection)
   async getFornecedores(userId: number, empresaId?: number): Promise<Fornecedor[]> {
+    console.log(`[AUDITORIA - STORAGE] getFornecedores chamado com userId: ${userId}, empresaId: ${empresaId}`);
+    
+    // ISOLAMENTO CRÍTICO: Sempre requerer userId como filtro obrigatório
+    if (!userId) {
+      console.error(`[SEGURANÇA CRÍTICA] Tentativa de acesso sem userId`);
+      return []; // Retornar array vazio se não houver userId - bloqueio de segurança
+    }
+    
     let query = db.select().from(fornecedores).where(eq(fornecedores.userId, userId));
     
     if (empresaId) {
       query = query.where(eq(fornecedores.empresaId, empresaId));
     }
     
-    return await query;
+    const results = await query;
+    console.log(`[AUDITORIA - STORAGE] getFornecedores retornou ${results.length} registros`);
+    
+    return results;
   }
 
   async getFornecedor(id: number, empresaId?: number): Promise<Fornecedor | undefined> {
