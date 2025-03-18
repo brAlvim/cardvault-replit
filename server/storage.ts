@@ -1680,20 +1680,42 @@ class DatabaseStorage implements IStorage {
 
   // Gift Card methods (substitui Card)
   async getGiftCards(userId: number, fornecedorId?: number, empresaId?: number): Promise<GiftCard[]> {
+    console.log(`[AUDITORIA - STORAGE] getGiftCards chamado com userId: ${userId}, fornecedorId: ${fornecedorId || 'não informado'}, empresaId: ${empresaId || 'não informado'}`);
+    
+    // ISOLAMENTO CRÍTICO: Sempre requerer userId como filtro obrigatório
+    if (!userId) {
+      console.error(`[SEGURANÇA CRÍTICA] Tentativa de acesso a gift cards sem userId!`);
+      return []; // Retornar array vazio se não houver userId - bloqueio de segurança
+    }
+    
+    // Aplicar filtro primário obrigatório por userId para evitar vazamento de dados
     let query = db.select().from(giftCards).where(eq(giftCards.userId, userId));
     
     if (fornecedorId) {
+      console.log(`[AUDITORIA - STORAGE] Aplicando filtro adicional por fornecedorId: ${fornecedorId}`);
       query = query.where(eq(giftCards.fornecedorId, fornecedorId));
     }
     
     if (empresaId) {
+      console.log(`[AUDITORIA - STORAGE] Aplicando filtro adicional por empresaId: ${empresaId}`);
       query = query.where(eq(giftCards.empresaId, empresaId));
     }
     
     // Ordenar por data de cadastro (mais recentes primeiro)
     query = query.orderBy(desc(giftCards.createdAt));
     
-    return await query;
+    const results = await query;
+    console.log(`[AUDITORIA - STORAGE] getGiftCards retornou ${results.length} registros para o usuário ${userId}`);
+    
+    // Verificação ADICIONAL de segurança: filtrar explicitamente pelo userId novamente
+    const filteredResults = results.filter(card => card.userId === userId);
+    
+    // Se houver discrepância, emitir alerta de segurança
+    if (filteredResults.length !== results.length) {
+      console.error(`[ALERTA DE SEGURANÇA] Detectada discrepância! Filtro SQL retornou ${results.length} cards, mas apenas ${filteredResults.length} pertencem ao usuário ${userId}`);
+    }
+    
+    return filteredResults; // Retornar apenas dados que pertencem ao usuário autenticado
   }
 
   async getGiftCardsByEmpresa(empresaId: number, userId?: number): Promise<GiftCard[]> {
