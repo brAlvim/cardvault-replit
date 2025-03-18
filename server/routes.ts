@@ -775,28 +775,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Usuário não autenticado" });
       }
       
-      // Usar apenas o ID do usuário autenticado - isolamento estrito de dados
+      // ISOLAMENTO ESTRITO DE DADOS - VERSÃO 2.0
+      // NENHUM usuário pode ver os suppliers de outros usuários, nem mesmo administradores
       const userId = user.id;
       
-      // Usar apenas a empresa do usuário autenticado para garantir isolamento
-      const empresaId = user.empresaId;
+      console.log(`[SEGURANÇA] Requisição GET /suppliers de usuário ${user.username} (ID: ${userId})`);
       
-      // PATCH DE SEGURANÇA CRÍTICA: ISOLAMENTO ESTRITO DE DADOS POR USUÁRIO
-      // Todos os usuários SÓ PODEM VER OS SUPPLIERS QUE ELES MESMOS CRIARAM
-      // Independentemente do tipo de perfil, só mostrar dados criados pelo próprio usuário
-      console.log(`[SEGURANÇA CRÍTICA] Aplicando isolamento estrito de dados para o usuário ${user.username} (ID: ${userId})`);
+      // Se qualquer usuário tentar acessar dados de outro usuário, bloquear imediatamente
+      if (req.query.userId) {
+        const requestedUserId = parseInt(req.query.userId as string);
+        if (isNaN(requestedUserId) || requestedUserId !== userId) {
+          console.log(`[SEGURANÇA - ISOLAMENTO TOTAL] Usuário ${user.username} (ID: ${userId}) tentou acessar dados do usuário ID: ${requestedUserId}`);
+          console.log(`[SEGURANÇA - TENTATIVA NEGADA] Bloqueando acesso - Ninguém pode ver os dados de outro usuário`);
+          return res.status(403).json({ 
+            message: "Você não tem permissão para acessar os suppliers de outros usuários" 
+          });
+        }
+      }
+      
+      // Ignorar qualquer parâmetro de empresaId que não corresponda à empresa do usuário
+      if (req.query.empresaId) {
+        const requestedEmpresaId = parseInt(req.query.empresaId as string);
+        if (isNaN(requestedEmpresaId) || requestedEmpresaId !== user.empresaId) {
+          console.log(`[SEGURANÇA - TENTATIVA NEGADA] Usuário ${user.username} (ID: ${userId}) tentou acessar dados da empresa ID: ${requestedEmpresaId}`);
+          return res.status(403).json({ 
+            message: "Você não tem permissão para acessar dados de outras empresas" 
+          });
+        }
+      }
+      
+      // Usar APENAS o ID do usuário autenticado - sem exceções
+      console.log(`[SEGURANÇA - ISOLAMENTO TOTAL] Aplicando isolamento estrito para ${user.username} (ID: ${userId})`);
       
       // Forçar sempre usar apenas o ID do usuário autenticado para buscar suppliers
+      const empresaId = user.empresaId;
       let suppliers: Supplier[] = await storage.getSuppliers(userId, empresaId);
       
-      console.log(`[SEGURANÇA CRÍTICA] Suppliers encontrados após isolamento de segurança: ${suppliers.length}`);
-      console.log(`[SEGURANÇA CRÍTICA] IDs de suppliers acessíveis para o usuário: ${suppliers.map(s => s.id).join(', ')}`);
+      // CORREÇÃO DE SEGURANÇA CRÍTICA: Filtrar explicitamente pelo userId
+      // Isso garante que mesmo se houver algum erro no storage, ainda teremos esse filtro
+      suppliers = suppliers.filter(supplier => supplier.userId === userId);
       
-      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${user.id}) consultou a lista de suppliers (${suppliers.length} resultados)`);
+      console.log(`[SEGURANÇA] Suppliers encontrados para usuário ${userId}: ${suppliers.length}`);
+      console.log(`[SEGURANÇA] IDs dos suppliers: ${suppliers.map(s => s.id).join(', ') || 'nenhum'}`);
+      
+      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${userId}) consultou suppliers (${suppliers.length} resultados)`);
       
       res.json(suppliers);
     } catch (error) {
-      console.error("Erro ao buscar suppliers:", error);
+      console.error("[ERRO CRÍTICO] Falha ao listar suppliers:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
@@ -1024,11 +1050,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Se qualquer usuário tentar acessar dados de outro usuário, bloquear imediatamente
       if (req.query.userId) {
         const requestedUserId = parseInt(req.query.userId as string);
-        console.log(`[SEGURANÇA - ISOLAMENTO TOTAL] Usuário ${user.username} (ID: ${userId}) tentou acessar dados do usuário ID: ${requestedUserId}`);
-        console.log(`[SEGURANÇA - TENTATIVA NEGADA] Bloqueando acesso - Ninguém pode ver os dados de outro usuário`);
-        return res.status(403).json({ 
-          message: "Você não tem permissão para acessar os gift cards de outros usuários" 
-        });
+        
+        // Verificar se é um userId válido
+        if (isNaN(requestedUserId)) {
+          console.log(`[SEGURANÇA - ERRO] ID de usuário inválido na consulta: ${req.query.userId}`);
+          return res.status(400).json({ message: "ID de usuário inválido" });
+        }
+        
+        // Se o usuário tenta acessar dados de outro usuário, bloquear
+        if (requestedUserId !== userId) {
+          console.log(`[SEGURANÇA - ISOLAMENTO TOTAL] Usuário ${user.username} (ID: ${userId}) tentou acessar dados do usuário ID: ${requestedUserId}`);
+          console.log(`[SEGURANÇA - TENTATIVA NEGADA] Bloqueando acesso - Ninguém pode ver os dados de outro usuário`);
+          return res.status(403).json({ 
+            message: "Você não tem permissão para acessar os gift cards de outros usuários" 
+          });
+        }
+        
+        // Se está consultando seus próprios dados, permitir
+        console.log(`[SEGURANÇA - VALIDADO] Usuário ${user.username} (ID: ${userId}) acessando seus próprios dados`);
       }
       
       // Usar APENAS o ID do usuário autenticado - sem exceções
@@ -1280,11 +1319,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Se qualquer usuário tentar acessar dados de outro usuário, bloquear imediatamente
       if (req.params.userId) {
         const requestedUserId = parseInt(req.params.userId);
-        console.log(`[SEGURANÇA - ISOLAMENTO TOTAL] Usuário ${user.username} (ID: ${userId}) tentou acessar dados do usuário ID: ${requestedUserId}`);
-        console.log(`[SEGURANÇA - TENTATIVA NEGADA] Bloqueando acesso - Ninguém pode ver os dados de outro usuário`);
-        return res.status(403).json({ 
-          message: "Você não tem permissão para acessar os gift cards de outros usuários" 
-        });
+        
+        // Verificar se é um userId válido
+        if (isNaN(requestedUserId)) {
+          console.log(`[SEGURANÇA - ERRO] ID de usuário inválido na consulta: ${req.params.userId}`);
+          return res.status(400).json({ message: "ID de usuário inválido" });
+        }
+        
+        // Se o usuário tenta acessar dados de outro usuário, bloquear
+        if (requestedUserId !== userId) {
+          console.log(`[SEGURANÇA - ISOLAMENTO TOTAL] Usuário ${user.username} (ID: ${userId}) tentou acessar dados do usuário ID: ${requestedUserId}`);
+          console.log(`[SEGURANÇA - TENTATIVA NEGADA] Bloqueando acesso - Ninguém pode ver os dados de outro usuário`);
+          return res.status(403).json({ 
+            message: "Você não tem permissão para acessar os gift cards de outros usuários" 
+          });
+        }
+        
+        // Se está consultando seus próprios dados, permitir
+        console.log(`[SEGURANÇA - VALIDADO] Usuário ${user.username} (ID: ${userId}) acessando seus próprios dados`);
       }
       
       console.log(`[SEGURANÇA - ISOLAMENTO TOTAL] Aplicando isolamento estrito para ${user.username} (ID: ${userId})`);
@@ -1596,52 +1648,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
   router.get("/transacoes", requireAuth, async (req: Request, res: Response) => {
     try {
       // Obter o usuário autenticado
-      const user = (req as any).user;
-      
-      // Verifica se há um filtro por empresa
-      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
-      
-      if (empresaId) {
-        // Se houver empresaId, usa o método de busca específico para a empresa
-        const transacoes = await storage.getTransacoesByEmpresa(empresaId);
-        
-        // Filtrar por usuário (a menos que seja admin)
-        const filteredTransacoes = user.perfilId === 1 
-          ? transacoes // admin vê tudo
-          : transacoes.filter(t => t.userId === user.id);
-        
-        // Ordena por data decrescente (mais recentes primeiro)
-        filteredTransacoes.sort((a, b) => {
-          return new Date(b.dataTransacao).getTime() - new Date(a.dataTransacao).getTime();
-        });
-        
-        return res.json(filteredTransacoes);
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
       }
       
-      // Implementação padrão (sem filtro por empresa)
+      // ISOLAMENTO ESTRITO DE DADOS - VERSÃO 2.0
+      // NENHUM usuário pode ver as transações de outros usuários, nem mesmo administradores
+      const userId = user.id;
+      
+      console.log(`[SEGURANÇA] Requisição GET /transacoes de usuário ${user.username} (ID: ${userId})`);
+      
+      // Se qualquer usuário tentar acessar dados de outro usuário, bloquear imediatamente
+      if (req.query.userId) {
+        const requestedUserId = parseInt(req.query.userId as string);
+        
+        // Verificar se é um userId válido
+        if (isNaN(requestedUserId)) {
+          console.log(`[SEGURANÇA - ERRO] ID de usuário inválido na consulta: ${req.query.userId}`);
+          return res.status(400).json({ message: "ID de usuário inválido" });
+        }
+        
+        // Se o usuário tenta acessar dados de outro usuário, bloquear
+        if (requestedUserId !== userId) {
+          console.log(`[SEGURANÇA - ISOLAMENTO TOTAL] Usuário ${user.username} (ID: ${userId}) tentou acessar dados do usuário ID: ${requestedUserId}`);
+          console.log(`[SEGURANÇA - TENTATIVA NEGADA] Bloqueando acesso - Ninguém pode ver os dados de outro usuário`);
+          return res.status(403).json({ 
+            message: "Você não tem permissão para acessar as transações de outros usuários" 
+          });
+        }
+        
+        // Se está consultando seus próprios dados, permitir
+        console.log(`[SEGURANÇA - VALIDADO] Usuário ${user.username} (ID: ${userId}) acessando suas próprias transações`);
+      }
+      
+      // Verificar requisição para empresaId diferente da empresa do usuário
+      if (req.query.empresaId) {
+        const requestedEmpresaId = parseInt(req.query.empresaId as string);
+        
+        // Verificar se é um empresaId válido
+        if (isNaN(requestedEmpresaId)) {
+          console.log(`[SEGURANÇA - ERRO] ID de empresa inválido na consulta: ${req.query.empresaId}`);
+          return res.status(400).json({ message: "ID de empresa inválido" });
+        }
+        
+        // Forçar uso apenas da empresa do usuário
+        if (requestedEmpresaId !== user.empresaId) {
+          console.log(`[SEGURANÇA - TENTATIVA NEGADA] Usuário ${user.username} (ID: ${userId}) tentou acessar dados da empresa ID: ${requestedEmpresaId}`);
+          return res.status(403).json({ 
+            message: "Você não tem permissão para acessar dados de outras empresas" 
+          });
+        }
+      }
+      
+      console.log(`[SEGURANÇA - ISOLAMENTO TOTAL] Aplicando isolamento estrito para ${user.username} (ID: ${userId})`);
+      
+      // Implementação com isolamento total de dados
+      const empresaId = user.empresaId; // Sempre usar a empresa do usuário
       const todasTransacoes: Transacao[] = [];
       
-      // Itera por todos os gift cards para coletar suas transações
-      // Usuário atual, não mais o usuário demo fixo
-      const giftCards = await storage.getGiftCards(user.id); 
+      // Obter todos os gift cards do usuário atual (isolamento rígido)
+      const giftCards = await storage.getGiftCards(userId, undefined, empresaId);
       
-      // Incluir transações para cada gift card existente
-      for (const card of giftCards) {
+      // Filtro de segurança explícito - dupla verificação
+      const meusgiftCards = giftCards.filter(card => card.userId === userId);
+      
+      console.log(`[SEGURANÇA] Encontrados ${meusgiftCards.length} gift cards do usuário ${userId}`);
+      
+      // Coletar transações somente dos gift cards do próprio usuário
+      for (const card of meusgiftCards) {
         const transacoes = await storage.getTransacoes(card.id);
-        todasTransacoes.push(...transacoes);
+        
+        // Dupla verificação para garantir que só temos transações ligadas aos cartões do usuário
+        const transacoesSeguras = transacoes.filter(t => {
+          const cardOwner = meusgiftCards.find(c => c.id === t.giftCardId);
+          return cardOwner && cardOwner.userId === userId;
+        });
+        
+        todasTransacoes.push(...transacoesSeguras);
       }
       
-      // Também adicionar aqui qualquer outra transação geral que não esteja associada a gift cards
-      // Exemplo: registro de adição de gift cards, pagamentos, etc.
-      
-      // Ordena por data decrescente (mais recentes primeiro)
+      // Ordenar por data mais recente
       todasTransacoes.sort((a, b) => {
         return new Date(b.dataTransacao).getTime() - new Date(a.dataTransacao).getTime();
       });
       
+      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${userId}) consultou transações (${todasTransacoes.length} resultados)`);
+      
       res.json(todasTransacoes);
     } catch (error) {
-      console.error("Erro ao buscar todas as transações:", error);
+      console.error("[ERRO CRÍTICO] Falha ao buscar transações:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
