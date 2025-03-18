@@ -135,7 +135,7 @@ const transacaoFormSchema = z.object({
   giftCardIds: z.string().default(""), // IDs de gift cards separados por vírgula
   cardValores: z.string().optional(), // Valores por gift card - formato "cardId:valor,cardId:valor"
   selectedGiftCards: z.array(z.any()).optional(), // Array de gift cards selecionados
-  userId: z.coerce.number().default(1), // Temporário - seria o usuário logado
+  userId: z.coerce.number(), // ID do usuário logado - vem do token JWT
   dataTransacao: z.date().default(() => new Date()),
   comprovante: z.string().optional(),
   motivoCancelamento: z.string().optional(),
@@ -286,10 +286,21 @@ export default function TransacoesPage() {
     },
   });
   
-  // Get current user
+  // Get current user - usando o usuário autenticado
   const { data: user } = useQuery({
-    queryKey: ['/api/users', 1], // Temporário: futuro usar o ID do usuário logado
-    queryFn: () => fetch('/api/users/1').then(res => res.json()),
+    queryKey: ['/api/auth/me'],
+    queryFn: async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const headers: HeadersInit = token ? { 'Authorization': `Bearer ${token}` } : {};
+        const response = await fetch('/api/auth/me', { headers });
+        if (!response.ok) return null;
+        return await response.json();
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+        return null;
+      }
+    },
   });
 
   // Reset form when opening the dialog
@@ -616,8 +627,18 @@ export default function TransacoesPage() {
     data.cardValores = JSON.stringify(cardValores);
     
     // Adiciona o ID do usuário logado e o nome
-    data.userId = user?.id || 1;
-    data.nomeUsuario = user?.username || data.nomeUsuario || 'Usuário';
+    if (!user?.id) {
+      toast({
+        title: "Erro",
+        description: "Você precisa estar logado para realizar essa operação.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Garante que estamos usando o ID do usuário autenticado
+    data.userId = user.id;
+    data.nomeUsuario = user.username || data.nomeUsuario || 'Usuário';
     
     // Garantir que o status está definido
     if (!data.status) {
