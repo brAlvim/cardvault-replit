@@ -1811,10 +1811,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  router.post("/transacoes", async (req: Request, res: Response) => {
+  router.post("/transacoes", requireAuth, async (req: Request, res: Response) => {
     try {
-      // Log da requisição recebida
-      console.log("Recebendo transação:", JSON.stringify(req.body, null, 2));
+      // Obter usuário autenticado
+      const user = req.user;
+      if (!user) {
+        console.log(`[SEGURANÇA - ERRO] Tentativa de criação de transação sem autenticação`);
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
+      
+      // Log de segurança e auditoria
+      console.log(`[SEGURANÇA] Usuário ${user.username} (ID: ${user.id}) tentando criar transação`);
+      console.log(`[SEGURANÇA - DADOS] Recebendo transação:`, JSON.stringify(req.body, null, 2));
       
       // Extrai dados básicos do corpo da requisição
       const {
@@ -1822,29 +1830,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         descricao = "",
         giftCardId,
         giftCardIds = giftCardId ? String(giftCardId) : "",
-        userId = 1,
         status = "concluida",
-        nomeUsuario = "Usuário"
+        nomeUsuario = req.body.nomeUsuario || user.username
       } = req.body;
       
       // Validações básicas
       if (!valor || !descricao || !giftCardId) {
+        console.log(`[VALIDAÇÃO] Campos obrigatórios ausentes na requisição de ${user.username}`);
         return res.status(400).json({ 
           message: "Campos obrigatórios ausentes", 
           detalhes: "Os campos valor, descricao e giftCardId são obrigatórios" 
         });
       }
       
-      // Cria objeto de transação básico
+      // SEGURANÇA: Verificar se o gift card pertence ao usuário
+      const giftCard = await storage.getGiftCard(parseInt(giftCardId));
+      if (!giftCard) {
+        console.log(`[SEGURANÇA - ERRO] Gift card ID ${giftCardId} não encontrado`);
+        return res.status(404).json({ message: "Gift Card não encontrado" });
+      }
+      
+      // SEGURANÇA: Verificação de propriedade do recurso
+      if (giftCard.userId !== user.id || giftCard.empresaId !== user.empresaId) {
+        console.log(`[SEGURANÇA - VIOLAÇÃO] Usuário ${user.username} (ID: ${user.id}) tentou criar transação no gift card ID: ${giftCardId} que pertence ao usuário ${giftCard.userId} da empresa ${giftCard.empresaId}`);
+        return res.status(403).json({ 
+          message: "Você não tem permissão para realizar transações neste Gift Card" 
+        });
+      }
+      
+      // Cria objeto de transação básico com segurança aprimorada
       const transacaoObj = {
         valor: parseFloat(valor),
         descricao,
         giftCardId: parseInt(giftCardId || 0),
         giftCardIds: giftCardIds || String(giftCardId || ""),
-        userId: parseInt(userId || 1),
+        userId: user.id, // SEGURANÇA: Sempre usar o ID do usuário autenticado
         status,
         dataTransacao: new Date(),
-        empresaId: 1,
+        empresaId: user.empresaId, // SEGURANÇA: Sempre usar a empresa do usuário autenticado
         nomeUsuario
       };
       
@@ -2408,18 +2431,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rota para estatísticas de relatórios
   router.get("/relatorios/estatisticas", requireAuth, async (req: Request, res: Response) => {
     try {
-      const userId = parseInt(req.query.userId as string) || 1;
-      const empresaId = req.query.empresaId ? parseInt(req.query.empresaId as string) : undefined;
+      // Obter o usuário autenticado
+      const user = req.user;
+      if (!user) {
+        console.log(`[SEGURANÇA - ERRO] Tentativa de acesso a relatórios sem autenticação`);
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
       
-      // Buscar todos os gift cards do usuário ou empresa
+      // ISOLAMENTO ESTRITO DE DADOS
+      // NENHUM usuário pode ver estatísticas de outros usuários, nem mesmo administradores
+      const userId = user.id;
+      const empresaId = user.empresaId;
+      
+      console.log(`[SEGURANÇA] Requisição GET /relatorios/estatisticas de usuário ${user.username} (ID: ${userId})`);
+      
+      // Verificar requisição para userId diferente do usuário autenticado
+      if (req.query.userId) {
+        const requestedUserId = parseInt(req.query.userId as string);
+        
+        // Verificar se é um userId válido
+        if (isNaN(requestedUserId)) {
+          console.log(`[SEGURANÇA - ERRO] ID de usuário inválido na consulta: ${req.query.userId}`);
+          return res.status(400).json({ message: "ID de usuário inválido" });
+        }
+        
+        // Se o usuário tenta acessar dados de outro usuário, bloquear
+        if (requestedUserId !== userId) {
+          console.log(`[SEGURANÇA - ISOLAMENTO TOTAL] Usuário ${user.username} (ID: ${userId}) tentou acessar estatísticas do usuário ID: ${requestedUserId}`);
+          console.log(`[SEGURANÇA - TENTATIVA NEGADA] Bloqueando acesso - Ninguém pode ver os dados de outro usuário`);
+          return res.status(403).json({ 
+            message: "Você não tem permissão para acessar estatísticas de outros usuários" 
+          });
+        }
+        
+        // Se está consultando seus próprios dados, permitir
+        console.log(`[SEGURANÇA - VALIDADO] Usuário ${user.username} (ID: ${userId}) acessando suas próprias estatísticas`);
+      }
+      
+      // Verificar requisição para empresaId diferente da empresa do usuário
+      if (req.query.empresaId) {
+        const requestedEmpresaId = parseInt(req.query.empresaId as string);
+        
+        // Verificar se é um empresaId válido
+        if (isNaN(requestedEmpresaId)) {
+          console.log(`[SEGURANÇA - ERRO] ID de empresa inválido na consulta: ${req.query.empresaId}`);
+          return res.status(400).json({ message: "ID de empresa inválido" });
+        }
+        
+        // Forçar uso apenas da empresa do usuário
+        if (requestedEmpresaId !== empresaId) {
+          console.log(`[SEGURANÇA - TENTATIVA NEGADA] Usuário ${user.username} (ID: ${userId}) tentou acessar dados da empresa ID: ${requestedEmpresaId}`);
+          return res.status(403).json({ 
+            message: "Você não tem permissão para acessar dados de outras empresas" 
+          });
+        }
+      }
+      
+      console.log(`[SEGURANÇA - ISOLAMENTO TOTAL] Aplicando isolamento estrito para ${user.username} (ID: ${userId})`);
+      
+      // Buscar todos os gift cards do usuário com segurança reforçada
+      console.log(`[SEGURANÇA] Buscando gift cards para estatísticas do usuário ${userId}`);
       const giftCards = await storage.getGiftCards(userId, undefined, empresaId);
+      
+      // Aplicar filtro extra de segurança para garantir que somente dados do usuário sejam processados
+      const meusGiftCards = giftCards.filter(gc => gc.userId === userId);
+      console.log(`[SEGURANÇA] Gift cards encontrados para usuário ${userId}: ${meusGiftCards.length}`);
+      
+      // Buscar fornecedores do usuário com segurança reforçada
+      console.log(`[SEGURANÇA] Buscando fornecedores do usuário ${userId}`);
       const fornecedores = await storage.getFornecedores(userId, empresaId);
       
-      // Calcular estatísticas por fornecedor
-      const estatisticasPorFornecedor = fornecedores
+      // Aplicar filtro extra de segurança para garantir isolamento de fornecedores
+      const meusFornecedores = fornecedores.filter(f => f.userId === userId);
+      console.log(`[SEGURANÇA] Fornecedores encontrados para usuário ${userId}: ${meusFornecedores.length}`);
+      
+      // Calcular estatísticas por fornecedor com dados seguros
+      const estatisticasPorFornecedor = meusFornecedores
         .filter(f => f.status === "ativo")
         .map(fornecedor => {
-          const fornecedorGiftCards = giftCards.filter(gc => gc.fornecedorId === fornecedor.id);
+          // Usar apenas gift cards verificados do usuário
+          const fornecedorGiftCards = meusGiftCards.filter(gc => gc.fornecedorId === fornecedor.id);
           const saldoTotal = fornecedorGiftCards.reduce((sum, gc) => sum + gc.saldoAtual, 0);
           const count = fornecedorGiftCards.length;
           
@@ -2432,7 +2523,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         });
       
-      // Calcular estatísticas por mês (últimos 6 meses)
+      console.log(`[SEGURANÇA] Calculadas estatísticas para ${estatisticasPorFornecedor.length} fornecedores do usuário ${userId}`);
+      
+      // Calcular estatísticas por mês (últimos 6 meses) com dados seguros
       const hoje = new Date();
       const estatisticasPorMes = [];
       
@@ -2441,7 +2534,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const mes = data.toLocaleString('default', { month: 'short' });
         const ano = data.getFullYear();
         
-        const cardsNoMes = giftCards.filter(gc => {
+        // Usar apenas gift cards verificados do usuário
+        const cardsNoMes = meusGiftCards.filter(gc => {
           const dataGC = new Date(gc.createdAt);
           return dataGC.getMonth() === data.getMonth() && dataGC.getFullYear() === data.getFullYear();
         });
