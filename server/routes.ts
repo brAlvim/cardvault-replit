@@ -2891,22 +2891,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { codigo, empresaId } = req.params;
       
-      // Verificar se a empresa do parâmetro coincide com a empresa do usuário logado
-      const userEmpresaId = (req as any).user.empresaId || 0;
+      // Obter o usuário autenticado
+      const user = req.user;
+      if (!user) {
+        console.log(`[SEGURANÇA - ERRO] Tentativa de busca de gift cards sem autenticação`);
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
+      
+      // ISOLAMENTO ESTRITO DE DADOS
+      // NENHUM usuário pode ver gift cards de outros usuários, nem mesmo administradores
+      const userId = user.id;
+      const userEmpresaId = user.empresaId;
       const parsedEmpresaId = parseInt(empresaId);
       
+      console.log(`[SEGURANÇA] Requisição de busca de gift card por código "${codigo}" de usuário ${user.username} (ID: ${userId})`);
+      
+      // Verificar se a empresa do parâmetro coincide com a empresa do usuário logado
       if (userEmpresaId !== parsedEmpresaId) {
-        console.error(`Tentativa de acesso a dados de outra empresa: user ${userEmpresaId}, requested ${parsedEmpresaId}`);
+        console.log(`[SEGURANÇA - TENTATIVA NEGADA] Usuário ${user.username} (ID: ${userId}) tentou acessar dados da empresa ID: ${parsedEmpresaId}`);
         return res.status(403).json({ error: "Acesso negado a dados de outra empresa" });
       }
       
-      console.log(`Buscando gift cards pelo código ${codigo} para empresa ${empresaId}`);
+      console.log(`[SEGURANÇA] Buscando gift cards pelo código ${codigo} para o usuário ${userId} da empresa ${empresaId}`);
       
-      // Obtém todos os gift cards da empresa
-      const allGiftCards = await storage.getGiftCardsByEmpresa(parsedEmpresaId);
+      // SEGURANÇA APRIMORADA: Buscar apenas gift cards do usuário logado, não todos da empresa
+      const userGiftCards = await storage.getGiftCards(userId, undefined, parsedEmpresaId);
+      
+      // TRIPLA VERIFICAÇÃO DE SEGURANÇA: Filtrar explicitamente por userId
+      const meusgiftCards = userGiftCards.filter(card => card.userId === userId);
+      
+      console.log(`[SEGURANÇA] Encontrados ${meusgiftCards.length} gift cards do usuário ${userId}`);
       
       // Filtra os gift cards pelo código OU pelo gcNumber com lógica mais flexível
-      const matchingGiftCards = allGiftCards.filter(card => {
+      const matchingGiftCards = meusgiftCards.filter(card => {
         // Se ambos os campos estiverem vazios, não incluir
         if (!card.codigo && !card.gcNumber) return false;
         
@@ -2938,13 +2955,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }));
       
       // Verifica se o usuário é convidado para filtrar dados confidenciais
-      const userPerfilId = (req as any).user.perfilId || 0;
+      const userPerfilId = user.perfilId;
       const isGuest = await isGuestProfile(userPerfilId);
       
       // Filtra dados confidenciais se o usuário for convidado
       const filteredGiftCards = filterGiftCardArray(enrichedGiftCards, isGuest);
       
-      console.log(`Gift cards encontrados: ${filteredGiftCards.length}`);
+      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${userId}) encontrou ${filteredGiftCards.length} gift cards na busca por código "${codigo}"`);
       return res.json(filteredGiftCards);
     } catch (error) {
       console.error("Erro ao buscar gift cards por código:", error);
