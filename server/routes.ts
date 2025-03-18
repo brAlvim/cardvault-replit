@@ -822,7 +822,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       let userId = user.id;
       
-      // Permitir que administradores/gerentes vejam os gift cards de outros usuários
+      // CORREÇÃO DE SEGURANÇA CRÍTICA
+      // Por padrão, cada usuário só pode ver SEUS PRÓPRIOS gift cards
+      console.log(`[SEGURANÇA] Requisição /gift-cards de usuário ${user.username} (ID: ${userId})`);
+      
+      // Permitir que APENAS administradores/gerentes vejam os gift cards de outros usuários
+      // Usuários comuns e convidados NUNCA podem ver dados de outros usuários
       if (req.query.userId && (user.perfilId === 1 || user.perfilId === 2)) {
         const requestedUserId = parseInt(req.query.userId as string);
         
@@ -830,10 +835,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "Formato de ID de usuário inválido" });
         }
         
+        // LOG para auditoria de segurança - monitora tentativas de acesso a dados alheios
+        console.log(`[SEGURANÇA] Usuário ${user.username} (ID: ${userId}) solicitou acesso aos gift cards do usuário ID: ${requestedUserId}`);
+        
         // Se for gerente, verifica se o usuário solicitado pertence à mesma empresa
         if (user.perfilId === 2) {
           const requestedUser = await storage.getUser(requestedUserId);
           if (!requestedUser || requestedUser.empresaId !== user.empresaId) {
+            console.log(`[SEGURANÇA - TENTATIVA NEGADA] Gerente ${user.username} tentou acessar dados de usuário de outra empresa`);
             return res.status(403).json({ 
               message: "Você não tem permissão para acessar os gift cards deste usuário" 
             });
@@ -841,6 +850,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         userId = requestedUserId;
+        console.log(`[SEGURANÇA] Acesso autorizado para usuário ${user.username} (ID: ${userId}) visualizar gift cards do usuário ID: ${requestedUserId}`);
+      } else if (req.query.userId) {
+        // Se qualquer usuário que não seja admin ou gerente tentar acessar dados de outro usuário
+        console.log(`[SEGURANÇA - TENTATIVA NEGADA] Usuário ${user.username} (ID: ${userId}) tentou acessar dados de outro usuário`);
+        return res.status(403).json({ 
+          message: "Você não tem permissão para acessar os gift cards de outros usuários" 
+        });
       }
       
       const fornecedorId = req.query.fornecedorId ? parseInt(req.query.fornecedorId as string) : undefined;
@@ -852,40 +868,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const isGuest = await isGuestProfile(user.perfilId);
       
       if (search) {
+        console.log(`[SEGURANÇA] Busca por gift cards com termo: "${search}"`);
+        
         // Buscar por gift cards que correspondem ao termo de pesquisa
-        // Passamos o perfilId para aplicar as restrições baseadas em perfil
-        let giftCards = await storage.searchGiftCards(userId, search, user.perfilId);
+        // Aplicando filtro rigoroso: mostrar APENAS gift cards do próprio usuário
+        let giftCards = await storage.searchGiftCards(userId, search);
         
-        // Verificar acesso a cada gift card
-        const accessibleGiftCards = await Promise.all(
-          giftCards.map(async (card) => {
-            const hasAccess = await canUserAccessResource(
-              user.id,
-              card.userId,
-              user.empresaId,
-              user.perfilId
-            );
-            return hasAccess ? card : null;
-          })
-        );
+        console.log(`[SEGURANÇA] Gift cards encontrados na busca para o usuário ${userId}: ${giftCards.length}`);
         
-        // Filtrar os gift cards aos quais o usuário não tem acesso
-        let filteredGiftCards = accessibleGiftCards
-          .filter((card): card is GiftCard => card !== null);
+        // CORREÇÃO DE SEGURANÇA: Garantir que só mostraremos gift cards deste usuário
+        // Filtragem EXPLÍCITA por userId para garantir isolamento de dados
+        giftCards = giftCards.filter(card => card.userId === userId);
+        
+        console.log(`[SEGURANÇA] Gift cards após verificação de permissão: ${giftCards.length}`);
         
         // Aplicar criptografia ou mascaramento conforme o perfil
         if (isGuest) {
-          filteredGiftCards = filterGiftCardArray(filteredGiftCards, true, user.empresaId);
+          giftCards = filterGiftCardArray(giftCards, true, user.empresaId);
         } else {
-          filteredGiftCards = filteredGiftCards.map(card => decryptGiftCardData(card, user.empresaId));
+          giftCards = giftCards.map(card => decryptGiftCardData(card, user.empresaId));
         }
         
-        return res.json(filteredGiftCards);
+        console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${userId}) pesquisou gift cards (${giftCards.length} resultados)`);
+        return res.json(giftCards);
       }
       
       // Buscar gift cards por fornecedor ou todos
-      // Passamos o perfilId para que a lógica de filtragem baseada em perfil seja aplicada
-      let giftCards = await storage.getGiftCards(userId, fornecedorId, empresaId, user.perfilId);
+      console.log(`[SEGURANÇA] Buscando gift cards para usuário ${userId}${fornecedorId ? ` e fornecedor ${fornecedorId}` : ''}`);
+      
+      // Aplicação de isolamento estrito: cada usuário SÓ PODE ver seus próprios gift cards
+      let giftCards = await storage.getGiftCards(userId, fornecedorId, empresaId);
+      
+      // CORREÇÃO DE SEGURANÇA CRÍTICA: Filtrar explicitamente pelo userId
+      // Isso garante que mesmo se houver algum erro no storage, ainda teremos esse filtro
+      giftCards = giftCards.filter(card => card.userId === userId);
+      
+      console.log(`[SEGURANÇA] Gift cards encontrados para usuário ${userId}: ${giftCards.length}`);
+      console.log(`[SEGURANÇA] IDs dos gift cards: ${giftCards.map(c => c.id).join(', ') || 'nenhum'}`);
       
       // Filtrar dados confidenciais conforme o perfil
       if (isGuest) {
@@ -894,9 +913,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         giftCards = giftCards.map(card => decryptGiftCardData(card, user.empresaId));
       }
       
+      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${userId}) consultou gift cards (${giftCards.length} resultados)`);
       res.json(giftCards);
     } catch (error) {
-      console.error("Erro ao listar gift cards:", error);
+      console.error("[ERRO CRÍTICO] Falha ao listar gift cards:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
@@ -2037,17 +2057,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[SEGURANÇA] Requisição /collections de usuário ${user.username} (ID: ${userId}) da empresa ID: ${empresaId}`);
       
-      // PATCH DE SEGURANÇA CRÍTICA: ISOLAMENTO ESTRITO DE DADOS POR USUÁRIO
+      // CORREÇÃO DE SEGURANÇA CRÍTICA: ISOLAMENTO ESTRITO DE DADOS POR USUÁRIO
       // Todos os usuários SÓ PODEM VER OS FORNECEDORES QUE ELES MESMOS CRIARAM
       // Independentemente do tipo de perfil, só mostrar dados criados pelo próprio usuário
       console.log(`[SEGURANÇA CRÍTICA] Aplicando isolamento estrito de dados para o usuário ${user.username} (ID: ${userId})`);
       
-      // Forçar sempre usar apenas o ID do usuário autenticado para buscar fornecedores
+      // CORREÇÃO DE VAZAMENTO DE DADOS: Usar explicitamente getFornecedores que filtra por userId
+      // Antes: estava usando uma função que não aplicava o filtro de usuário corretamente
       let fornecedores: Fornecedor[] = await storage.getFornecedores(userId, empresaId);
+      
+      // Validação adicional: filtrar explicitamente pelo userId do usuário autenticado
+      fornecedores = fornecedores.filter(f => f.userId === userId);
       
       console.log(`[SEGURANÇA CRÍTICA] Fornecedores encontrados após isolamento de segurança: ${fornecedores.length}`);
       console.log(`[SEGURANÇA CRÍTICA] IDs de fornecedores acessíveis para o usuário: ${fornecedores.map(f => f.id).join(', ')}`);
-      
       
       // Filtrar para retornar apenas fornecedores ativos
       const fornecedoresAtivos = fornecedores.filter(f => f.status === "ativo");
@@ -2057,6 +2080,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         id: f.id,
         nome: f.nome,
         logo: f.logo,
+        userId: f.userId, // Incluir userId para facilitar auditoria e debugging
         empresaId: f.empresaId // Inclui o empresaId para facilitar futuras filtragens
       }));
       
@@ -2064,6 +2088,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(collections);
     } catch (error) {
+      console.error("[ERRO CRÍTICO] Falha ao buscar collections:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
