@@ -485,18 +485,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   router.get("/search", requireAuth, async (req: Request, res: Response) => {
     try {
       const searchTerm = req.query.q as string;
-      const userId = (req as any).user?.id || 1; // Usuário atual
-      const empresaId = (req as any).user?.empresaId || 1;
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Usuário não autenticado" });
+      }
+      
+      // ISOLAMENTO ESTRITO DE DADOS - CORREÇÃO DE SEGURANÇA
+      // Usar SEMPRE e APENAS os dados do usuário autenticado
+      const userId = user.id;
+      const empresaId = user.empresaId;
+      
+      console.log(`[SEGURANÇA] Busca global por "${searchTerm}" pelo usuário ${user.username} (ID: ${userId})`);
 
       if (!searchTerm) {
         return res.status(400).json({ message: "Search term is required" });
       }
 
-      // Buscar em fornecedores - usamos getFornecedoresByEmpresa em vez de getFornecedores
-      // pois precisamos de todos os fornecedores da empresa, não apenas do usuário específico
-      const fornecedores = await storage.getFornecedoresByEmpresa(empresaId);
-      console.log("Fornecedores encontrados:", fornecedores.map(f => f.nome));
-      console.log("Termo de busca:", searchTerm);
+      // CORREÇÃO CRÍTICA: Buscar APENAS fornecedores do próprio usuário
+      // Chamada direta ao banco para garantir isolamento total
+      const fornecedores = await db.select().from(schema.fornecedores)
+        .where(eq(schema.fornecedores.userId, userId))
+        .where(eq(schema.fornecedores.empresaId, empresaId));
+      
+      console.log(`[SEGURANÇA] Fornecedores do usuário ${userId} encontrados: ${fornecedores.length}`);
+      
       const matchingFornecedores = fornecedores.filter(f => 
         f.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
         (f.descricao && f.descricao.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -2520,47 +2532,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Usuário não autenticado" });
       }
       
-      // Usar sempre o ID do usuário autenticado - isolamento estrito de dados
+      // CORREÇÃO CRITICA DE SEGURANÇA: ISOLAMENTO ABSOLUTO POR USUÁRIO
+      // Usar SEMPRE o ID do usuário autenticado - isolamento estrito de dados
       const userId = user.id;
       
-      // Usar sempre a empresa do usuário autenticado para garantir isolamento
+      // Usar SEMPRE a empresa do usuário autenticado para garantir isolamento
       const empresaId = user.empresaId;
       
       console.log(`[SEGURANÇA] Requisição /collections de usuário ${user.username} (ID: ${userId}) da empresa ID: ${empresaId}`);
+      console.log(`[SEGURANÇA CRÍTICA - PROTEÇÃO ATIVADA] Aplicando isolamento estrito de dados para o usuário ${user.username} (ID: ${userId})`);
       
-      // CORREÇÃO DE SEGURANÇA CRÍTICA: ISOLAMENTO ESTRITO DE DADOS POR USUÁRIO
-      // Todos os usuários SÓ PODEM VER OS FORNECEDORES QUE ELES MESMOS CRIARAM
-      // Independentemente do tipo de perfil, só mostrar dados criados pelo próprio usuário
-      console.log(`[SEGURANÇA CRÍTICA] Aplicando isolamento estrito de dados para o usuário ${user.username} (ID: ${userId})`);
+      // IMPLEMENTAÇÃO DE SEGURANÇA RIGOROSA:
+      // 1. Chamar diretamente getFornecedores que já tem filtro por userId e empresaId
+      const fornecedores = await storage.getFornecedores(userId, empresaId);
       
-      // CORREÇÃO DE VAZAMENTO DE DADOS: Usar explicitamente getFornecedores que filtra por userId
-      // Antes: estava usando uma função que não aplicava o filtro de usuário corretamente
-      let fornecedores: Fornecedor[] = await storage.getFornecedores(userId, empresaId);
+      console.log(`[SEGURANÇA CRÍTICA] Fornecedores encontrados para userId=${userId}: ${fornecedores.length}`);
+      console.log(`[SEGURANÇA CRÍTICA] IDs de fornecedores acessíveis: ${fornecedores.map(f => f.id).join(', ')}`);
       
-      // Validação adicional: filtrar explicitamente pelo userId do usuário autenticado
-      fornecedores = fornecedores.filter(f => f.userId === userId);
-      
-      console.log(`[SEGURANÇA CRÍTICA] Fornecedores encontrados após isolamento de segurança: ${fornecedores.length}`);
-      console.log(`[SEGURANÇA CRÍTICA] IDs de fornecedores acessíveis para o usuário: ${fornecedores.map(f => f.id).join(', ')}`);
-      
-      // Filtrar para retornar apenas fornecedores ativos
+      // 2. Filtrar para retornar apenas fornecedores ativos
       const fornecedoresAtivos = fornecedores.filter(f => f.status === "ativo");
       
-      // Mapear para o formato esperado pelo sidebar
+      // 3. Mapear para o formato esperado pelo sidebar com informações mínimas necessárias
       const collections = fornecedoresAtivos.map(f => ({
         id: f.id,
         nome: f.nome,
         logo: f.logo,
-        userId: f.userId, // Incluir userId para facilitar auditoria e debugging
-        empresaId: f.empresaId // Inclui o empresaId para facilitar futuras filtragens
+        userId: f.userId, // Incluir userId para auditoria de segurança
+        empresaId: f.empresaId // Necessário para validação de segurança no frontend
       }));
       
-      console.log(`[AUDITORIA] Usuário ${user.username} (ID: ${userId}) consultou collections (${collections.length} resultados)`);
+      console.log(`[AUDITORIA DE SEGURANÇA] Usuário ${user.username} (ID: ${userId}) consultou collections (${collections.length} resultados)`);
       
       res.json(collections);
     } catch (error) {
-      console.error("[ERRO CRÍTICO] Falha ao buscar collections:", error);
-      res.status(500).json({ message: "Internal server error" });
+      console.error("[ERRO CRÍTICO DE SEGURANÇA] Falha ao buscar collections:", error);
+      res.status(500).json({ message: "Erro interno do servidor" });
     }
   });
 
