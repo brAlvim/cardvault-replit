@@ -85,7 +85,12 @@ export default function GiftCardSelector({ onGiftCardSelected, initialSelectedCa
         }
         
         const data = await res.json();
-        return Array.isArray(data) ? data : [];
+        // Verificar explicitamente se é array e retornar array vazio caso não seja
+        if (!Array.isArray(data)) {
+          console.error("Dados de fornecedores não é um array:", data);
+          return [];
+        }
+        return data;
       } catch (error) {
         console.error("Erro ao buscar fornecedores:", error);
         return [];
