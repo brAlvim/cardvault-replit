@@ -822,42 +822,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       let userId = user.id;
       
-      // CORREÇÃO DE SEGURANÇA CRÍTICA
-      // Por padrão, cada usuário só pode ver SEUS PRÓPRIOS gift cards
+      // ISOLAMENTO ESTRITO DE DADOS - VERSÃO 2.0
+      // NENHUM usuário pode ver os gift cards de outros usuários, nem mesmo administradores
       console.log(`[SEGURANÇA] Requisição /gift-cards de usuário ${user.username} (ID: ${userId})`);
       
-      // Permitir que APENAS administradores/gerentes vejam os gift cards de outros usuários
-      // Usuários comuns e convidados NUNCA podem ver dados de outros usuários
-      if (req.query.userId && (user.perfilId === 1 || user.perfilId === 2)) {
+      // Se qualquer usuário tentar acessar dados de outro usuário, bloquear imediatamente
+      if (req.query.userId) {
         const requestedUserId = parseInt(req.query.userId as string);
-        
-        if (isNaN(requestedUserId)) {
-          return res.status(400).json({ message: "Formato de ID de usuário inválido" });
-        }
-        
-        // LOG para auditoria de segurança - monitora tentativas de acesso a dados alheios
-        console.log(`[SEGURANÇA] Usuário ${user.username} (ID: ${userId}) solicitou acesso aos gift cards do usuário ID: ${requestedUserId}`);
-        
-        // Se for gerente, verifica se o usuário solicitado pertence à mesma empresa
-        if (user.perfilId === 2) {
-          const requestedUser = await storage.getUser(requestedUserId);
-          if (!requestedUser || requestedUser.empresaId !== user.empresaId) {
-            console.log(`[SEGURANÇA - TENTATIVA NEGADA] Gerente ${user.username} tentou acessar dados de usuário de outra empresa`);
-            return res.status(403).json({ 
-              message: "Você não tem permissão para acessar os gift cards deste usuário" 
-            });
-          }
-        }
-        
-        userId = requestedUserId;
-        console.log(`[SEGURANÇA] Acesso autorizado para usuário ${user.username} (ID: ${userId}) visualizar gift cards do usuário ID: ${requestedUserId}`);
-      } else if (req.query.userId) {
-        // Se qualquer usuário que não seja admin ou gerente tentar acessar dados de outro usuário
-        console.log(`[SEGURANÇA - TENTATIVA NEGADA] Usuário ${user.username} (ID: ${userId}) tentou acessar dados de outro usuário`);
+        console.log(`[SEGURANÇA - ISOLAMENTO TOTAL] Usuário ${user.username} (ID: ${userId}) tentou acessar dados do usuário ID: ${requestedUserId}`);
+        console.log(`[SEGURANÇA - TENTATIVA NEGADA] Bloqueando acesso - Ninguém pode ver os dados de outro usuário`);
         return res.status(403).json({ 
           message: "Você não tem permissão para acessar os gift cards de outros usuários" 
         });
       }
+      
+      // Usar APENAS o ID do usuário autenticado - sem exceções
+      console.log(`[SEGURANÇA - ISOLAMENTO TOTAL] Aplicando isolamento estrito para ${user.username} (ID: ${userId})`);
       
       const fornecedorId = req.query.fornecedorId ? parseInt(req.query.fornecedorId as string) : undefined;
       // Sempre usa a empresa do usuário autenticado para garantir isolamento de dados
@@ -1096,28 +1076,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Usuário não autenticado" });
       }
       
-      let userId = user.id;
+      // ISOLAMENTO ESTRITO DE DADOS - VERSÃO 2.0
+      // Usar APENAS o ID do usuário autenticado - NINGUÉM pode ver os dados de outros usuários
+      const userId = user.id;
       
-      // Permitir que administradores e gerentes vejam os gift cards de outros usuários
-      if (req.params.userId && (user.perfilId === 1 || user.perfilId === 2)) {
+      console.log(`[SEGURANÇA] Requisição /gift-cards/vencimento de usuário ${user.username} (ID: ${userId})`);
+      
+      // Se qualquer usuário tentar acessar dados de outro usuário, bloquear imediatamente
+      if (req.params.userId) {
         const requestedUserId = parseInt(req.params.userId);
-        
-        if (isNaN(requestedUserId)) {
-          return res.status(400).json({ message: "Formato de ID de usuário inválido" });
-        }
-        
-        // Se for gerente, verificar se o usuário solicitado pertence à mesma empresa
-        if (user.perfilId === 2) {
-          const requestedUser = await storage.getUser(requestedUserId);
-          if (!requestedUser || requestedUser.empresaId !== user.empresaId) {
-            return res.status(403).json({ 
-              message: "Você não tem permissão para acessar os gift cards deste usuário" 
-            });
-          }
-        }
-        
-        userId = requestedUserId;
+        console.log(`[SEGURANÇA - ISOLAMENTO TOTAL] Usuário ${user.username} (ID: ${userId}) tentou acessar dados do usuário ID: ${requestedUserId}`);
+        console.log(`[SEGURANÇA - TENTATIVA NEGADA] Bloqueando acesso - Ninguém pode ver os dados de outro usuário`);
+        return res.status(403).json({ 
+          message: "Você não tem permissão para acessar os gift cards de outros usuários" 
+        });
       }
+      
+      console.log(`[SEGURANÇA - ISOLAMENTO TOTAL] Aplicando isolamento estrito para ${user.username} (ID: ${userId})`);
       
       // Validar o parâmetro de dias
       const dias = parseInt(req.params.dias);
